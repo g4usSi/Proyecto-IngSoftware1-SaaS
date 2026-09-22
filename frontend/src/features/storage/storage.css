@@ -1,0 +1,5 @@
+/* Estilos exclusivos de Storage. Coordinar con Geovanny y Alegría.
+ * Colores: usar variables de styles/theme.css.
+ */
+.storage-heading .button { font-size: 11px; padding: 12px 17px; }
+.storage-heading .button .icon { width: 17px; }

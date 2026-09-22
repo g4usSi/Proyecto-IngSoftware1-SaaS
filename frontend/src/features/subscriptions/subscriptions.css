@@ -1,0 +1,13 @@
+/* Catálogo y futuras pantallas de suscripciones. Coordinar con Elden y Alegría.
+ * Colores: usar variables de styles/theme.css.
+ */
+.catalog-retry { display: flex; justify-content: center; margin-top: -24px; padding-bottom: 35px; }
+.catalog-retry .button { font-size: 11px; padding: 10px 16px; }
+.plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 20px; padding: 25px; }
+.plan-card { border: 1px solid var(--color-plan-border); padding: 27px; border-radius: 10px; max-width: 420px; background: linear-gradient(160deg, var(--color-plan-start), var(--color-plan-end)); }
+.plan-card h2 { font-size: 25px; margin-top: 9px; }
+.plan-price { font-size: 23px; font-weight: 700; letter-spacing: -.04em; margin-top: 22px; }
+.plan-price small { font-size: 11px; color: var(--color-text-muted); font-weight: 400; letter-spacing: 0; }
+.plan-card ul { list-style: none; padding: 18px 0; margin: 18px 0; border-top: 1px solid var(--color-plan-divider); display: grid; gap: 14px; font-size: 11px; color: var(--color-text-muted); }
+.plan-card strong { color: var(--color-ink); }
+.plan-card .button { width: 100%; font-size: 10px; }

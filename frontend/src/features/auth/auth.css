@@ -1,0 +1,43 @@
+/* Pantallas de registro y acceso. Coordinar cambios de UI con Andy y Alegría.
+ * Colores: usar variables de styles/theme.css.
+ */
+.auth-page { display: grid; grid-template-columns: 44% 56%; min-height: 100vh; }
+.auth-story { display: flex; flex-direction: column; justify-content: space-between; gap: 50px; background: var(--color-ink); color: var(--color-paper); padding: 40px 54px; }
+.auth-story > div { padding-block: 20px; }
+.auth-story .eyebrow { color: var(--color-auth-kicker); font-size: 8px; margin-bottom: 22px; }
+.auth-story h1 { font-size: clamp(40px, 5vw, 66px); line-height: 1.08; margin-bottom: 26px; font-weight: 600; }
+.auth-story h1 em { color: var(--color-primary); font-style: normal; }
+.auth-story p { color: var(--color-auth-description); font-size: 13px; }
+.auth-mark { width: 72px; height: 72px; display: grid; place-items: center; background: var(--color-secondary-soft); border: 1px solid var(--color-auth-mark-border); border-radius: 18px; color: var(--color-auth-mark); margin-bottom: 28px; }
+.auth-mark .icon { width: 34px; height: 34px; }
+.auth-back { color: var(--color-auth-back); font-size: 11px; }
+.auth-back:hover { color: var(--color-primary); }
+.auth-content { display: flex; align-items: center; justify-content: center; padding: 56px 40px; background: var(--color-auth-surface); }
+.auth-card { max-width: 375px; width: 100%; }
+.auth-card h2 { font-size: 30px; margin-top: 11px; line-height: 1.2; }
+.auth-intro { font-size: 12px; color: var(--color-text-muted); margin-top: 12px; }
+.availability-note { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px; margin: 25px 0; border: 1px solid var(--color-auth-notice-border); background: var(--color-auth-notice-surface); border-radius: 8px; }
+.availability-note .icon { width: 16px; height: 16px; color: var(--color-auth-notice-icon); margin-top: 2px; }
+.availability-note p { font-size: 10px; color: var(--color-auth-notice-text); line-height: 1.7; }
+.availability-note strong { display: block; font-weight: 700; margin-bottom: 3px; }
+.auth-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.auth-fields label { display: block; margin-bottom: 18px; font-size: 11px; font-weight: 600; color: var(--color-input-label); }
+.auth-fields input { display: block; width: 100%; border: 1px solid var(--color-input-border); background: var(--color-input-surface); padding: 13px 14px; border-radius: 6px; margin-top: 8px; font-size: 11px; }
+.auth-fields input::placeholder { color: var(--color-input-placeholder); opacity: 1; }
+.auth-fields .button { width: 100%; margin-top: 6px; justify-content: space-between; }
+.auth-switch { font-size: 11px; color: var(--color-text-muted); margin-top: 25px; text-align: center; }
+.auth-switch a { color: var(--color-auth-link); font-weight: 700; }
+.explore-link { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 30px; border-top: 1px solid var(--color-auth-divider); padding-top: 20px; font-size: 10px; color: var(--color-auth-explore); }
+.explore-link .icon { width: 15px; }
+@media (max-width: 1100px) {
+  .auth-story { padding: 35px; } }
+@media (max-width: 800px) {
+  .auth-page { grid-template-columns: 1fr; }
+  .auth-story { padding: 25px 32px; gap: 22px; }
+  .auth-story > div { display: none; }
+  .auth-back { font-size: 10px; }
+  .auth-content { padding: 45px 28px; } }
+@media (max-width: 520px) {
+  .auth-story { padding: 24px; }
+  .auth-content { padding: 35px 24px; }
+  .auth-card h2 { font-size: 27px; } }

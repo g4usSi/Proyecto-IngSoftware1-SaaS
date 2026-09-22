@@ -1,0 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import './theme.css';
+@import './base.css';
+@import './components.css';
+@import '../app/layout.css';
+@import '../app/landing.css';
+@import '../features/auth/auth.css';
+@import '../features/storage/storage.css';
+@import '../features/subscriptions/subscriptions.css';
+
+/* Entrada única de CSS. Cada módulo mantiene sus reglas y media queries en su archivo. */

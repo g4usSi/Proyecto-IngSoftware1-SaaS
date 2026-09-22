@@ -55,7 +55,7 @@ export function PlansPage() {
         </article>)}</div>}
         <div className="library-note" id="subscription-pending"><Icon name="lock" /><span>La contratación de planes estará disponible al integrar las cuentas.</span></div>
       </section>
-      <div className="storage-explainer"><span className="explainer-icon"><Icon name="spark" /></span><div><h2>Empieza por lo sencillo.</h2><p>El plan Free será el punto de partida al crear una cuenta. Todavía no hay una suscripción activa en esta vista.</p></div></div>
+      <div className="feature-explainer"><span className="explainer-icon"><Icon name="spark" /></span><div><h2>Empieza por lo sencillo.</h2><p>El plan Free será el punto de partida al crear una cuenta. Todavía no hay una suscripción activa en esta vista.</p></div></div>
     </>
   );
 }

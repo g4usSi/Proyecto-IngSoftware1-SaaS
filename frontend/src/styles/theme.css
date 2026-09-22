@@ -1,0 +1,122 @@
+/* Paleta única de la interfaz. Responsable de coordinación: Alegría.
+ * Los nombres describen el uso; se puede cambiar el color sin renombrar clases.
+ * Mantener contraste de texto, botones, estados y foco al cambiar la paleta.
+ */
+:root {
+  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+
+  /* Marca y colores generales. */
+  --color-ink: #171325;
+  --color-dark: #0e0b18;
+  --color-paper: #fdf3ea;
+  --color-primary: #fb7a3c;
+  --color-secondary: #8b5cf6;
+  --color-white: #ffffff;
+  --color-text-muted: #71697b;
+  --color-border: #e9e3ec;
+
+  /* Botones y etiquetas. Ajustar también hover y estados deshabilitados. */
+  --color-primary-hover: #ff9563;
+  --color-disabled-surface: #e5e0e9;
+  --color-disabled-text: #655d71;
+  --color-eyebrow: #735295;
+
+  /* Portada e ilustración: tonos de texto, superficies y transparencias. */
+  --color-dark-divider: #ffffff15;
+  --color-public-nav: #c9bed3;
+  --color-hero-kicker: #e1c6b4;
+  --color-hero-description: #c1b7cc;
+  --color-hero-link: #e1d9e9;
+  --color-development-text: #aca0bc;
+  --color-development-dot: #92859f;
+  --color-pipeline-start: #2a223b;
+  --color-pipeline-end: #201a2e;
+  --color-pipeline-border: #5e4c724d;
+  --color-pipeline-shadow: #0b071d50;
+  --color-pipeline-label: #b7a5c9;
+  --color-file-border: #ffffff16;
+  --color-file-surface: #ffffff03;
+  --color-file-icon-surface: #ffffff0a;
+  --color-file-icon: #c9b5dc;
+  --color-file-description: #b7a7c7;
+  --color-file-format: #c9bad7;
+  --color-process-line: #8b5cf673;
+  --color-process-border: #8b5cf656;
+  --color-process-text: #d7bffd;
+  --color-secondary-soft: #8b5cf611;
+  --color-optimized-border: #ffffff2b;
+  --color-optimized-shadow: #08041140;
+  --color-illustration-sky: #ccc2ea;
+  --color-illustration-sun: #fbad79;
+  --color-illustration-mountain-back: #8a6aad;
+  --color-illustration-mountain-front: #4e3c73;
+  --color-image-label-surface: #fdf3eae8;
+  --color-image-caption: #756381;
+  --color-image-symbol-border: #dcc9dd;
+  --color-pipeline-footer: #c2b2d0;
+  --color-pipeline-footer-icon: #b28aff;
+  --color-pipeline-caption: #a697b8;
+  --color-paper-divider: #e8dace;
+  --color-process-step-icon: #705385;
+  --color-process-step-number: #927586;
+
+  /* Indicador de disponibilidad de la API. */
+  --color-status-pending: #a89eb1;
+  --color-status-online: #328460;
+  --color-status-offline: #a16a33;
+
+  /* Navegación y estructura de la aplicación. */
+  --color-sidebar-text: #c9bed4;
+  --color-sidebar-label: #a391b6;
+  --color-sidebar-hover: #ffffff08;
+  --color-sidebar-active-text: #fff1e7;
+  --color-sidebar-active-start: #8b5cf633;
+  --color-sidebar-active-end: #fb7a3c1c;
+  --color-sidebar-description: #c9b8d7;
+  --color-sidebar-link: #a99ab9;
+  --color-workspace-surface: #fcfafc;
+  --color-preview-text: #675179;
+  --color-preview-border: #e9dff0;
+  --color-preview-surface: #f9f5fc;
+
+  /* Paneles y mensajes compartidos. */
+  --color-panel-divider: #efebf2;
+  --color-panel-icon: #8c719e;
+  --color-badge-text: #6d597e;
+  --color-badge-surface: #f4eef8;
+  --color-pending-border: #eaddf3;
+  --color-pending-start: #f5ecff;
+  --color-pending-end: #fff4e9;
+  --color-pending-icon: #8a64b0;
+  --color-note-surface: #fdfbff;
+  --color-note-text: #7a6b88;
+  --color-explainer-surface: #f8f2ed;
+  --color-explainer-icon: #9c613f;
+  --color-explainer-text: #7d706b;
+
+  /* Planes y suscripciones. */
+  --color-plan-border: #e5d9ec;
+  --color-plan-start: #fdf9ff;
+  --color-plan-end: #fffaf5;
+  --color-plan-divider: #e8dfee;
+
+  /* Autenticación y campos de formulario. */
+  --color-auth-kicker: #bd9fcb;
+  --color-auth-description: #b5a5c5;
+  --color-auth-mark-border: #8b5cf646;
+  --color-auth-mark: #b486f8;
+  --color-auth-back: #d1c1dd;
+  --color-auth-surface: #fdfaf7;
+  --color-auth-notice-border: #e6ddef;
+  --color-auth-notice-surface: #f5effa;
+  --color-auth-notice-icon: #806291;
+  --color-auth-notice-text: #705b81;
+  --color-input-label: #514657;
+  --color-input-border: #ded4e4;
+  --color-input-surface: #fbf8fc;
+  --color-input-placeholder: #8b7e94;
+  --color-auth-link: #725295;
+  --color-auth-divider: #e9e0e7;
+  --color-auth-explore: #776886;
+  --color-public-nav-divider: #ffffff12;
+}

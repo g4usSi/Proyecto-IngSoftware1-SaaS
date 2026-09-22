@@ -73,9 +73,10 @@ El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el pue
 
 ```text
 frontend/src/
-  app/                     Navegación y estilos
+  app/                     Navegación, estructura visual y portada
+  styles/                  Tema, reglas globales y componentes compartidos
   components/              Componentes compartidos
-  features/                auth, storage, subscriptions
+  features/                auth, storage, subscriptions; estilos propios por módulo
   services/                Cliente HTTP
 backend/
   src/
@@ -108,5 +109,7 @@ Ver [decisiones y cálculo del ahorro](docs/decisiones.md), [contratos de API](d
 Andy puede iniciar el módulo `backend/src/modules/auth/` usando el contrato de `requireAuth`. Geovanny continúa Storage; Elden, planes/suscripciones; Diego, frontend e integración. Cada trabajo nuevo parte de esta base compartida.
 
 Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos con un compañero antes de integrar a `main`. No subir `.env`, imágenes de usuarios, contraseñas o `node_modules`. El archivo `package-lock.json` se versiona para instalar las mismas dependencias con `npm ci`.
+
+Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
 Redis queda disponible mediante `docker compose --profile worker up -d`, pero todavía no hay worker ni colas implementadas.

@@ -1,2 +1,17 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Código y documentación con el mismo fin de línea en Windows, macOS y Linux.
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
