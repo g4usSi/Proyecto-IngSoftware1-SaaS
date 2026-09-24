@@ -5,10 +5,14 @@ import { database as defaultDatabase } from './config/database.js';
 import { AppError } from './lib/app-error.js';
 import { notFound, errorHandler } from './middleware/error-handler.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
-import { createStorageRouter } from './modules/storage/storage.routes.js';
+import { createStorageRouter, createStorageAdminRouter } from './modules/storage/storage.routes.js';
+import { createStorageDemo } from './dev/storage-demo.js';
 import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js';
 
-export function createApp({ database = defaultDatabase, corsOrigins = env.corsOrigins } = {}) {
+export function createApp({
+  database = defaultDatabase, corsOrigins = env.corsOrigins,
+  storageRoot = env.storageRoot, storageDemo = env.storageDemo, storageAuthenticate,
+} = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({
@@ -33,7 +37,11 @@ export function createApp({ database = defaultDatabase, corsOrigins = env.corsOr
   });
 
   app.use('/api/auth', createAuthRouter());
-  app.use('/api/files', createStorageRouter());
+  const demo = createStorageDemo({ database, enabled: storageDemo });
+  const storageOptions = { database, storageRoot, authenticate: storageAuthenticate || demo.authenticate };
+  app.use('/api/dev', demo.router);
+  app.use('/api/files', createStorageRouter(storageOptions));
+  app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api', createSubscriptionsRouter(database));
   app.use(notFound);
   app.use(errorHandler);

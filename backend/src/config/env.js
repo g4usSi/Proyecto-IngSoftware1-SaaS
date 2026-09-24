@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const backendRoot = fileURLToPath(new URL('../../', import.meta.url));
+const projectRoot = path.resolve(backendRoot, '..');
 dotenv.config({ path: path.join(backendRoot, '.env'), quiet: true });
 
 export function readEnv(source = process.env) {
@@ -51,13 +52,27 @@ export function readEnv(source = process.env) {
     }
   }
 
+  const host = source.HOST || '127.0.0.1';
+  const rawDemo = source.STORAGE_DEMO_ENABLED || 'false';
+  if (!['true', 'false'].includes(rawDemo)) {
+    throw new Error('STORAGE_DEMO_ENABLED debe ser true o false.');
+  }
+  const storageDemo = rawDemo === 'true';
+  const loopbackHosts = ['localhost', '127.0.0.1', '::1', '[::1]'];
+  if (storageDemo && (nodeEnv === 'production' || !loopbackHosts.includes(host) ||
+      corsOrigins.some((origin) => !loopbackHosts.includes(new URL(origin).hostname)))) {
+    throw new Error('La demostración Storage solo puede activarse localmente, fuera de producción y con orígenes loopback.');
+  }
+
   return Object.freeze({
     nodeEnv,
-    host: source.HOST || '127.0.0.1',
+    host,
     port,
     corsOrigins,
     databaseUrl,
-    storageRoot: path.resolve(backendRoot, source.STORAGE_ROOT || './data/objects'),
+    // Las rutas relativas se resuelven desde la raíz del repositorio.
+    storageRoot: path.resolve(projectRoot, source.STORAGE_ROOT || './storage'),
+    storageDemo,
   });
 }
 
