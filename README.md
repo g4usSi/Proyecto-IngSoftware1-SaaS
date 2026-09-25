@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: backend de autenticación y Storage integrados.** El registro asigna el plan Free y, tras iniciar sesión, un token JWT permite subir y descargar imágenes. La interfaz de login sigue pendiente de conectar por Alegría.
+**Estado: autenticación, Storage e interfaz integrados.** El registro asigna el plan Free y, tras iniciar sesión, un token JWT permite subir y descargar imágenes. La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 
@@ -16,7 +16,7 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Demostración local opcional con dos cuentas y selector explícito en la biblioteca.
 - Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
 
-La interfaz de registro/login, los pagos, el borrado y los workers **están pendientes**. El backend ya admite el recorrido real mediante API; la demostración sigue siendo una alternativa local para probar la biblioteca desde el navegador.
+Los pagos, el borrado y los workers **están pendientes**. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
 
 ## Arranque rápido
 
@@ -32,7 +32,8 @@ npm run dev
 
 En macOS/Linux, copiar el ejemplo solo si aún no existe `.env`. Usar `npm.cmd` si la política local de PowerShell impide ejecutar `npm.ps1`.
 
-- Interfaz: <http://localhost:5173>
+- Portada: <http://127.0.0.1:5173/>
+- Panel: <http://127.0.0.1:5173/app>
 - Estado del servidor: <http://127.0.0.1:3000/api/health>
 - Disponibilidad de PostgreSQL: <http://127.0.0.1:3000/api/ready>
 - Catálogo real: <http://127.0.0.1:3000/api/plans>
@@ -53,7 +54,7 @@ La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el 
 
 Para usar el login real, configura un `JWT_SECRET` propio de al menos 32 caracteres en `backend/.env`. El ejemplo incluido debe reemplazarse antes de compartir o desplegar la aplicación. Sin ese valor, las rutas de autenticación protegidas devuelven `503`.
 
-Al iniciar o reiniciar la API en modo demo, la terminal muestra la dirección de la API y el enlace directo al frontend: <http://127.0.0.1:5173/app/storage>. Vite también imprime su dirección cuando arranca.
+Al iniciar o reiniciar la API en desarrollo, la terminal muestra las direcciones de la API, la portada y el panel. En modo demo también muestra el enlace directo a la biblioteca: <http://127.0.0.1:5173/app/storage>. Vite imprime su dirección cuando arranca.
 
 ### Base de datos instalada localmente
 
@@ -84,7 +85,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 
 El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el puerto del backend, actualizar `API_PROXY_TARGET` en `frontend/.env` y reiniciar Vite. `frontend/dist` es solo la interfaz: el despliegue deberá proporcionar la API y configurar `/api` en el servidor frontal.
 
-Para conectar el login real y adaptar las pantallas, comenzar por [el traspaso al frontend](docs/frontend-handoff.md). Los contratos detallados están en [autenticación](docs/auth-frontend.md) y [API](docs/api.md).
+Los contratos del backend están en [autenticación](docs/auth-frontend.md) y [API](docs/api.md). El [traspaso al frontend](docs/frontend-handoff.md) conserva los criterios de integración usados para esta versión.
 
 ## Organización
 
