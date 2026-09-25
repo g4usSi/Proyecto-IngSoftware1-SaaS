@@ -49,13 +49,15 @@ npm run db:migrate
 npm run dev:demo
 ```
 
-Abrir `http://localhost:5173/app/storage`. Seleccionar explícitamente Demo Storage A. Cargar una imagen, comprobar sus dos tamaños y descargar el WebP. Cambiar a Demo Storage B: la lista debe estar vacía inicialmente. Subir el mismo archivo y comprobar que hay un solo WebP físico. Volver a A conserva su registro.
+Abrir `http://127.0.0.1:5173/` y usar **Probar demo local sin crear cuenta**; el enlace solo aparece si `dev:demo` está activo. Seleccionar explícitamente Demo Storage A en Mi biblioteca. Cargar una imagen, comprobar sus dos tamaños y descargar el WebP. Cambiar a Demo Storage B desde la franja superior o el menú de cuenta: no debe mostrar imágenes de A. Subir el mismo archivo y comprobar que hay un solo WebP físico. Volver a A conserva su registro. El resumen, historial, ahorro y plan Free muestran la cuenta seleccionada; ninguna cuenta demo constituye una sesión JWT.
 
-`dev:demo` prepara las cuentas de forma idempotente; no borra archivos ni reinicia cuotas. Las cuentas tienen plan Free y no tienen contraseña de login. La variable `STORAGE_DEMO_ENABLED=true` solo se pasa al proceso hijo; no se escribe en `.env`. Al volver a `npm run dev`, la demo está desactivada por defecto.
+`dev:demo` prepara las cuentas de forma idempotente; no borra archivos ni reinicia cuotas. Las cuentas tienen plan Free y no tienen contraseña de login. La variable `STORAGE_DEMO_ENABLED=true` solo se pasa al proceso hijo; no se escribe en `.env`. Al volver a `npm run dev`, la demo está desactivada por defecto. Detener antes cualquier `npm run dev` anterior, ya que ambos comandos usan los mismos puertos; el script avisa si están ocupados.
+
+Si una cuenta muestra `STORAGE_INTEGRITY_ERROR`, PostgreSQL conserva una referencia a un WebP que falta en `storage/`. El seed no modifica esos registros: restaura el archivo desde una copia de seguridad o revisa la referencia antes de limpiarla. Respaldar Storage exige conservar juntos la base de datos y `storage/`; los WebP no se incluyen en Git.
 
 El modo demo admite únicamente las dos identidades reservadas, peticiones locales y orígenes locales. La configuración rechaza activarlo en producción o escuchar en interfaces públicas. No usarlo para un despliegue accesible a otros equipos.
 
-`requireAuth` verifica JWT, expiración, revocación y estado del usuario, y establece `req.user = { id, email, role }`. El frontend podrá pasar una sesión con `accessToken` al componente de Storage cuando Alegría conecte el login; mientras tanto, la demo permite probar la biblioteca en el navegador.
+`requireAuth` verifica JWT, expiración, revocación y estado del usuario, y establece `req.user = { id, email, role }`. El frontend usa el token de una sesión real para las rutas privadas; sin sesión, solo `dev:demo` permite seleccionar una de las dos identidades locales de prueba para Storage.
 
 ## Cuotas y concurrencia
 

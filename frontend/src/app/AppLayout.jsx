@@ -33,6 +33,7 @@ const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.
 export function AppLayout() {
   const { session } = useSession();
   const [demoAccount, setDemoAccount] = useState(null);
+  useEffect(() => { if (session) setDemoAccount(null); }, [session]);
   // Con sesión se usa el JWT; sin sesión, solo la cuenta demo elegida explícitamente (modo dev:demo).
   const authorization = useMemo(() => {
     if (session) return { token: session.token };
@@ -108,7 +109,7 @@ function Shell() {
         </div>
         <SidebarNav />
         <UsageCard />
-        <AccountMenu />
+        <AccountMenu demoAccount={!session ? demoAccount : null} onExitDemo={() => setDemoAccount(null)} />
       </aside>
       <button type="button" className="drawer-scrim" aria-label="Cerrar menú" tabIndex={-1} onClick={() => setDrawer(false)} />
 
@@ -173,8 +174,9 @@ function SidebarNav() {
 /** Solo informa el uso; la mejora de plan está en el menú de la cuenta. */
 function UsageCard() {
   const { session } = useSession();
+  const { demoAccount } = useDemoAccount();
   const { enabled, stats } = useLibrary();
-  if (!session || !enabled) return null;
+  if ((!session && !demoAccount) || !enabled) return null;
   // La capacidad del plan se mide con el tamaño original de cada subida.
   const ratio = Math.min(1, stats.originalBytes / FREE_CAPACITY_BYTES);
   const known = stats.loaded;

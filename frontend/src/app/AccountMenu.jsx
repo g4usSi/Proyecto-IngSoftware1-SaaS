@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronsUpDown, CircleHelp, House, LogIn, LogOut, Rocket } from 'lucide-react';
+import { ChevronsUpDown, CircleHelp, FlaskConical, House, LogIn, LogOut, Rocket } from 'lucide-react';
 import { useSession } from '../features/auth/session.jsx';
 
 export function initials(name = '') {
@@ -9,13 +9,14 @@ export function initials(name = '') {
 }
 
 /** Botón de cuenta al pie de la barra lateral: plan, mejora de plan y sesión. El tema vive en la barra superior. */
-export function AccountMenu() {
+export function AccountMenu({ demoAccount, onExitDemo }) {
   const { session, logout } = useSession();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const menuId = useId();
-  const user = session?.user;
+  const isDemo = !session && Boolean(demoAccount);
+  const user = session?.user ?? demoAccount;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -45,19 +46,24 @@ export function AccountMenu() {
           </div>
         </div>
 
-        {user && (
+        {session && (
           <div className="account-plan">
             <div><span className="account-plan-label">Tu plan</span><strong>Free</strong></div>
             <Link to="/app/plans" className="account-upgrade" role="menuitem" onClick={close}><Rocket strokeWidth={2} aria-hidden="true" />Mejorar plan</Link>
           </div>
         )}
 
+        {isDemo && <div className="account-plan"><div><span className="account-plan-label">Cuenta de prueba</span><strong>Plan Free</strong></div><Link to="/app/plans" className="account-upgrade" role="menuitem" onClick={close}><Rocket strokeWidth={2} aria-hidden="true" />Ver planes</Link></div>}
+
         <nav className="account-links">
           <Link to="/" role="menuitem" onClick={close}><House strokeWidth={1.9} aria-hidden="true" />Página de inicio</Link>
           <Link to="/#preguntas" role="menuitem" onClick={close}><CircleHelp strokeWidth={1.9} aria-hidden="true" />Ayuda y preguntas</Link>
-          {user
+          {session
             ? <button type="button" role="menuitem" className="is-danger" onClick={handleLogout}><LogOut strokeWidth={1.9} aria-hidden="true" />Cerrar sesión</button>
-            : <Link to="/login" role="menuitem" onClick={close}><LogIn strokeWidth={1.9} aria-hidden="true" />Iniciar sesión</Link>}
+            : <>
+                {isDemo && <button type="button" role="menuitem" onClick={() => { close(); onExitDemo(); navigate('/app/storage'); }}><FlaskConical strokeWidth={1.9} aria-hidden="true" />Cambiar cuenta demo</button>}
+                <Link to="/login" role="menuitem" onClick={close}><LogIn strokeWidth={1.9} aria-hidden="true" />Iniciar sesión</Link>
+              </>}
         </nav>
       </div>
 
@@ -65,7 +71,7 @@ export function AccountMenu() {
         <span className="account-avatar" aria-hidden="true">{user ? initials(user.name) : '?'}</span>
         <span className="account-trigger-text">
           <strong>{user?.name ?? 'Invitado'}</strong>
-          <span>{user ? 'Plan Free' : 'Sin sesión'}</span>
+          <span>{isDemo ? 'Demo local · Free' : user ? 'Plan Free' : 'Sin sesión'}</span>
         </span>
         <ChevronsUpDown className="account-chevron" strokeWidth={2} aria-hidden="true" />
       </button>

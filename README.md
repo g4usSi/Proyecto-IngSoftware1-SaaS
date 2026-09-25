@@ -13,7 +13,7 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Subida de imágenes estáticas JPG/PNG/WebP de hasta 25 MB y conversión a WebP calidad 80.
 - Listado paginado, descarga del propietario, cuotas transaccionales y deduplicación entre cuentas.
 - Metadatos en PostgreSQL, archivos privados en `storage/` y ahorro calculado para administrador.
-- Demostración local opcional con dos cuentas y selector explícito en la biblioteca.
+- Demostración local opcional con dos cuentas y acceso visible desde la portada cuando está activa.
 - Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
 
 Los pagos, el borrado y los workers **están pendientes**. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
@@ -50,7 +50,7 @@ npm run dev:demo
 
 La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el equipo para evitar el 5432 de una instalación existente, base/usuario `smartstorage` y contraseña de desarrollo `smartstorage_local`. El servicio se expone solo en localhost; esas credenciales son exclusivamente locales. Docker Desktop debe estar instalado y en ejecución para este camino. No se requiere Docker para Node o React.
 
-`dev:demo` prepara dos cuentas locales y arranca API + frontend con la demostración habilitada **solo durante ese comando**. En Mi biblioteca, seleccionar Demo Storage A o B, subir una imagen y descargar su WebP. Repetir con la otra cuenta y el mismo archivo conserva una sola copia física. Las cuentas y sus imágenes persisten entre ejecuciones. `npm run dev` arranca con la demo desactivada por defecto. No hay contraseñas demo ni acceso al panel administrativo mediante esas cuentas.
+`dev:demo` prepara dos cuentas locales y arranca API + frontend con la demostración habilitada **solo durante ese comando**. Abre <http://127.0.0.1:5173/>, pulsa **Probar demo local sin crear cuenta** y selecciona Demo Storage A o B en Mi biblioteca. El panel identifica la cuenta elegida, muestra su plan Free y permite cambiar de cuenta. Sube una imagen y descarga su WebP; repetir con la otra cuenta y el mismo archivo conserva una sola copia física. Las cuentas y sus imágenes persisten entre ejecuciones. `npm run dev` arranca con la demo desactivada por defecto. No hay contraseñas demo ni acceso al panel administrativo mediante esas cuentas. Cierra cualquier ejecución previa de `npm run dev` antes de iniciar `dev:demo`, pues ambos usan los puertos 3000 y 5173.
 
 Para usar el login real, configura un `JWT_SECRET` propio de al menos 32 caracteres en `backend/.env`. El ejemplo incluido debe reemplazarse antes de compartir o desplegar la aplicación. Sin ese valor, las rutas de autenticación protegidas devuelven `503`.
 

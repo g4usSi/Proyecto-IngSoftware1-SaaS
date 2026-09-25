@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, ArrowUp, Check, Clock3, CloudUpload, CopyCheck, Download, Fingerprint,
-  FolderClosed, HardDrive, KeyRound, LockKeyhole, MapPinOff, Maximize2, ShieldCheck, Sparkles, Zap,
+  FlaskConical, FolderClosed, HardDrive, KeyRound, LockKeyhole, MapPinOff, Maximize2, ShieldCheck, Sparkles, Zap,
 } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { useSession } from '../features/auth/session.jsx';
+import { getDemoConfiguration } from '../features/storage/storage.api.js';
 import { plans } from '../features/subscriptions/plans.data.js';
 import { CompressionDemo } from './landing/CompressionDemo.jsx';
 import { Faq } from './landing/Faq.jsx';
@@ -118,7 +119,17 @@ function StepsSection() {
 export function LandingPage() {
   const rootRef = useRef(null);
   const { session } = useSession();
+  const [demoAvailable, setDemoAvailable] = useState(false);
   useRevealOnScroll(rootRef);
+
+  useEffect(() => {
+    if (session) return undefined;
+    const controller = new AbortController();
+    getDemoConfiguration({ signal: controller.signal })
+      .then((demo) => { if (!controller.signal.aborted) setDemoAvailable(demo.enabled); })
+      .catch(() => { if (!controller.signal.aborted) setDemoAvailable(false); });
+    return () => controller.abort();
+  }, [session]);
 
   // Los enlaces internos (#seccion) se deslizan en vez de saltar.
   useEffect(() => {
@@ -174,6 +185,7 @@ export function LandingPage() {
                 <MagneticLink to={startTo} className="button button-orange hero-cta">{session ? 'Ir a mi biblioteca' : 'Empieza gratis'}<ArrowRight strokeWidth={2} className="icon" /></MagneticLink>
                 <a className="hero-secondary" href="#proceso">Ver cómo funciona<span aria-hidden="true"><ArrowRight strokeWidth={2} /></span></a>
               </div>
+              {!session && demoAvailable && <Link className="hero-demo-link" to="/app/storage"><FlaskConical strokeWidth={2} aria-hidden="true" />Probar demo local sin crear cuenta <ArrowRight strokeWidth={2} aria-hidden="true" /></Link>}
               <ul className="hero-facts">
                 {heroFacts.map(({ icon: FactIcon, text }) => <li key={text}><FactIcon strokeWidth={1.8} aria-hidden="true" />{text}</li>)}
               </ul>

@@ -83,6 +83,9 @@
 .hero-secondary svg { width: 18px; height: 18px; transform: rotate(90deg); transition: transform .4s var(--ease-spring); }
 .hero-secondary:hover > span { background: var(--color-white); border-color: var(--color-white); color: var(--color-dark); transform: scale(1.08); }
 .hero-secondary:hover svg { transform: rotate(90deg) translateX(3px); }
+.hero-demo-link { display: inline-flex; align-items: center; gap: 9px; margin-top: 18px; color: var(--color-hero-link); font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; animation: fade-up .9s 1s var(--ease-out) both; }
+.hero-demo-link svg { width: 17px; height: 17px; color: var(--color-primary); }
+.hero-demo-link:hover { color: var(--color-white); }
 .hero-facts { display: flex; flex-wrap: wrap; gap: 12px 26px; margin: 44px 0 0; padding: 0; list-style: none; animation: fade-up .9s 1.05s var(--ease-out) both; }
 .hero-facts li { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; color: var(--on-dark); }
 .hero-facts svg { width: 18px; height: 18px; color: var(--color-primary); }
