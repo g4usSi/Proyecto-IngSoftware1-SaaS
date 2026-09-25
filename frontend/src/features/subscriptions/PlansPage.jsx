@@ -1,61 +1,76 @@
-import { useEffect, useState } from 'react';
-import { PendingState } from '../../components/PendingState.jsx';
-import { Icon } from '../../components/Icon.jsx';
-import { apiRequest } from '../../services/api.js';
+import { Link } from 'react-router-dom';
+import { BadgeCheck, Check, Clock3, Minus } from 'lucide-react';
+import { useSession } from '../auth/session.jsx';
+import { plans } from './plans.data.js';
 
-const numberFormat = new Intl.NumberFormat('es-GT', { maximumFractionDigits: 1 });
-const moneyFormat = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ', maximumFractionDigits: 2 });
+const comparison = [
+  { label: 'Almacenamiento lógico', values: ['2 GB', '25 GB', '100 GB', '500 GB o a medida'] },
+  { label: 'Subida diaria', values: ['10 subidas o 200 MB', '500 MB', 'Sin límite', 'A medida'] },
+  { label: 'Conversión a WebP', values: [true, true, true, true] },
+  { label: 'Deduplicación global', values: [true, true, true, true] },
+  { label: 'Acceso al SDK/API', values: [false, 'Básico', 'Completo', 'Completo'] },
+  { label: 'Prioridad de proceso', values: [false, false, true, true] },
+  { label: 'Soporte prioritario', values: [false, false, false, true] },
+];
 
-function formatBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return 'Por definir';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const unitIndex = bytes > 0 ? Math.max(0, Math.min(Math.floor(Math.log(bytes) / Math.log(1000)), units.length - 1)) : 0;
-  return `${numberFormat.format(bytes / 1000 ** unitIndex)} ${units[unitIndex]}`;
+function Cell({ value }) {
+  if (value === true) return <Check className="cmp-yes" strokeWidth={2.4} aria-label="Incluido" />;
+  if (value === false) return <Minus className="cmp-no" strokeWidth={2} aria-label="No incluido" />;
+  return <span>{value}</span>;
 }
 
 export function PlansPage() {
-  const [catalog, setCatalog] = useState({ status: 'loading', plans: [] });
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    setCatalog({ status: 'loading', plans: [] });
-
-    apiRequest('/plans', { signal: controller.signal })
-      .then((plans) => {
-        if (!Array.isArray(plans)) throw new Error('Invalid plans response');
-        if (active) setCatalog({ status: 'ready', plans });
-      })
-      .catch(() => { if (active) setCatalog({ status: 'unavailable', plans: [] }); })
-      .finally(() => clearTimeout(timeout));
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [attempt]);
+  const { session } = useSession();
 
   return (
-    <>
-      <div className="page-heading"><div><span className="eyebrow">CAPACIDAD PARA CREAR</span><h1>Un espacio a tu medida.</h1><p>Elige cuánto espacio necesitas, cuando lo necesites.</p></div></div>
-      <section className="library-panel" aria-label="Catálogo de planes" aria-busy={catalog.status === 'loading'}>
-        <div className="panel-heading"><span><Icon name="plan" /> Planes de almacenamiento</span><span className="small-badge">Catálogo</span></div>
-        {catalog.status === 'loading' && <div role="status"><PendingState icon="plan" title="Consultando los planes…" eyebrow="Conectando">Estamos cargando el catálogo disponible.</PendingState></div>}
-        {catalog.status === 'unavailable' && <div role="status"><PendingState icon="plan" title="El catálogo no está disponible." eyebrow="Inténtalo de nuevo">No pudimos consultar los planes en este momento. Puedes volver a intentarlo en unos instantes.</PendingState><div className="catalog-retry"><button className="button button-dark" type="button" onClick={() => setAttempt((value) => value + 1)}>Volver a intentar</button></div></div>}
-        {catalog.status === 'ready' && catalog.plans.length === 0 && <PendingState icon="plan" title="Estamos preparando los planes.">Todavía no hay planes publicados en el catálogo.</PendingState>}
-        {catalog.status === 'ready' && catalog.plans.length > 0 && <div className="plans-grid">{catalog.plans.map((plan) => <article className="plan-card" key={plan.id}>
-          <span className="eyebrow">{plan.code}</span><h2>{plan.name}</h2>
-          <div className="plan-price">{plan.monthlyPriceGtq === null ? 'Precio por definir' : moneyFormat.format(Number(plan.monthlyPriceGtq))}{plan.monthlyPriceGtq !== null && <small> / mes</small>}</div>
-          <ul><li><strong>{formatBytes(plan.capacityBytes)}</strong> de capacidad</li><li>{plan.dailyUploadLimit === null ? 'Sin límite de subidas diario' : `${numberFormat.format(plan.dailyUploadLimit)} subidas al día`}</li><li>{plan.dailyBytesLimit === null ? 'Sin límite de tamaño diario' : `${formatBytes(plan.dailyBytesLimit)} de subida al día`}</li></ul>
-          <button type="button" disabled className="button button-dark" aria-describedby="subscription-pending">Disponible próximamente</button>
-        </article>)}</div>}
-        <div className="library-note" id="subscription-pending"><Icon name="lock" /><span>La contratación de planes estará disponible al integrar las cuentas.</span></div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <span className="kicker">Mejorar plan</span>
+          <h1>Más espacio cuando lo necesites</h1>
+          <p>Todas las cuentas empiezan en Free. Los planes de pago estarán disponibles pronto.</p>
+        </div>
+      </header>
+
+      <div className="app-plans">
+        {plans.map((plan, index) => {
+          const current = session && plan.code === 'free';
+          return (
+            <article className={`app-plan${plan.featured ? ' is-featured' : ''}${current ? ' is-current' : ''}`} key={plan.code} style={{ '--i': index }}>
+              <div className="app-plan-head">
+                <h2>{plan.name}</h2>
+                {current && <span className="plan-tag is-current"><BadgeCheck strokeWidth={2} aria-hidden="true" />Tu plan</span>}
+                {plan.featured && <span className="plan-tag is-hot">Recomendado</span>}
+              </div>
+              <p className="app-plan-price"><strong>{plan.price}</strong><span>/ mes</span></p>
+              <p className="app-plan-desc">{plan.description}</p>
+              <ul>{plan.features.map((item) => <li key={item}><Check strokeWidth={2.4} aria-hidden="true" />{item}</li>)}</ul>
+              {plan.available
+                ? (current
+                  ? <span className="btn btn-secondary is-static">Plan actual</span>
+                  : <Link className="btn btn-primary" to="/register">Empezar gratis</Link>)
+                : <span className="btn btn-ghost is-static" title="Los pagos todavía no están habilitados"><Clock3 strokeWidth={2} aria-hidden="true" />{plan.cta} · Próximamente</span>}
+            </article>
+          );
+        })}
+      </div>
+
+      <section className="compare-card" aria-labelledby="compare-title">
+        <h2 id="compare-title">Compara los planes</h2>
+        <div className="compare-scroll">
+          <table className="compare-table">
+            <thead>
+              <tr><th scope="col"><span className="sr-only">Característica</span></th>{plans.map((plan) => <th scope="col" key={plan.code} className={plan.featured ? 'is-featured' : undefined}>{plan.name}<small>{plan.price} / mes</small></th>)}</tr>
+            </thead>
+            <tbody>
+              {comparison.map((row) => (
+                <tr key={row.label}><th scope="row">{row.label}</th>{row.values.map((value, index) => <td key={plans[index].code} className={plans[index].featured ? 'is-featured' : undefined}><Cell value={value} /></td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="compare-note">Precios en quetzales. El almacenamiento lógico cuenta el tamaño original de cada subida, aunque guardemos solo el WebP.</p>
       </section>
-      <div className="feature-explainer"><span className="explainer-icon"><Icon name="spark" /></span><div><h2>Empieza por lo sencillo.</h2><p>El plan Free será el punto de partida al crear una cuenta. Todavía no hay una suscripción activa en esta vista.</p></div></div>
-    </>
+    </div>
   );
 }

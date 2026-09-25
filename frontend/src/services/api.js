@@ -1,5 +1,8 @@
 const API_BASE = '/api';
 
+/** Se emite cuando una petición con token recibe 401: la sesión ya no es válida. */
+export const UNAUTHORIZED_EVENT = 'smartstorage:unauthorized';
+
 export class ApiError extends Error {
   constructor(message, code, status) {
     super(message);
@@ -19,11 +22,13 @@ async function request(path, { body, token, headers, ...options } = {}, accept =
   else if (body !== undefined) requestHeaders.set('Content-Type', 'application/json');
   if (token) requestHeaders.set('Authorization', `Bearer ${token}`);
 
-  return fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: requestHeaders,
     ...(body !== undefined ? { body: isFormData ? body : JSON.stringify(body) } : {}),
   });
+  if (token && response.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  return response;
 }
 
 async function parseJson(response) {
