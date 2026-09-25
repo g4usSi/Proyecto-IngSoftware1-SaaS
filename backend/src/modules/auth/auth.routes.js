@@ -1,9 +1,14 @@
 import { Router } from 'express';
-import * as controller from './auth.controller.js';
 import { requireAuth } from '../../middleware/require-auth.js';
+import { createAuthRepository } from './auth.repository.js';
+import { createAuthService } from './auth.service.js';
+import { createAuthController } from './auth.controller.js';
 
-export function createAuthRouter() {
+export function createAuthRouter(database, { tokens, loginLimiter }) {
   const router = Router();
+  const repository = createAuthRepository(database);
+  const service = createAuthService({ repository, tokens, loginLimiter });
+  const controller = createAuthController(service);
   router.post('/register', controller.register);
   router.post('/login', controller.login);
   router.post('/verify-email', controller.verifyEmail);

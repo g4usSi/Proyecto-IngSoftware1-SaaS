@@ -5,15 +5,25 @@ import { database as defaultDatabase } from './config/database.js';
 import { AppError } from './lib/app-error.js';
 import { notFound, errorHandler } from './middleware/error-handler.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
+import { createAuthRepository } from './modules/auth/auth.repository.js';
+import { createAuthenticator } from './modules/auth/authenticate.js';
+import { createTokenService } from './modules/auth/token.js';
 import { createStorageRouter, createStorageAdminRouter } from './modules/storage/storage.routes.js';
 import { createStorageDemo } from './dev/storage-demo.js';
 import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js';
 
 export function createApp({
-  database = defaultDatabase, corsOrigins = env.corsOrigins,
+  database = defaultDatabase,
+  corsOrigins = env.corsOrigins,
+  jwtSecret = env.jwtSecret,
+  jwtExpiresIn = env.jwtExpiresIn,
+  loginLimiter,
   storageRoot = env.storageRoot, storageDemo = env.storageDemo, storageAuthenticate,
 } = {}) {
   const app = express();
+  // requireAuth lee esta función de app.locals: verifica el JWT Bearer (firma, expiración, revocación, cuenta activa).
+  const tokens = createTokenService({ secret: jwtSecret, expiresIn: jwtExpiresIn });
+  app.locals.authenticate = createAuthenticator({ repository: createAuthRepository(database), tokens });
   app.disable('x-powered-by');
   app.use(cors({
     origin(origin, callback) {
@@ -36,7 +46,7 @@ export function createApp({
     res.json({ data: { status: 'ready', database: 'connected' } });
   });
 
-  app.use('/api/auth', createAuthRouter());
+  app.use('/api/auth', createAuthRouter(database, { tokens, loginLimiter }));
   const demo = createStorageDemo({ database, enabled: storageDemo });
   const storageOptions = { database, storageRoot, authenticate: storageAuthenticate || demo.authenticate };
   app.use('/api/dev', demo.router);

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import express from 'express';
+import { AppError } from '../src/lib/app-error.js';
 import { createStorageDemo, DEMO_ACCOUNTS } from '../src/dev/storage-demo.js';
 import { errorHandler } from '../src/middleware/error-handler.js';
 import { readEnv } from '../src/config/env.js';
@@ -14,6 +15,9 @@ async function demoApi(t, enabled, rows = DEMO_ACCOUNTS.map((account) => ({ ...a
   const database = { query: async () => { queries += 1; return { rows }; } };
   const demo = createStorageDemo({ database, enabled });
   const app = express();
+  app.locals.authenticate = async () => {
+    throw new AppError(401, 'AUTH_REQUIRED', 'Debes iniciar sesión para acceder a este recurso.');
+  };
   app.use('/dev', demo.router);
   app.get('/private', demo.authenticate, (req, res) => res.json({ data: req.user }));
   app.use(errorHandler);
@@ -37,7 +41,7 @@ test('demo apagada no revela cuentas ni acepta su cabecera como autenticación',
   const discovery = await api.request('/dev/storage-demo');
   assert.deepEqual((await discovery.json()).data, { enabled: false, accounts: [] });
   const response = await api.request('/private', { 'X-Storage-Demo-User': DEMO_ACCOUNTS[0].id });
-  assert.equal(response.status, 501);
+  assert.equal(response.status, 401);
   assert.equal(api.queries(), 0);
 });
 
@@ -46,7 +50,7 @@ test('demo encendida exige selección explícita, identidad reservada y host loc
   const discovery = await api.request('/dev/storage-demo');
   assert.equal(discovery.headers.get('cache-control'), 'no-store');
   assert.deepEqual((await discovery.json()).data.accounts, DEMO_ACCOUNTS);
-  assert.equal((await api.request('/private')).status, 501);
+  assert.equal((await api.request('/private')).status, 401);
   const accepted = await api.request('/private', { 'X-Storage-Demo-User': DEMO_ACCOUNTS[1].id });
   assert.deepEqual((await accepted.json()).data, { id: DEMO_ACCOUNTS[1].id, email: DEMO_ACCOUNTS[1].email, role: 'client' });
   for (const headers of [
@@ -70,7 +74,8 @@ test('ruta de archivos parte del proyecto y demo es opt-in estrictamente local',
   assert.equal(readEnv({}).storageDemo, false);
   assert.equal(readEnv({ STORAGE_DEMO_ENABLED: 'true' }).storageDemo, true);
   for (const extra of [
-    { NODE_ENV: 'production' }, { HOST: '0.0.0.0' }, { CORS_ORIGINS: 'https://external.example' },
+    { NODE_ENV: 'production', JWT_SECRET: 'local-test-secret-of-at-least-32-characters' },
+    { HOST: '0.0.0.0' }, { CORS_ORIGINS: 'https://external.example' },
   ]) assert.throws(() => readEnv({ STORAGE_DEMO_ENABLED: 'true', ...extra }), /demostración/);
   assert.throws(() => readEnv({ STORAGE_DEMO_ENABLED: 'yes' }), /STORAGE_DEMO_ENABLED/);
 });

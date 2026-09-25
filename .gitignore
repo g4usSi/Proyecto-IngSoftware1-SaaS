@@ -16,3 +16,6 @@ tmp/
 Thumbs.db
 .idea/
 
+CLAUDE.md
+CLAUDE.local.md
+.claude/

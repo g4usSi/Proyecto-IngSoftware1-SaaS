@@ -37,7 +37,7 @@ El tamaño WebP se lee del archivo con `stat`. No se guarda otra copia de metada
 
 Ejemplo: A sube `foto.jpg` y B sube los mismos bytes con otro nombre. Existen dos filas `images` y una fila `stored_objects`, con un solo WebP. A no puede descargar la fila de B aun conociendo su ID.
 
-## Demostración local mientras Andy integra el login
+## Demostración local y autenticación real
 
 Con Docker Desktop instalado y en ejecución, desde la raíz:
 
@@ -55,7 +55,7 @@ Abrir `http://localhost:5173/app/storage`. Seleccionar explícitamente Demo Stor
 
 El modo demo admite únicamente las dos identidades reservadas, peticiones locales y orígenes locales. La configuración rechaza activarlo en producción o escuchar en interfaces públicas. No usarlo para un despliegue accesible a otros equipos.
 
-No cambia `requireAuth`: Andy debe seguir verificando JWT, expiración y estado del usuario. Cuando esté integrado, se utiliza `req.user = { id, email, role }` y el frontend puede recibir una sesión con `accessToken`. Desactivar la demo para verificar ese recorrido real.
+`requireAuth` verifica JWT, expiración, revocación y estado del usuario, y establece `req.user = { id, email, role }`. El frontend podrá pasar una sesión con `accessToken` al componente de Storage cuando Alegría conecte el login; mientras tanto, la demo permite probar la biblioteca en el navegador.
 
 ## Cuotas y concurrencia
 
@@ -69,7 +69,7 @@ Un proceso terminado abruptamente o una pérdida de conexión en el instante del
 
 ## Ahorro administrativo
 
-`GET /api/admin/storage/stats` requiere un usuario con rol `admin`. Las dos cuentas demo son clientes. El endpoint funciona con autenticación inyectada en pruebas; su acceso normal depende del módulo de Andy. No se añade aún el panel visual.
+`GET /api/admin/storage/stats` requiere un usuario autenticado con rol `admin`. Las dos cuentas demo son clientes. No se añade aún el panel visual.
 
 Suma tamaños originales por referencia (`B`), por objeto único (`U`) y bytes físicos únicos (`P`). Devuelve `B - P` y su porcentaje; `B - U` y `U - P` permiten explicar deduplicación y conversión. El resultado puede ser negativo para originales que se expandan al convertir. Un archivo ausente devuelve un error de integridad, nunca un ahorro inventado.
 
@@ -82,7 +82,7 @@ npm test
 
 La suite de Storage requiere además `TEST_DATABASE_URL` explícita hacia una base **de pruebas**. Nunca toma automáticamente `DATABASE_URL`. Crea y elimina esquemas temporales de nombre aleatorio y archivos temporales propios; el usuario de pruebas necesita permiso para crear esquemas.
 
-Si PostgreSQL del `compose.yaml` está en ejecución en `localhost:5433`, basta con `npm run test:storage`: el comando crea una base temporal de nombre aleatorio con la conexión local de `backend/.env`, ejecuta las 21 pruebas y elimina esa base. No requiere que la terminal encuentre el ejecutable `docker`.
+Si PostgreSQL del `compose.yaml` está en ejecución en `localhost:5433`, basta con `npm run test:storage`: el comando crea una base temporal de nombre aleatorio con la conexión local de `backend/.env`, ejecuta la suite completa y elimina esa base. No requiere que la terminal encuentre el ejecutable `docker`.
 
 ```powershell
 $env:TEST_DATABASE_URL = 'postgresql://usuario:clave@127.0.0.1:puerto/base_de_pruebas'
@@ -90,11 +90,11 @@ npm test
 Remove-Item Env:TEST_DATABASE_URL
 ```
 
-Incluye conversión real, EXIF, permisos entre cuentas, deduplicación concurrente, cuotas, paginación, formatos inválidos, rollback y persistencia al reiniciar la aplicación. No equivale a probar autenticación real, Docker o recuperación tras una caída del equipo.
+Incluye autenticación real con PostgreSQL, asignación Free, subida con JWT, conversión, EXIF, permisos entre cuentas, deduplicación concurrente, cuotas, paginación, formatos inválidos, rollback y persistencia al reiniciar la aplicación. No equivale a probar recuperación tras una caída del equipo.
 
 ## Edición e integración
 
 - **Andy:** mantener el contrato `req.user`; las identidades demo no se convierten en credenciales reales.
-- **Elden:** asignar Free dentro de la transacción del registro. Coordinar la estrategia de bloqueo al modificar planes/suscripciones y el consumo diario antes del borrado.
+- **Elden:** la asignación Free ya ocurre de forma atómica durante el registro; coordinar la estrategia de bloqueo al modificar planes/suscripciones y el consumo diario antes del borrado.
 - **Alegría:** componentes en `frontend/src/features/storage/`; reglas locales en `storage.css`, colores en `styles/theme.css`. El cliente de API recibe credenciales; no persiste tokens ni decide identidad.
 - **Geovanny:** servicio, repositorio y manejo de archivos en `backend/src/modules/storage/`. Nuevas migraciones se añaden; no editar las ya aplicadas.

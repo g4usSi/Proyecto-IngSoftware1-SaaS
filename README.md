@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: módulo Storage para el primer avance funcional.** Incluye subida, conversión real, deduplicación global y descarga privada. El recorrido completo del 30 % aún requiere integrar el login de Andy y el alta de suscripciones de Elden.
+**Estado: backend de autenticación y Storage integrados.** El registro asigna el plan Free y, tras iniciar sesión, un token JWT permite subir y descargar imágenes. La interfaz de login sigue pendiente de conectar por Alegría.
 
 ## Qué funciona
 
@@ -14,8 +14,9 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Listado paginado, descarga del propietario, cuotas transaccionales y deduplicación entre cuentas.
 - Metadatos en PostgreSQL, archivos privados en `storage/` y ahorro calculado para administrador.
 - Demostración local opcional con dos cuentas y selector explícito en la biblioteca.
+- Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
 
-Registro, login, sesiones, pagos, borrado y workers **están pendientes**. Sin el modo demo, las rutas privadas siguen cerradas hasta integrar la autenticación. La demostración no sustituye el login del proyecto.
+La interfaz de registro/login, los pagos, el borrado y los workers **están pendientes**. El backend ya admite el recorrido real mediante API; la demostración sigue siendo una alternativa local para probar la biblioteca desde el navegador.
 
 ## Arranque rápido
 
@@ -50,6 +51,8 @@ La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el 
 
 `dev:demo` prepara dos cuentas locales y arranca API + frontend con la demostración habilitada **solo durante ese comando**. En Mi biblioteca, seleccionar Demo Storage A o B, subir una imagen y descargar su WebP. Repetir con la otra cuenta y el mismo archivo conserva una sola copia física. Las cuentas y sus imágenes persisten entre ejecuciones. `npm run dev` arranca con la demo desactivada por defecto. No hay contraseñas demo ni acceso al panel administrativo mediante esas cuentas.
 
+Para usar el login real, configura un `JWT_SECRET` propio de al menos 32 caracteres en `backend/.env`. El ejemplo incluido debe reemplazarse antes de compartir o desplegar la aplicación. Sin ese valor, las rutas de autenticación protegidas devuelven `503`.
+
 Al iniciar o reiniciar la API en modo demo, la terminal muestra la dirección de la API y el enlace directo al frontend: <http://127.0.0.1:5173/app/storage>. Vite también imprime su dirección cuando arranca.
 
 ### Base de datos instalada localmente
@@ -74,7 +77,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run dev:demo` | Preparar dos cuentas y ejecutar la demostración local de Storage |
 | `npm run check` | Sintaxis backend y compilación frontend |
 | `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
-| `npm run test:storage` | Ejecutar las 21 pruebas con PostgreSQL local en 5433; crea y elimina una base temporal propia |
+| `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
 | `npm run db:seed:demo` | Preparar las dos cuentas locales sin activar la demostración |
@@ -93,7 +96,7 @@ frontend/src/
 backend/
   src/
     config/                Entorno y PostgreSQL
-    middleware/            Autenticación pendiente, errores
+    middleware/            Autenticación y errores
     modules/               auth, storage, subscriptions
     workers/               Punto de extensión documentado
   migrations/              Esquema y datos iniciales versionados

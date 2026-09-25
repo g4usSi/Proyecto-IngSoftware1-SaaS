@@ -41,7 +41,7 @@ try {
   if (interrupted) throw new Error('Pruebas canceladas antes de iniciar npm test.');
   const testUrl = new URL(currentUrl);
   testUrl.pathname = `/${name}`;
-  console.log('Base temporal aislada creada para ejecutar las 21 pruebas.');
+  console.log('Base temporal aislada creada para ejecutar la suite completa.');
   testExitCode = await new Promise((resolve, reject) => {
     child = spawn(process.execPath, [npmCli, 'test'], {
       cwd: root,
