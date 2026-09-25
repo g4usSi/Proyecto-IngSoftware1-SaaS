@@ -21,7 +21,7 @@ Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya 
 
 ## `POST /api/auth/register`
 
-Crea una cuenta nueva. **No requiere token.** No inicia sesión: tras registrarse, el usuario debe iniciar sesión (Bloque 2).
+Crea una cuenta nueva con una suscripción Free activa en la misma operación de PostgreSQL. **No requiere token.** No inicia sesión: tras registrarse, el usuario debe iniciar sesión.
 
 Cuerpo:
 
@@ -67,6 +67,7 @@ La respuesta nunca incluye la contraseña ni su hash. El rol inicial siempre es 
 | 400 | `VALIDATION_ERROR` | Sin símbolo | `La contraseña debe incluir un símbolo.` |
 | 400 | `INVALID_JSON` | El cuerpo no es JSON válido | `El cuerpo JSON no es válido.` |
 | 409 | `EMAIL_ALREADY_REGISTERED` | El correo ya tiene una cuenta | `El correo electrónico ya está registrado.` |
+| 503 | `FREE_PLAN_UNAVAILABLE` | El plan Free no está activo o no se han aplicado las migraciones | `El plan Free no está disponible para registrar cuentas.` |
 | 500 | `INTERNAL_ERROR` | Error inesperado | `Ocurrió un error interno.` |
 
 Notas:
@@ -89,7 +90,7 @@ Authorization: Bearer <token>
 - El token dura lo que indique `expiresAt` (por defecto 1 hora). No hay renovación: al vencer, hay que iniciar sesión de nuevo.
 - Ante cualquier `401` en una ruta privada (`AUTH_REQUIRED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`), borra el token guardado y lleva al usuario a `/login`.
 - El rol (`client` o `admin`) sale del servidor en cada petición. Para decidir qué mostrar, usa `user.role` de la respuesta de login o de `GET /api/auth/me`.
-- `apiRequest()` de `services/api.js` aún no envía este encabezado; hay que añadirlo (es parte del frontend, no lo toqué).
+- `apiRequest()` de `services/api.js` acepta la opción `token` y envía el encabezado Bearer. La pantalla de login todavía debe guardar la sesión y pasar `{ user, accessToken: token }` a `StoragePage`.
 
 ## `POST /api/auth/login`
 

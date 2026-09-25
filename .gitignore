@@ -9,6 +9,8 @@ coverage/
 backend/data/*
 !backend/data/.gitkeep
 !backend/data/README.md
+/storage/*
+!/storage/README.md
 tmp/
 .DS_Store
 Thumbs.db

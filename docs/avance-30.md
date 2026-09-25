@@ -2,6 +2,8 @@
 
 El enunciado fija el 25 de septiembre de 2026 y no detalla una rúbrica funcional del 30 %. Este alcance es una propuesta del equipo. Tener este esqueleto no equivale a haber completado ese avance.
 
+Actualización de Storage: se implementan subida, WebP real, deduplicación global, cuotas, listado y descarga, con metadatos en PostgreSQL y archivos en `storage/`. Puede verificarse con una demo local de dos cuentas. Esto cubre la parte de Geovanny; el recorrido de aceptación completo todavía necesita integrar el login de Andy y la asignación Free de Elden. Ver [guía de uso y límites](storage.md).
+
 ## Recorrido de aceptación
 
 Un cliente se registra, inicia sesión, recibe un plan Free, carga una imagen, la encuentra en su galería y descarga su WebP. Otra subida idéntica reutiliza el objeto físico global. El administrador puede consultar ahorro calculado con tamaños originales y bytes WebP reales.

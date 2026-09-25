@@ -4,6 +4,9 @@ import { database } from './config/database.js';
 
 const server = createApp().listen(env.port, env.host, () => {
   console.log(`SmartStorage API: http://${env.host}:${env.port}`);
+  if (env.storageDemo) {
+    console.log('SmartStorage frontend (demo): http://127.0.0.1:5173/app/storage');
+  }
   if (!env.databaseUrl) {
     console.log('DATABASE_URL sin configurar: /api/health funciona y /api/ready devuelve 503.');
   }

@@ -9,10 +9,13 @@
     "dev": "concurrently --kill-others --names api,web --prefix-colors magenta,cyan \"npm run dev --workspace=@smartstorage/backend\" \"npm run dev --workspace=@smartstorage/frontend\"",
     "dev:api": "npm run dev --workspace=@smartstorage/backend",
     "dev:web": "npm run dev --workspace=@smartstorage/frontend",
+    "dev:demo": "node scripts/dev-demo.mjs",
     "build": "npm run build --workspace=@smartstorage/frontend",
     "check": "npm run check --workspace=@smartstorage/backend && npm run build",
     "test": "npm run test --workspace=@smartstorage/backend",
-    "db:migrate": "npm run db:migrate --workspace=@smartstorage/backend"
+    "test:storage": "node scripts/test-storage.mjs",
+    "db:migrate": "npm run db:migrate --workspace=@smartstorage/backend",
+    "db:seed:demo": "npm run db:seed:demo --workspace=@smartstorage/backend"
   },
   "devDependencies": { "concurrently": "^10.0.5" }
 }

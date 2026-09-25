@@ -28,6 +28,9 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
         if (error?.code === UNIQUE_VIOLATION) throw emailTaken();
         throw error;
       }
+      if (!user) {
+        throw new AppError(503, 'FREE_PLAN_UNAVAILABLE', 'El plan Free no está disponible para registrar cuentas.');
+      }
       return toPublicUser(user);
     },
 

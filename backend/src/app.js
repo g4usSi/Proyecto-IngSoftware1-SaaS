@@ -8,7 +8,8 @@ import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { createAuthRepository } from './modules/auth/auth.repository.js';
 import { createAuthenticator } from './modules/auth/authenticate.js';
 import { createTokenService } from './modules/auth/token.js';
-import { createStorageRouter } from './modules/storage/storage.routes.js';
+import { createStorageRouter, createStorageAdminRouter } from './modules/storage/storage.routes.js';
+import { createStorageDemo } from './dev/storage-demo.js';
 import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js';
 
 export function createApp({
@@ -17,6 +18,7 @@ export function createApp({
   jwtSecret = env.jwtSecret,
   jwtExpiresIn = env.jwtExpiresIn,
   loginLimiter,
+  storageRoot = env.storageRoot, storageDemo = env.storageDemo, storageAuthenticate,
 } = {}) {
   const app = express();
   // requireAuth lee esta función de app.locals: verifica el JWT Bearer (firma, expiración, revocación, cuenta activa).
@@ -45,7 +47,11 @@ export function createApp({
   });
 
   app.use('/api/auth', createAuthRouter(database, { tokens, loginLimiter }));
-  app.use('/api/files', createStorageRouter());
+  const demo = createStorageDemo({ database, enabled: storageDemo });
+  const storageOptions = { database, storageRoot, authenticate: storageAuthenticate || demo.authenticate };
+  app.use('/api/dev', demo.router);
+  app.use('/api/files', createStorageRouter(storageOptions));
+  app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api', createSubscriptionsRouter(database));
   app.use(notFound);
   app.use(errorHandler);

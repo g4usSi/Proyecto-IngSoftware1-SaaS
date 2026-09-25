@@ -24,6 +24,7 @@ test('registro crea una cuenta activa, normaliza datos y nunca expone ni guarda 
   assert.equal(JSON.stringify(data).includes('password'), false);
 
   const stored = database.users.get('lany@example.com');
+  assert.equal(database.subscriptions.get(stored.id), 'free');
   assert.notEqual(stored.password_hash, VALID.password);
   assert.equal(stored.password_hash.includes(VALID.password), false);
   assert.equal(await verifyPassword(VALID.password, stored.password_hash), true);
@@ -43,6 +44,16 @@ test('registro traduce la violación UNIQUE de Postgres (registros simultáneos)
   const response = await register(request, VALID);
   assert.equal(response.status, 409);
   assert.equal((await response.json()).error.code, 'EMAIL_ALREADY_REGISTERED');
+});
+
+test('registro no crea cuentas sin un plan Free activo', async (t) => {
+  const database = createFakeDatabase({ freePlanActive: false });
+  const request = await withApi(t, database);
+  const response = await register(request, VALID);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, 'FREE_PLAN_UNAVAILABLE');
+  assert.equal(database.users.size, 0);
+  assert.equal(database.subscriptions.size, 0);
 });
 
 test('registro valida campos obligatorios, correo y contraseña sin tocar la base de datos', async (t) => {
@@ -88,6 +99,9 @@ test('hash de contraseña usa sal única y verifica sin aceptar contraseñas inc
   assert.equal(await verifyPassword('Clave#Segura1', first), true);
   assert.equal(await verifyPassword('otra-clave', first), false);
   assert.equal(await verifyPassword('Clave#Segura1', 'formato-invalido'), false);
+  for (const invalid of ['!disabled:storage-demo', 'x:y', '00:ff', `${'a'.repeat(32)}:${'b'.repeat(128)}:extra`]) {
+    assert.equal(await verifyPassword('Clave#Segura1', invalid), false, invalid);
+  }
 });
 
 test('los errores internos del registro no filtran detalles de SQL', async (t) => {

@@ -15,10 +15,12 @@ export async function hashPassword(password) {
 }
 
 export async function verifyPassword(password, stored) {
-  const [saltHex, hashHex] = String(stored).split(':');
-  if (!saltHex || !hashHex) return false;
-  const expected = Buffer.from(hashHex, 'hex');
-  const actual = await scryptAsync(password, Buffer.from(saltHex, 'hex'), expected.length);
+  // Buffer.from(valor, 'hex') acepta texto inválido y puede devolver un buffer vacío.
+  // Un hash vacío haría que cualquier contraseña pareciera válida.
+  const match = /^([0-9a-f]{32}):([0-9a-f]{128})$/i.exec(stored);
+  if (!match) return false;
+  const expected = Buffer.from(match[2], 'hex');
+  const actual = await scryptAsync(password, Buffer.from(match[1], 'hex'), KEY_LENGTH);
   // timingSafeEqual compara en tiempo constante para no filtrar información por la duración.
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }

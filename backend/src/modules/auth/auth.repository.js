@@ -19,13 +19,26 @@ export function createAuthRepository(database) {
       return rows[0] ?? null;
     },
 
-    // Si el correo ya existe, Postgres lanza el error 23505 (unique_violation) y el service lo traduce.
+    // Una sola sentencia: la cuenta y su suscripción Free se confirman juntas.
+    // Si Free no existe o está inactivo, no se crea una cuenta incompleta.
     async createUser({ name, email, passwordHash }) {
       const { rows } = await database.query(
-        `INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING ${PUBLIC_COLUMNS}`,
+        `WITH free_plan AS (
+           SELECT id FROM plans WHERE code = 'free' AND active = TRUE
+         ), new_user AS (
+           INSERT INTO users (name, email, password_hash)
+           SELECT $1, $2, $3 FROM free_plan
+           RETURNING ${PUBLIC_COLUMNS}
+         ), new_subscription AS (
+           INSERT INTO subscriptions (user_id, plan_id, status)
+           SELECT new_user.id, free_plan.id, 'active' FROM new_user CROSS JOIN free_plan
+           RETURNING user_id
+         )
+         SELECT ${PUBLIC_COLUMNS.split(', ').map((column) => `new_user.${column}`).join(', ')}
+           FROM new_user JOIN new_subscription ON new_subscription.user_id = new_user.id`,
         [name, email, passwordHash],
       );
-      return rows[0];
+      return rows[0] ?? null;
     },
 
     async isTokenRevoked(jti) {

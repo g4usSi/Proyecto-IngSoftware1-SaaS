@@ -4,15 +4,17 @@ import { createApp } from '../../src/app.js';
 export const TEST_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres!';
 
 // BD falsa en memoria: solo entiende las consultas que usa el repository de auth.
-export function createFakeDatabase({ failInsertWith } = {}) {
+export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {}) {
   const users = new Map(); // por correo
   const revoked = new Map(); // por jti
   const calls = [];
+  const subscriptions = new Map();
   let nextId = 1;
 
   return {
     users,
     revoked,
+    subscriptions,
     calls,
     // Crea un usuario directamente (sin pasar por el registro).
     addUser(fields) {
@@ -34,10 +36,13 @@ export function createFakeDatabase({ failInsertWith } = {}) {
         const user = [...users.values()].find((candidate) => candidate.id === params[0]);
         return { rows: user ? [{ ...user, password_hash: undefined }] : [] };
       }
-      if (/^\s*INSERT INTO users/i.test(sql)) {
+      if (/^\s*INSERT INTO users/i.test(sql) || /WITH free_plan AS/i.test(sql)) {
         if (failInsertWith) throw Object.assign(new Error('duplicate key value'), { code: failInsertWith });
+        if (!freePlanActive) return { rows: [] };
         const [name, email, password_hash] = params;
-        return { rows: [this.addUser({ name, email, password_hash })] };
+        const user = this.addUser({ name, email, password_hash });
+        subscriptions.set(user.id, 'free');
+        return { rows: [user] };
       }
       if (/FROM revoked_tokens WHERE jti/i.test(sql)) {
         return { rows: revoked.has(params[0]) ? [{ '?column?': 1 }] : [] };
