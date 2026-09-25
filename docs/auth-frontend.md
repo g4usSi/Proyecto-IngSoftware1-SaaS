@@ -17,7 +17,7 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Implementado (Bloque 2) |
 | `POST /api/auth/verify-email`, `forgot-password`, `reset-password` | Pendiente, responden `501 AUTH_NOT_IMPLEMENTED` |
 
-Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`, no `501`.
+Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
 
 ## `POST /api/auth/register`
 

@@ -84,6 +84,8 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 
 El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el puerto del backend, actualizar `API_PROXY_TARGET` en `frontend/.env` y reiniciar Vite. `frontend/dist` es solo la interfaz: el despliegue deberá proporcionar la API y configurar `/api` en el servidor frontal.
 
+Para conectar el login real y adaptar las pantallas, comenzar por [el traspaso al frontend](docs/frontend-handoff.md). Los contratos detallados están en [autenticación](docs/auth-frontend.md) y [API](docs/api.md).
+
 ## Organización
 
 ```text
