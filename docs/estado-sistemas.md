@@ -35,3 +35,7 @@ Revisión de compañero: el usuario informa el 01/10/2026 que Alegría revisa ca
 Formato de evidencia: `SmartStorage:S2-09 | Hecha | alcance: deduplicación global privada | pruebas: PostgreSQL y navegador, fecha/resultados | revisión: Alegría, reportada por usuario 01/10 | publicación: PR/commit | límites: sin worker asíncrono`.
 
 El archivo canónico de Drive y Trello se concilian con [Sincroniza SmartStorage](sincronizacion-smartstorage.md). El Gantt guardado en Git es histórico; no sustituye al Excel canónico. Se conserva también el Gantt original de `main` del 23/09 para evitar perder esa versión al integrar.
+
+## Validación del corte el 01/10/2026
+
+`npm run check` aprobado; `npm run test:storage`: 44/44, cero omisiones; `npm run test:browser`: 10/10 en Edge con PostgreSQL real. Docker confirmado: `smartstorage-postgres-1`, imagen `postgres:17`, estado healthy, PostgreSQL 17.11 en localhost:5433. Las dos suites se repitieron después de verificar el contenedor. Base temporal creada y eliminada por ejecución, conservando las bases existentes. Ver [resultado nuevo](evidencias/2026-10-01/resultado.json), iniciado 15:45 UTC. Redis y el worker no forman parte de este corte ni de esta validación.
