@@ -60,3 +60,7 @@ Cada ejecución guarda `resultado.json`, capturas y descargas sintéticas en `tm
 S2-15 queda **verificada localmente** para este recorrido. [S2-16](https://trello.com/c/lT1Q1CPK) conserva pendientes la revisión de un compañero, integración y constancia de entrega. No se modificaron Trello ni el Excel remoto en esta ejecución de desarrollo.
 
 No se han probado recuperación tras caída de PostgreSQL/equipo, worker asíncrono, correo, recuperación de contraseña, álbumes, borrado, pagos ni todos los navegadores. Reiniciar la API conservando PostgreSQL disponible no equivale a probar una caída abrupta del sistema.
+
+## Primer corte v0.1.0 — 01/10/2026
+
+La aceptación anterior conserva su fecha histórica. El usuario confirmó que Alegría revisa los módulos al integrar el frontend. Esta revisión se registra como reportada por el usuario, sin atribuir una aprobación formal de GitHub. El primer corte se propone a `main` mediante PR; consultar [estado y criterios de cierre](estado-sistemas.md) para distinguir desarrollo listo, publicación y entrega académica. S2-16 mantiene pendiente la constancia de presentación; su fecha no se reprograma.
