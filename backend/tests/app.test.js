@@ -5,7 +5,7 @@ import { createApp } from '../src/app.js';
 import { readEnv } from '../src/config/env.js';
 
 async function withApi(t, database) {
-  const server = createApp({ database }).listen(0, '127.0.0.1');
+  const server = createApp({ database, jwtSecret: 'secreto-de-pruebas-con-mas-de-32-caracteres!' }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -41,18 +41,16 @@ test('readiness consulta PostgreSQL a través del adaptador de base de datos', a
   assert.equal((await response.json()).data.database, 'connected');
 });
 
-test('login pendiente y rutas privadas no aceptan un token inventado', async (t) => {
+test('rutas privadas rechazan peticiones sin token o con un token inventado, sin consultar la BD', async (t) => {
   const request = await withApi(t, { query: async () => { throw new Error('No debe consultar DB.'); } });
-  const login = await request('/api/auth/login', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'test@example.com', password: 'no-real-password' }),
-  });
-  assert.equal(login.status, 501);
-  assert.equal((await login.json()).error.code, 'AUTH_NOT_IMPLEMENTED');
   for (const route of ['/api/files', '/api/auth/me', '/api/subscriptions/me']) {
-    const response = await request(route, { headers: { Authorization: 'Bearer forged-token' } });
-    assert.equal(response.status, 501);
-    assert.equal((await response.json()).error.code, 'AUTH_NOT_IMPLEMENTED');
+    const missing = await request(route);
+    assert.equal(missing.status, 401);
+    assert.equal((await missing.json()).error.code, 'AUTH_REQUIRED');
+
+    const forged = await request(route, { headers: { Authorization: 'Bearer forged-token' } });
+    assert.equal(forged.status, 401);
+    assert.equal((await forged.json()).error.code, 'TOKEN_INVALID');
   }
 });
 
@@ -88,11 +86,11 @@ test('errores de JSON, rutas inexistentes y CORS conservan el formato público',
   const allowed = await request('/api/health', { headers: { Origin: 'http://localhost:5173' } });
   assert.equal(allowed.headers.get('access-control-allow-origin'), 'http://localhost:5173');
   for (const origin of ['http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173']) {
-    const pendingLogin = await request('/api/auth/login', {
+    const emptyLogin = await request('/api/auth/login', {
       method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: '{}',
     });
-    assert.equal(pendingLogin.status, 501);
-    assert.equal(pendingLogin.headers.get('access-control-allow-origin'), origin);
+    assert.equal(emptyLogin.status, 400);
+    assert.equal(emptyLogin.headers.get('access-control-allow-origin'), origin);
   }
   const forbidden = await request('/api/health', { headers: { Origin: 'https://unknown.example' } });
   assert.equal(forbidden.status, 403);
@@ -105,4 +103,9 @@ test('configuración rechaza puertos, esquemas DB y orígenes inválidos', () =>
   assert.throws(() => readEnv({ PORT: '3000abc' }), /PORT/);
   assert.throws(() => readEnv({ DATABASE_URL: 'https://example.com/db' }), /DATABASE_URL/);
   assert.throws(() => readEnv({ CORS_ORIGINS: 'http://localhost:5173/some/path' }), /CORS_ORIGINS/);
+  assert.throws(() => readEnv({ JWT_SECRET: 'muy-corto' }), /JWT_SECRET/);
+  assert.throws(() => readEnv({ NODE_ENV: 'production' }), /JWT_SECRET/);
+  assert.throws(() => readEnv({ JWT_EXPIRES_IN: 'mucho' }), /JWT_EXPIRES_IN/);
+  assert.equal(readEnv({}).jwtExpiresIn, '1h');
+  assert.equal(readEnv({}).jwtSecret, undefined);
 });

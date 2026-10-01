@@ -4,10 +4,9 @@
 .icon { width: 21px; height: 21px; }
 .skip-link { position: fixed; z-index: 20; left: 20px; top: 16px; padding: 12px 20px; border-radius: 8px; color: var(--color-ink); background: var(--color-white); transform: translateY(-150%); }
 .skip-link:focus { transform: translateY(0); }
-.brand { display: inline-flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 800; letter-spacing: -.065em; white-space: nowrap; }
-.brand-light { color: var(--color-paper); }
-.brand-glyph { width: 29px; height: 32px; }
-.brand-accent { stroke: var(--color-primary); }
+/* Logo oficial (assets/brand). No deformar ni añadir efectos; ver GUIA-DE-USO.md. */
+.brand { display: inline-flex; flex-shrink: 0; }
+.brand img { display: block; width: 200px; height: auto; }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 15px 22px; border: 1px solid transparent; border-radius: 9px; font-size: 13px; font-weight: 700; line-height: 1.5; transition: transform .15s ease, background-color .15s ease; }
 .button:not(:disabled):hover { transform: translateY(-2px); }
 .button-small { padding: 10px 15px; }
