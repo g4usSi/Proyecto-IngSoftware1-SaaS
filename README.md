@@ -16,7 +16,7 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Demostración local opcional con dos cuentas y acceso visible desde la portada cuando está activa.
 - Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
 
-Los pagos, el borrado y los workers **están pendientes**. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
+Los pagos y el borrado **están pendientes**. Existe un worker interno de conversión; su integración con subidas públicas y reservas de cuota aún está pendiente. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
 
 ## Arranque rápido
 
@@ -80,6 +80,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
 | `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
 | `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
+| `npm run worker:images` | Consumidor interno BullMQ/Sharp; requiere Redis y migración 004; ver [integración con cuotas](docs/worker-cuotas.md) |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
 | `npm run db:seed:demo` | Preparar las dos cuentas locales sin activar la demostración |
@@ -136,4 +137,4 @@ Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos c
 
 Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
-Redis queda disponible mediante `docker compose --profile worker up -d`, pero todavía no hay worker ni colas implementadas.
+Redis queda disponible mediante `docker compose --profile worker up -d`. La [base del worker S3-04](docs/worker-cuotas.md) ya permite convertir trabajos internos; S3-08 debe integrar las reservas antes de activar subidas asíncronas para clientes.
