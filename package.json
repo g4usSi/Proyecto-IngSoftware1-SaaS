@@ -14,8 +14,12 @@
     "check": "npm run check --workspace=@smartstorage/backend && npm run build",
     "test": "npm run test --workspace=@smartstorage/backend",
     "test:storage": "node scripts/test-storage.mjs",
+    "test:browser": "node scripts/test-storage.mjs --browser",
     "db:migrate": "npm run db:migrate --workspace=@smartstorage/backend",
     "db:seed:demo": "npm run db:seed:demo --workspace=@smartstorage/backend"
   },
-  "devDependencies": { "concurrently": "^10.0.5" }
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "playwright": "1.62.1"
+  }
 }
