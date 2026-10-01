@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const backendRoot = fileURLToPath(new URL('../../', import.meta.url));
+const projectRoot = path.resolve(backendRoot, '..');
 dotenv.config({ path: path.join(backendRoot, '.env'), quiet: true });
 
 export function readEnv(source = process.env) {
@@ -51,13 +52,40 @@ export function readEnv(source = process.env) {
     }
   }
 
+  const jwtSecret = source.JWT_SECRET?.trim() || undefined;
+  if (jwtSecret && jwtSecret.length < 32) {
+    throw new Error('JWT_SECRET debe tener al menos 32 caracteres.');
+  }
+  if (nodeEnv === 'production' && !jwtSecret) {
+    throw new Error('JWT_SECRET es obligatorio en producción.');
+  }
+  const jwtExpiresIn = source.JWT_EXPIRES_IN?.trim() || '1h';
+  if (!/^[1-9]\d*[smhd]$/.test(jwtExpiresIn)) {
+    throw new Error('JWT_EXPIRES_IN debe ser un número seguido de s, m, h o d (por ejemplo 1h).');
+  }
+  const host = source.HOST || '127.0.0.1';
+  const rawDemo = source.STORAGE_DEMO_ENABLED || 'false';
+  if (!['true', 'false'].includes(rawDemo)) {
+    throw new Error('STORAGE_DEMO_ENABLED debe ser true o false.');
+  }
+  const storageDemo = rawDemo === 'true';
+  const loopbackHosts = ['localhost', '127.0.0.1', '::1', '[::1]'];
+  if (storageDemo && (nodeEnv === 'production' || !loopbackHosts.includes(host) ||
+      corsOrigins.some((origin) => !loopbackHosts.includes(new URL(origin).hostname)))) {
+    throw new Error('La demostración Storage solo puede activarse localmente, fuera de producción y con orígenes loopback.');
+  }
+
   return Object.freeze({
     nodeEnv,
-    host: source.HOST || '127.0.0.1',
+    host,
     port,
     corsOrigins,
     databaseUrl,
-    storageRoot: path.resolve(backendRoot, source.STORAGE_ROOT || './data/objects'),
+    jwtSecret,
+    jwtExpiresIn,
+    // Las rutas relativas se resuelven desde la raíz del repositorio.
+    storageRoot: path.resolve(projectRoot, source.STORAGE_ROOT || './storage'),
+    storageDemo,
   });
 }
 
