@@ -1,4 +1,18 @@
-# Verificación de Storage — 23 de septiembre de 2026
+# Verificación de SmartStorage
+
+## Flujo integrado — 30 de septiembre de 2026
+
+Verificación local sobre `b22e809` y los cambios de esta tarea:
+
+- Backend con PostgreSQL 18 temporal: `npm run test:storage`, **44/44 pruebas aprobadas**, ninguna omitida.
+- Interfaz real en Edge con Playwright: `npm run test:browser`, **10/10 escenarios aprobados**, incluidos registro, Free, carga múltiple, galería, descarga WebP, aislamiento/deduplicación entre cuentas, errores de cuota, reinicio de API y logout revocable.
+- `npm run check`: sintaxis backend y compilación frontend aprobadas.
+- Se reprodujo una conversión de 38 B a 44 B que se mostraba como «0 B menos». Resumen y análisis ahora muestran 6 B adicionales y 16% más. La prueba incluye este caso.
+- Capturas de escritorio y móvil, sin excepciones JavaScript observadas. Datos sintéticos, base y almacenamiento temporales; ninguna base existente del equipo se modificó.
+
+Ver [alcance, comandos y evidencia de S2-15](aceptacion-30.md). Esta prueba sí utiliza login JWT desde la interfaz, a diferencia de la verificación histórica de abajo. La revisión de compañero, integración en `main` y entrega académica de S2-16 siguen sin acreditarse en este trabajo. El 50% aún requiere worker, recuperación, borrado, álbumes y los flujos de cuenta pendientes.
+
+## Verificación histórica de Storage — 25 de septiembre de 2026
 
 Comprobaciones realizadas sobre esta entrega:
 

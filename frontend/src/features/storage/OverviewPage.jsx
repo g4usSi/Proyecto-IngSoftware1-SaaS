@@ -12,7 +12,9 @@ export function OverviewPage() {
   const { stats, items, loaded } = useLibrary();
   const firstName = session?.user?.name?.trim().split(/\s+/)[0];
   const recent = useMemo(() => [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4), [items]);
-  const saved = Math.max(0, stats.originalBytes - stats.webpBytes);
+  const saved = stats.originalBytes - stats.webpBytes;
+  const grew = saved < 0;
+  const direction = grew ? 'más' : 'menos';
   const percent = Math.round(stats.savedRatio * 100);
 
   return (
@@ -30,7 +32,7 @@ export function OverviewPage() {
         <StatCard icon={Images} label="Imágenes" value={stats.count} format={(v) => `${Math.round(v)}${stats.complete ? '' : '+'}`} ready={stats.loaded} index={0} />
         <StatCard icon={Weight} label="Peso original" value={stats.originalBytes} format={formatBytes} ready={stats.loaded} index={1} />
         <StatCard icon={Scale} label="Peso en WebP" value={stats.webpBytes} format={formatBytes} ready={stats.loaded} index={2} />
-        <StatCard icon={TrendingDown} label="Ahorro" value={stats.savedRatio * 100} format={(v) => `${Math.round(v)} %`} ready={stats.loaded} accent index={3} />
+        <StatCard icon={TrendingDown} label={grew ? 'Aumento de peso' : 'Ahorro'} value={Math.abs(stats.savedRatio * 100)} format={(v) => `${Math.round(v)} %`} ready={stats.loaded} accent={!grew} index={3} />
       </div>
 
       <div className="overview-grid">
@@ -66,10 +68,10 @@ export function OverviewPage() {
             <h2 id="saving-title">Tu ahorro</h2>
             <Link className="panel-link" to="/app/insights">Detalle <ArrowRight strokeWidth={2} aria-hidden="true" /></Link>
           </div>
-          <div className="ring" style={{ '--p': loaded ? Math.max(0, percent) : 0 }} role="img" aria-label={`${percent} % menos peso que los originales`}>
-            <div><strong>{loaded ? `${percent} %` : '—'}</strong><span>menos peso</span></div>
+          <div className="ring" style={{ '--p': loaded ? Math.max(0, percent) : 0 }} role="img" aria-label={`${Math.abs(percent)} % ${direction} peso que los originales`}>
+            <div><strong>{loaded ? `${Math.abs(percent)} %` : '—'}</strong><span>{direction} peso</span></div>
           </div>
-          <p className="saving-text">{stats.count ? <>Tus WebP pesan <strong>{formatBytes(saved)}</strong> menos que los originales.</> : 'Sube imágenes para ver cuánto ahorras.'}</p>
+          <p className="saving-text">{stats.count ? <>Tus WebP pesan <strong>{formatBytes(Math.abs(saved))}</strong> {direction} que los originales.</> : 'Sube imágenes para ver cuánto ahorras.'}</p>
         </section>
       </div>
     </div>

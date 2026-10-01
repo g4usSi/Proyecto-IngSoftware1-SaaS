@@ -30,9 +30,10 @@ export function InsightsPage() {
     return [...groups.values()].sort((a, b) => b.original - a.original);
   }, [items]);
 
-  const top = useMemo(() => [...items].sort((a, b) => savingRatio(b) - savingRatio(a)).slice(0, 5), [items]);
-  const maxOriginal = Math.max(1, ...byFormat.map((group) => group.original));
-  const saved = Math.max(0, stats.originalBytes - stats.webpBytes);
+  const top = useMemo(() => items.filter((file) => savingRatio(file) > 0).sort((a, b) => savingRatio(b) - savingRatio(a)).slice(0, 5), [items]);
+  const maxBytes = Math.max(1, ...byFormat.flatMap((group) => [group.original, group.webp]));
+  const saved = stats.originalBytes - stats.webpBytes;
+  const grew = saved < 0;
 
   return (
     <div className="page">
@@ -45,7 +46,7 @@ export function InsightsPage() {
       </header>
 
       <div className="stats-grid is-three">
-        <StatCard icon={PiggyBank} label="Espacio ahorrado" value={saved} format={formatBytes} hint={`${Math.round(stats.savedRatio * 100)} % menos`} ready={stats.loaded} accent index={0} />
+        <StatCard icon={PiggyBank} label={grew ? 'Espacio adicional' : 'Espacio ahorrado'} value={Math.abs(saved)} format={formatBytes} hint={`${Math.abs(Math.round(stats.savedRatio * 100))} % ${grew ? 'más' : 'menos'}`} ready={stats.loaded} accent={!grew} index={0} />
         <StatCard icon={Weight} label="Originales" value={stats.originalBytes} format={formatBytes} hint="lo que cuenta tu plan" ready={stats.loaded} index={1} />
         <StatCard icon={Scale} label="En WebP" value={stats.webpBytes} format={formatBytes} hint="lo que se guarda y descargas" ready={stats.loaded} index={2} />
       </div>
@@ -61,8 +62,8 @@ export function InsightsPage() {
                     <strong>{group.format}</strong>
                     <span>{group.count} {group.count === 1 ? 'imagen' : 'imágenes'} · {formatPercent(group.original ? (group.original - group.webp) / group.original : 0)}</span>
                   </div>
-                  <div className="format-track"><i className="is-original" style={{ '--w': `${(group.original / maxOriginal) * 100}%` }} /></div>
-                  <div className="format-track"><i className="is-webp" style={{ '--w': `${(group.webp / maxOriginal) * 100}%` }} /></div>
+                  <div className="format-track"><i className="is-original" style={{ '--w': `${(group.original / maxBytes) * 100}%` }} /></div>
+                  <div className="format-track"><i className="is-webp" style={{ '--w': `${(group.webp / maxBytes) * 100}%` }} /></div>
                   <div className="format-values"><span>Original {formatBytes(group.original)}</span><span>WebP {formatBytes(group.webp)}</span></div>
                 </li>
               ))}
@@ -72,7 +73,7 @@ export function InsightsPage() {
 
         <section className="panel" aria-labelledby="top-title">
           <div className="panel-head"><h2 id="top-title"><Trophy strokeWidth={2} aria-hidden="true" />Las que más bajaron</h2></div>
-          {top.length === 0 ? <p className="panel-muted">Aún no hay datos.</p> : (
+          {top.length === 0 ? <p className="panel-muted">Aún no hay imágenes que reduzcan su peso.</p> : (
             <ol className="top-list">
               {top.map((file, index) => (
                 <li key={file.id}>

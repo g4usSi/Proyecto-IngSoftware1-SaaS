@@ -7,6 +7,8 @@ import { env } from '../backend/src/config/env.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const npmCli = process.env.npm_execpath || join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
+const browserTest = process.argv.includes('--browser');
+const command = browserTest ? [join(root, 'scripts/acceptance-browser.mjs')] : [npmCli, 'test'];
 if (!env.databaseUrl) throw new Error('Configura DATABASE_URL en backend/.env antes de ejecutar test:storage.');
 const currentUrl = new URL(env.databaseUrl);
 if (env.nodeEnv === 'production' || !['localhost', '127.0.0.1', '[::1]'].includes(currentUrl.hostname) || currentUrl.port !== '5433') {
@@ -43,7 +45,7 @@ try {
   testUrl.pathname = `/${name}`;
   console.log('Base temporal aislada creada para ejecutar la suite completa.');
   testExitCode = await new Promise((resolve, reject) => {
-    child = spawn(process.execPath, [npmCli, 'test'], {
+    child = spawn(process.execPath, command, {
       cwd: root,
       env: { ...process.env, TEST_DATABASE_URL: testUrl.toString() },
       stdio: 'inherit',

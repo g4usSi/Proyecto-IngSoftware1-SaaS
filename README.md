@@ -79,6 +79,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run check` | Sintaxis backend y compilación frontend |
 | `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
 | `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
+| `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
 | `npm run db:seed:demo` | Preparar las dos cuentas locales sin activar la demostración |
@@ -124,7 +125,12 @@ Ver [guía de Storage y demostración](docs/storage.md), [decisiones y cálculo 
 
 ## Para trabajar en equipo
 
-Andy puede iniciar el módulo `backend/src/modules/auth/` usando el contrato de `requireAuth`. Geovanny continúa Storage; Elden, planes/suscripciones; Diego, frontend e integración. Cada trabajo nuevo parte de esta base compartida.
+Para conciliar el Excel de Drive, GitHub y Trello, escribe **`Sincroniza SmartStorage`**
+en Codex abierto en este proyecto. Consulta las reglas en
+[sincronización de SmartStorage](docs/sincronizacion-smartstorage.md).
+Es un comando del asistente a pedido; no programa ejecuciones automáticas.
+
+Andy continúa la verificación de correo y recuperación sobre el módulo de autenticación existente. Geovanny continúa Storage y workers; Elden, planes/suscripciones; Diego, frontend e integración. Cada trabajo nuevo parte de esta base compartida.
 
 Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos con un compañero antes de integrar a `main`. No subir `.env`, imágenes de usuarios, contraseñas o `node_modules`. El archivo `package-lock.json` se versiona para instalar las mismas dependencias con `npm ci`.
 

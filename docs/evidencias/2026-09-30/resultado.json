@@ -1,0 +1,55 @@
+{
+  "startedAt": "2026-10-01T01:56:15.200Z",
+  "browser": "msedge",
+  "steps": [
+    {
+      "name": "Registro A con validación visible y plan Free real",
+      "result": "passed"
+    },
+    {
+      "name": "Registro B rechaza correo duplicado y crea una cuenta independiente",
+      "result": "passed"
+    },
+    {
+      "name": "Carga múltiple A convierte PNG/JPG y muestra miniaturas y descarga WebP",
+      "result": "passed"
+    },
+    {
+      "name": "B no ve archivos A; subir el mismo PNG comparte un único objeto físico",
+      "result": "passed"
+    },
+    {
+      "name": "Archivo falso y cuota excedida muestran error sin crear imágenes",
+      "result": "passed"
+    },
+    {
+      "name": "Ahorro administrativo usa referencias lógicas y bytes reales en disco",
+      "result": "passed"
+    },
+    {
+      "name": "Reinicio de API conserva galería privada y descarga",
+      "result": "passed"
+    },
+    {
+      "name": "Logout desde la interfaz revoca JWT y el login rechaza contraseña incorrecta",
+      "result": "passed"
+    },
+    {
+      "name": "La interfaz informa aumento de peso cuando la conversión produce un WebP mayor",
+      "result": "passed"
+    },
+    {
+      "name": "Sin errores de ejecución de JavaScript en el navegador",
+      "result": "passed"
+    }
+  ],
+  "sourceSha256": {
+    "scripts/acceptance-browser.mjs": "72dd525ba7a92c2a50ca3e2e4a3ab37e5cbdcd605c0c0e578db1a7026d0d8ac2",
+    "scripts/test-storage.mjs": "8b73e1a911665054151e384520489ceb73a2eab74f25f5a1500aaa79d9558c21",
+    "package-lock.json": "0ce6263295be8a4df5700b5b683d2f3f8599bc7654575a99094c04d3f3a392db",
+    "frontend/src/features/storage/OverviewPage.jsx": "d3acb3673e7ab058a6e37a56c555713bf66dd6a8fddc5c8d3f933de5fda3c84f",
+    "frontend/src/features/storage/InsightsPage.jsx": "85ee28131409fc3b6c9b3704628c330374643f6bffa2851be19699882ca60db4"
+  },
+  "result": "passed",
+  "finishedAt": "2026-10-01T01:56:33.691Z"
+}
