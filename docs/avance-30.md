@@ -38,3 +38,7 @@ La decisión de conservar solo WebP obliga a incluir una primera conversión fun
 - Panel de administrador y posterior demo SDK/API según el alcance final.
 
 Cada tarea terminada necesita ejecución local y revisión de un compañero. El equipo deberá conciliar este reparto con su disponibilidad; esta lista no cambia automáticamente Trello ni asigna trabajo a otras personas.
+
+## Primer corte v0.1.0 — 01/10/2026
+
+La aceptación anterior conserva su fecha histórica. El usuario confirmó que Alegría revisa los módulos al integrar el frontend. Esta revisión se registra como reportada por el usuario, sin atribuir una aprobación formal de GitHub. El primer corte se propone a `main` mediante PR; consultar [estado y criterios de cierre](estado-sistemas.md) para distinguir desarrollo listo, publicación y entrega académica. S2-16 mantiene pendiente la constancia de presentación; su fecha no se reprograma.

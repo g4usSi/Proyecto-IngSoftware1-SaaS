@@ -137,3 +137,7 @@ Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos c
 Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
 Redis queda disponible mediante `docker compose --profile worker up -d`, pero todavía no hay worker ni colas implementadas.
+
+## Primera versión funcional: v0.1.0 (30%)
+
+Este corte contiene el flujo síncrono verificado de registro, acceso, Free y Storage. Consultar [sistemas listos y cómo reportarlos](docs/estado-sistemas.md) y [aceptación reproducible](docs/aceptacion-30.md). Redis/BullMQ y el worker parcial permanecen en `tema-y-flujo-git` para el 50%. La versión identifica un avance funcional del equipo; la entrega académica se acredita por separado.
