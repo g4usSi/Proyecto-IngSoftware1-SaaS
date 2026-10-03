@@ -15,7 +15,8 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | --- | --- |
 | `POST /api/auth/register` | Implementado (Bloque 1) |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Implementado (Bloque 2) |
-| `POST /api/auth/verify-email`, `forgot-password`, `reset-password` | Pendiente, responden `501 AUTH_NOT_IMPLEMENTED` |
+| `POST /api/auth/forgot-password`, `reset-password` | Implementado (Bloque 3). **El envío de correo aún es simulado** (ver nota abajo) |
+| `POST /api/auth/verify-email` | Pendiente, responde `501 AUTH_NOT_IMPLEMENTED` |
 
 Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
 
@@ -165,6 +166,55 @@ Devuelve el usuario de la sesión actual. **Requiere token.** Útil para restaur
 | 401 | `TOKEN_EXPIRED` | Token vencido | `La sesión expiró. Inicia sesión de nuevo.` |
 | 403 | `ACCOUNT_DISABLED` | La cuenta se desactivó con la sesión abierta | `Tu cuenta está desactivada. Contacta al administrador.` |
 | 403 | `FORBIDDEN` | El rol no tiene permiso (rutas de administrador) | `No tienes permiso para realizar esta acción.` |
+
+## `POST /api/auth/forgot-password`
+
+Solicita la recuperación de contraseña. **No requiere token.**
+
+Cuerpo:
+
+```json
+{ "email": "lany@example.com" }
+```
+
+Éxito: siempre `200`, exista o no la cuenta (para no revelar qué correos están registrados):
+
+```json
+{ "data": { "message": "Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña." } }
+```
+
+Ese `message` se puede mostrar tal cual al usuario.
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el correo | `El correo electrónico es obligatorio.` |
+
+**Importante — envío de correo aún simulado:** por ahora el "envío" solo queda en el log del servidor (backend), no llega ningún correo real. El equipo está gestionando una cuenta de Brevo para el envío real por SMTP; en cuanto esté lista, este comportamiento cambia pero **el contrato de la API (cuerpo, respuesta, errores) no cambia**. El enlace que se generaría tiene la forma `FRONTEND_URL/reset-password?token=...` y vence en **1 hora**. El frontend debe tener una ruta `/reset-password` que lea `token` de la query string y lo use al llamar a `reset-password`.
+
+## `POST /api/auth/reset-password`
+
+Establece una nueva contraseña usando el token recibido por correo (de un solo uso). **No requiere token de sesión** (Bearer); usa en su lugar el `token` de recuperación en el cuerpo.
+
+Cuerpo:
+
+```json
+{ "token": "…64 caracteres hexadecimales…", "password": "Clave#Segura1" }
+```
+
+La contraseña nueva debe cumplir la misma política que en el registro (ver arriba).
+
+Éxito: `200`
+
+```json
+{ "data": { "reset": true } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el token o la contraseña, o la contraseña no cumple la política | (el primer problema encontrado, mismos mensajes que en registro) |
+| 400 | `RESET_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta para los tres casos, a propósito) | `El enlace de recuperación no es válido o expiró.` |
+
+Tras un reset exitoso, ese token y cualquier otro enlace de recuperación pendiente de la misma cuenta quedan invalidados. Las sesiones (tokens Bearer) que ya existían **no** se cierran automáticamente; si se necesita ese comportamiento, avisar para agregarlo.
 
 ## Cuenta activa o desactivada
 
