@@ -1,17 +1,20 @@
+import { randomBytes, createHash } from 'node:crypto';
 import { AppError, notImplemented } from '../../lib/app-error.js';
 import { hashPassword, verifyPassword } from './password.js';
-import { normalizeEmail, validateRegistration } from './auth.validation.js';
+import { normalizeEmail, passwordProblems, validateRegistration } from './auth.validation.js';
 import { createLoginLimiter } from './login-limiter.js';
 import { invalidToken } from './token.js';
 
 const UNIQUE_VIOLATION = '23505';
 const PASSWORD_MAX = 128;
+const RESET_TOKEN_BYTES = 32;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora, según lo acordado
 
 // Se compara contra este hash cuando el correo no existe, para que el tiempo de respuesta
 // no revele si la cuenta existe. Se calcula una sola vez, la primera vez que hace falta.
 let dummyHash;
 
-export function createAuthService({ repository, tokens, loginLimiter = createLoginLimiter() }) {
+export function createAuthService({ repository, tokens, loginLimiter = createLoginLimiter(), mailer, frontendUrl }) {
   return {
     // RF01, RF11, RNF01: valida, hashea la contraseña y crea la cuenta (activa por defecto, RF10).
     async register(input) {
@@ -81,17 +84,62 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       return toPublicUser(user);
     },
 
-    // Pendientes de bloques posteriores: siguen devolviendo 501.
+    // RF05: nunca revela si el correo existe (mismo principio que el login, RNF12).
+    async forgotPassword(input) {
+      const rawEmail = input?.email;
+      if (typeof rawEmail !== 'string' || rawEmail.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El correo electrónico es obligatorio.');
+      }
+      const email = normalizeEmail(rawEmail);
+
+      const user = await repository.findUserByEmail(email);
+      if (user) {
+        const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
+        const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+        // Solo puede quedar un enlace válido a la vez por cuenta.
+        await repository.invalidateUserPasswordResetTokens(user.id);
+        await repository.createPasswordResetToken({ userId: user.id, tokenHash: hashToken(rawToken), expiresAt });
+        const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
+        await mailer.sendPasswordReset({ to: user.email, name: user.name, resetLink });
+      }
+      return { message: 'Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña.' };
+    },
+
+    // RF06 (el resto del Bloque 3 se implementa aparte): consume el token de un solo uso.
+    async resetPassword(input) {
+      const { token, password } = input ?? {};
+      if (typeof token !== 'string' || token.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El token de recuperación es obligatorio.');
+      }
+      if (typeof password !== 'string' || password === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'La contraseña es obligatoria.');
+      }
+      const problems = passwordProblems(password);
+      if (problems.length > 0) throw new AppError(400, 'VALIDATION_ERROR', problems[0]);
+
+      // Un solo error para "no existe", "ya se usó" y "venció": no distingue el motivo.
+      const record = await repository.findValidPasswordResetToken(hashToken(token));
+      if (!record) throw invalidResetToken();
+
+      await repository.updateUserPassword(record.user_id, await hashPassword(password));
+      await repository.markPasswordResetTokenUsed(record.id);
+      await repository.invalidateUserPasswordResetTokens(record.user_id);
+      return { reset: true };
+    },
+
+    // Pendiente de bloques posteriores: sigue devolviendo 501.
     async verifyEmail(_input) {
       return pending();
     },
-    async forgotPassword(_input) {
-      return pending();
-    },
-    async resetPassword(_input) {
-      return pending();
-    },
   };
+}
+
+function hashToken(token) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function invalidResetToken() {
+  return new AppError(400, 'RESET_TOKEN_INVALID', 'El enlace de recuperación no es válido o expiró.');
 }
 
 async function getDummyHash() {

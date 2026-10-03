@@ -63,6 +63,12 @@ export function readEnv(source = process.env) {
   if (!/^[1-9]\d*[smhd]$/.test(jwtExpiresIn)) {
     throw new Error('JWT_EXPIRES_IN debe ser un número seguido de s, m, h o d (por ejemplo 1h).');
   }
+  const frontendUrl = (source.FRONTEND_URL || 'http://localhost:5173').trim();
+  try {
+    new URL(frontendUrl);
+  } catch {
+    throw new Error('FRONTEND_URL debe ser una URL válida.');
+  }
   const host = source.HOST || '127.0.0.1';
   const rawDemo = source.STORAGE_DEMO_ENABLED || 'false';
   if (!['true', 'false'].includes(rawDemo)) {
@@ -83,6 +89,7 @@ export function readEnv(source = process.env) {
     databaseUrl,
     jwtSecret,
     jwtExpiresIn,
+    frontendUrl,
     // Las rutas relativas se resuelven desde la raíz del repositorio.
     storageRoot: path.resolve(projectRoot, source.STORAGE_ROOT || './storage'),
     storageDemo,
