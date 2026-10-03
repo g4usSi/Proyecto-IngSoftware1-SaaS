@@ -11,7 +11,7 @@ const PASSWORD = 'Clave#Segura1';
 async function setup(t, options) {
   const database = createFakeDatabase();
   const user = database.addUser({
-    name: 'Lany Pérez', email: 'lany@example.com', password_hash: await hashPassword(PASSWORD),
+    name: 'Lany Pérez', email: 'lany@example.com', password_hash: await hashPassword(PASSWORD), email_verified: true,
   });
   const request = await withApi(t, database, options);
   return { database, user, request };

@@ -9,8 +9,12 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET | `/health` | `200`, `{ "data": { "status": "ok", "service": "smartstorage-api" } }` |
 | GET | `/ready` | `200` con BD conectada; `503 DATABASE_UNAVAILABLE` si falta configuración o conexión |
 | GET | `/plans` | `200`, catálogo activo de PostgreSQL; requiere migraciones. El seed incluye únicamente Free |
-| POST | `/auth/register` | `201`, crea usuario cliente y suscripción Free de forma atómica; no inicia sesión |
-| POST | `/auth/login` | `200`, `{ data: { token, expiresAt, user } }` |
+| POST | `/auth/register` | `201`, crea usuario cliente y suscripción Free de forma atómica; no inicia sesión; envía el correo de verificación |
+| POST | `/auth/login` | `200`, `{ data: { token, expiresAt, user } }`; `403 EMAIL_NOT_VERIFIED` si el correo no está verificado |
+| POST | `/auth/verify-email` | `200`, `{ data: { verified: true } }`; `{ token }` de un solo uso, vence en 24 h |
+| POST | `/auth/resend-verification` | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral |
+| POST | `/auth/forgot-password` | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral sin revelar si existe la cuenta |
+| POST | `/auth/reset-password` | `200`, `{ data: { reset: true } }`; `{ token, password }`, token de un solo uso, vence en 1 h |
 | GET | `/auth/me` | `200`, `{ data: user }`; requiere Bearer JWT |
 | POST | `/auth/logout` | `200`, `{ data: { loggedOut: true } }`; revoca el JWT actual |
 | GET | `/dev/storage-demo` | `200`, `{ data: { enabled, accounts } }`; apagada no devuelve identidades |
@@ -58,9 +62,6 @@ Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inváli
 
 | Método | Ruta | Contrato previsto |
 | --- | --- | --- |
-| POST | `/auth/verify-email` | `{ token }`; consumir token de un solo uso |
-| POST | `/auth/forgot-password` | `{ email }`; respuesta neutral sin revelar si existe la cuenta |
-| POST | `/auth/reset-password` | `{ token, password }`; token de un solo uso |
 | DELETE | `/files/:fileId` | Elimina el enlace lógico; solo se borra el WebP cuando no quedan referencias |
 | GET | `/subscriptions/me` | Suscripción y plan de la cuenta autenticada |
 

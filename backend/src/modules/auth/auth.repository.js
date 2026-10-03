@@ -88,6 +88,37 @@ export function createAuthRepository(database) {
       );
     },
 
+    async createEmailVerificationToken({ userId, tokenHash, expiresAt }) {
+      await database.query(
+        'INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+        [userId, tokenHash, expiresAt],
+      );
+    },
+
+    async invalidateUserEmailVerificationTokens(userId) {
+      await database.query(
+        'UPDATE email_verification_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL',
+        [userId],
+      );
+    },
+
+    // Una sola sentencia: consume el token y verifica la cuenta juntos, o ninguna de las dos cosas.
+    // Dos peticiones simultáneas con el mismo token no pueden consumirlo dos veces.
+    async consumeEmailVerificationToken(tokenHash) {
+      const { rows } = await database.query(
+        `WITH consumed AS (
+           UPDATE email_verification_tokens SET used_at = now()
+            WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+            RETURNING user_id
+         )
+         UPDATE users SET email_verified = TRUE, updated_at = now()
+           FROM consumed WHERE users.id = consumed.user_id
+         RETURNING users.id`,
+        [tokenHash],
+      );
+      return rows[0]?.id ?? null;
+    },
+
     async updateUserPassword(userId, passwordHash) {
       await database.query(
         'UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1',
