@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
-import { AppError, notImplemented } from '../../lib/app-error.js';
+import { AppError } from '../../lib/app-error.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { normalizeEmail, passwordProblems, validateRegistration } from './auth.validation.js';
 import { createLoginLimiter } from './login-limiter.js';
@@ -9,12 +9,33 @@ const UNIQUE_VIOLATION = '23505';
 const PASSWORD_MAX = 128;
 const RESET_TOKEN_BYTES = 32;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora, según lo acordado
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 // Se compara contra este hash cuando el correo no existe, para que el tiempo de respuesta
 // no revele si la cuenta existe. Se calcula una sola vez, la primera vez que hace falta.
 let dummyHash;
 
 export function createAuthService({ repository, tokens, loginLimiter = createLoginLimiter(), mailer, frontendUrl }) {
+  // Deja un solo enlace de verificación válido por cuenta y lo envía por correo.
+  async function sendVerification(user) {
+    const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
+    await repository.invalidateUserEmailVerificationTokens(user.id);
+    await repository.createEmailVerificationToken({
+      userId: user.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
+    });
+    const verifyLink = `${frontendUrl}/verify-email?token=${rawToken}`;
+    await mailer.sendEmailVerification({ to: user.email, name: user.name, verifyLink });
+  }
+
+  // Si el correo falla, la cuenta sigue existiendo y el usuario puede pedir el reenvío.
+  async function trySendVerification(user) {
+    try {
+      await sendVerification(user);
+    } catch (error) {
+      console.error('No se pudo enviar el correo de verificación:', error?.message ?? error);
+    }
+  }
+
   return {
     // RF01, RF11, RNF01: valida, hashea la contraseña y crea la cuenta (activa por defecto, RF10).
     async register(input) {
@@ -34,6 +55,7 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       if (!user) {
         throw new AppError(503, 'FREE_PLAN_UNAVAILABLE', 'El plan Free no está disponible para registrar cuentas.');
       }
+      await trySendVerification(user);
       return toPublicUser(user);
     },
 
@@ -64,6 +86,10 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       // Solo se informa de la desactivación cuando la contraseña es correcta (no revela qué correos existen).
       if (!user.active) {
         throw new AppError(403, 'ACCOUNT_DISABLED', 'Tu cuenta está desactivada. Contacta al administrador.');
+      }
+      if (!user.email_verified) {
+        throw new AppError(403, 'EMAIL_NOT_VERIFIED',
+          'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.');
       }
 
       loginLimiter.reset(key);
@@ -105,7 +131,7 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       return { message: 'Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña.' };
     },
 
-    // RF06 (el resto del Bloque 3 se implementa aparte): consume el token de un solo uso.
+    // RF05: consume el token de un solo uso y cambia la contraseña.
     async resetPassword(input) {
       const { token, password } = input ?? {};
       if (typeof token !== 'string' || token.trim() === '') {
@@ -127,9 +153,28 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       return { reset: true };
     },
 
-    // Pendiente de bloques posteriores: sigue devolviendo 501.
-    async verifyEmail(_input) {
-      return pending();
+    async verifyEmail(input) {
+      const token = input?.token;
+      if (typeof token !== 'string' || token.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El token de verificación es obligatorio.');
+      }
+      // Un solo error para "no existe", "ya se usó" y "venció".
+      const userId = await repository.consumeEmailVerificationToken(hashToken(token));
+      if (!userId) {
+        throw new AppError(400, 'VERIFICATION_TOKEN_INVALID', 'El enlace de verificación no es válido o expiró.');
+      }
+      return { verified: true };
+    },
+
+    // Misma respuesta exista o no la cuenta, o si ya está verificada: no revela qué correos existen.
+    async resendVerification(input) {
+      const rawEmail = input?.email;
+      if (typeof rawEmail !== 'string' || rawEmail.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El correo electrónico es obligatorio.');
+      }
+      const user = await repository.findUserByEmail(normalizeEmail(rawEmail));
+      if (user && user.active && !user.email_verified) await trySendVerification(user);
+      return { message: 'Si el correo está registrado y aún no está verificado, se envió un nuevo enlace de verificación.' };
     },
   };
 }
@@ -162,8 +207,4 @@ function toPublicUser(user) {
 
 function emailTaken() {
   return new AppError(409, 'EMAIL_ALREADY_REGISTERED', 'El correo electrónico ya está registrado.');
-}
-
-function pending() {
-  return notImplemented('AUTH_NOT_IMPLEMENTED', 'El módulo de autenticación está pendiente de implementación.');
 }

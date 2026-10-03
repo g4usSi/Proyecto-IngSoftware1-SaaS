@@ -9,6 +9,7 @@ import test from 'node:test';
 import pg from 'pg';
 import sharp from 'sharp';
 import { createApp } from '../src/app.js';
+import { createFakeMailer, tokenFromLink } from './helpers/fake-auth-database.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const migrationsDirectory = fileURLToPath(new URL('../migrations/', import.meta.url));
@@ -45,8 +46,10 @@ test('registro Free, login JWT y subida WebP funcionan juntos en PostgreSQL', {
     await database.query(await readFile(path.join(migrationsDirectory, name), 'utf8'));
   }
   storageRoot = await mkdtemp(path.join(os.tmpdir(), 'smartstorage-auth-test-'));
-  server = createApp({ database, storageRoot, storageDemo: false, jwtSecret: 'test-secret-that-is-longer-than-thirty-two-characters' })
-    .listen(0, '127.0.0.1');
+  const mailer = createFakeMailer();
+  server = createApp({
+    database, storageRoot, storageDemo: false, mailer, jwtSecret: 'test-secret-that-is-longer-than-thirty-two-characters',
+  }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
   const post = (route, data) => fetch(`${base}${route}`, {
@@ -62,6 +65,12 @@ test('registro Free, login JWT y subida WebP funcionan juntos en PostgreSQL', {
     WHERE s.user_id = $1 AND s.status = 'active'
   `, [user.id]);
   assert.deepEqual(subscription.rows.map((row) => row.code), ['free']);
+
+  const unverified = await post('/api/auth/login', { email: account.email, password: account.password });
+  assert.equal(unverified.status, 403);
+  const token = tokenFromLink(mailer.verifications[0].verifyLink);
+  assert.equal((await post('/api/auth/verify-email', { token })).status, 200);
+  assert.equal((await post('/api/auth/verify-email', { token })).status, 400);
 
   const login = await post('/api/auth/login', { email: account.email, password: account.password });
   assert.equal(login.status, 200);

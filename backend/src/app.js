@@ -8,7 +8,7 @@ import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { createAuthRepository } from './modules/auth/auth.repository.js';
 import { createAuthenticator } from './modules/auth/authenticate.js';
 import { createTokenService } from './modules/auth/token.js';
-import { createConsoleMailer } from './modules/auth/mailer.js';
+import { createMailer } from './modules/auth/mailer.js';
 import { createStorageRouter, createStorageAdminRouter } from './modules/storage/storage.routes.js';
 import { createStorageDemo } from './dev/storage-demo.js';
 import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js';
@@ -19,7 +19,7 @@ export function createApp({
   jwtSecret = env.jwtSecret,
   jwtExpiresIn = env.jwtExpiresIn,
   loginLimiter,
-  mailer = createConsoleMailer(),
+  mailer = createMailer(env.smtp),
   frontendUrl = env.frontendUrl,
   storageRoot = env.storageRoot, storageDemo = env.storageDemo, storageAuthenticate,
 } = {}) {

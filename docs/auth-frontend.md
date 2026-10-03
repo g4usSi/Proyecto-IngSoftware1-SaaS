@@ -15,14 +15,23 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | --- | --- |
 | `POST /api/auth/register` | Implementado (Bloque 1) |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Implementado (Bloque 2) |
-| `POST /api/auth/forgot-password`, `reset-password` | Implementado (Bloque 3). **El envío de correo aún es simulado** (ver nota abajo) |
-| `POST /api/auth/verify-email` | Pendiente, responde `501 AUTH_NOT_IMPLEMENTED` |
+| `POST /api/auth/forgot-password`, `reset-password` | Implementado (Bloque 3) |
+| `POST /api/auth/verify-email`, `resend-verification` | Implementado. El login exige el correo verificado |
+
+Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se envían de verdad. Sin ellas, en desarrollo, el enlace se escribe en la consola del servidor (la terminal de `npm run dev`). El contrato de la API es el mismo en ambos casos.
+
+Pantallas que necesita el frontend:
+
+- `/verify-email?token=...`: al abrirse, llama a `POST /api/auth/verify-email` con el `token` de la URL y muestra el resultado.
+- `/reset-password?token=...`: formulario de nueva contraseña que llama a `POST /api/auth/reset-password`.
+- En el login, ante `403 EMAIL_NOT_VERIFIED`, ofrecer "Reenviar correo de verificación" (`POST /api/auth/resend-verification`).
+- Tras registrarse, avisar al usuario que revise su correo antes de iniciar sesión.
 
 Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
 
 ## `POST /api/auth/register`
 
-Crea una cuenta nueva con una suscripción Free activa en la misma operación de PostgreSQL. **No requiere token.** No inicia sesión: tras registrarse, el usuario debe iniciar sesión.
+Crea una cuenta nueva con una suscripción Free activa en la misma operación de PostgreSQL. **No requiere token.** No inicia sesión. Envía un correo con el enlace de verificación: el usuario debe verificar su correo antes de poder iniciar sesión. Si el envío falla, la cuenta se crea igual y el usuario puede pedir el reenvío.
 
 Cuerpo:
 
@@ -130,6 +139,7 @@ El correo se limpia igual que en el registro (espacios y mayúsculas no importan
 | 400 | `VALIDATION_ERROR` | Falta el correo o la contraseña | `El correo electrónico y la contraseña son obligatorios.` |
 | 401 | `INVALID_CREDENTIALS` | Contraseña incorrecta **o** correo inexistente (misma respuesta a propósito) | `Correo electrónico o contraseña incorrectos.` |
 | 403 | `ACCOUNT_DISABLED` | Contraseña correcta pero la cuenta está desactivada | `Tu cuenta está desactivada. Contacta al administrador.` |
+| 403 | `EMAIL_NOT_VERIFIED` | Contraseña correcta pero el correo no está verificado | `Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.` |
 | 429 | `TOO_MANY_ATTEMPTS` | 5 intentos fallidos seguidos con ese correo | `Demasiados intentos fallidos. Inténtalo de nuevo en N minutos.` |
 | 503 | `AUTH_NOT_CONFIGURED` | El servidor no tiene `JWT_SECRET` | `La autenticación no está configurada en el servidor (falta JWT_SECRET).` |
 
@@ -189,7 +199,7 @@ Ese `message` se puede mostrar tal cual al usuario.
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | Falta el correo | `El correo electrónico es obligatorio.` |
 
-**Importante — envío de correo aún simulado:** por ahora el "envío" solo queda en el log del servidor (backend), no llega ningún correo real. El equipo está gestionando una cuenta de Brevo para el envío real por SMTP; en cuanto esté lista, este comportamiento cambia pero **el contrato de la API (cuerpo, respuesta, errores) no cambia**. El enlace que se generaría tiene la forma `FRONTEND_URL/reset-password?token=...` y vence en **1 hora**. El frontend debe tener una ruta `/reset-password` que lea `token` de la query string y lo use al llamar a `reset-password`.
+El correo contiene un enlace `FRONTEND_URL/reset-password?token=...` que vence en **1 hora**. El frontend debe tener una ruta `/reset-password` que lea `token` de la query string y lo use al llamar a `reset-password`.
 
 ## `POST /api/auth/reset-password`
 
@@ -215,6 +225,49 @@ La contraseña nueva debe cumplir la misma política que en el registro (ver arr
 | 400 | `RESET_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta para los tres casos, a propósito) | `El enlace de recuperación no es válido o expiró.` |
 
 Tras un reset exitoso, ese token y cualquier otro enlace de recuperación pendiente de la misma cuenta quedan invalidados. Las sesiones (tokens Bearer) que ya existían **no** se cierran automáticamente; si se necesita ese comportamiento, avisar para agregarlo.
+
+## `POST /api/auth/verify-email`
+
+Verifica el correo con el token del enlace recibido. **No requiere token de sesión.**
+
+Cuerpo:
+
+```json
+{ "token": "…64 caracteres hexadecimales…" }
+```
+
+Éxito: `200`
+
+```json
+{ "data": { "verified": true } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el token | `El token de verificación es obligatorio.` |
+| 400 | `VERIFICATION_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta a propósito) | `El enlace de verificación no es válido o expiró.` |
+
+El enlace vence en **24 horas** y sirve una sola vez. Si el usuario abre el enlace de nuevo después de verificar, recibe `VERIFICATION_TOKEN_INVALID`; conviene que esa pantalla ofrezca ir al login además de reenviar el correo.
+
+## `POST /api/auth/resend-verification`
+
+Envía un nuevo enlace de verificación. El enlace anterior deja de servir. **No requiere token.**
+
+Cuerpo:
+
+```json
+{ "email": "lany@example.com" }
+```
+
+Éxito: siempre `200`, exista o no la cuenta y esté o no verificada:
+
+```json
+{ "data": { "message": "Si el correo está registrado y aún no está verificado, se envió un nuevo enlace de verificación." } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el correo | `El correo electrónico es obligatorio.` |
 
 ## Cuenta activa o desactivada
 

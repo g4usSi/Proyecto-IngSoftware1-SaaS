@@ -1,25 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFakeDatabase, postJson, withApi } from './helpers/fake-auth-database.js';
+import {
+  createFakeDatabase, createFakeMailer, postJson, tokenFromLink, withApi,
+} from './helpers/fake-auth-database.js';
 
 const VALID = { name: 'Lany Pérez', email: 'lany@example.com', password: 'Clave#Segura1' };
 const NEW_PASSWORD = 'OtraClave#9';
 const GENERIC_MESSAGE = /Si el correo está registrado/;
 
-function createFakeMailer() {
-  const sent = [];
-  return { sent, async sendPasswordReset(message) { sent.push(message); } };
-}
-
-function tokenFromLink(resetLink) {
-  return new URL(resetLink).searchParams.get('token');
-}
-
-async function registeredApp(t, { mailer = createFakeMailer() } = {}) {
+// Cuenta registrada y ya verificada, para poder probar el login después del cambio.
+async function registeredApp(t) {
   const database = createFakeDatabase();
-  const request = await withApi(t, database, { mailer, frontendUrl: 'http://localhost:5173' });
+  const mailer = createFakeMailer();
+  const request = await withApi(t, database, { mailer });
   assert.equal((await postJson(request, '/api/auth/register', VALID)).status, 201);
-  return { database, request, mailer };
+  database.users.get(VALID.email).email_verified = true;
+  // `sent` = solo los correos de recuperación.
+  return { database, request, mailer: { sent: mailer.resets } };
 }
 
 test('forgot-password con un correo registrado genera un enlace de un solo uso y envía el correo', async (t) => {
