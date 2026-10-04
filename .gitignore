@@ -9,6 +9,7 @@ coverage/
 backend/data/*
 !backend/data/.gitkeep
 !backend/data/README.md
+outputs/
 tmp/
 .DS_Store
 Thumbs.db
