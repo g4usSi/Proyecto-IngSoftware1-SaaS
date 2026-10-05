@@ -80,7 +80,8 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
 | `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
 | `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
-| `npm run worker:images` | Consumidor interno BullMQ/Sharp; requiere Redis y migración 004; ver [integración con cuotas](docs/worker-cuotas.md) |
+| `npm run worker:images` | BullMQ/Sharp y recuperación automática; requiere Redis y migraciones 004/005; ver [integración con cuotas](docs/worker-cuotas.md) |
+| `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
 | `npm run db:seed:demo` | Preparar las dos cuentas locales sin activar la demostración |
@@ -103,7 +104,7 @@ backend/
     config/                Entorno y PostgreSQL
     middleware/            Autenticación y errores
     modules/               auth, storage, subscriptions
-    workers/               Punto de extensión documentado
+    workers/               Conversión, reconciliación y limpieza de trabajos
   migrations/              Esquema y datos iniciales versionados
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
@@ -138,3 +139,5 @@ Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos c
 Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
 Redis queda disponible mediante `docker compose --profile worker up -d`. La [base del worker S3-04](docs/worker-cuotas.md) ya permite convertir trabajos internos; S3-08 debe integrar las reservas antes de activar subidas asíncronas para clientes.
+
+S3-05 añade recuperación tras interrupción y limpieza segura. Alegría puede consumir [los endpoints, cliente y ejemplos de estados](docs/s3-05-handoff.md). El contrato de cuotas está preparado con dobles transaccionales; su implementación real y la publicación se acoplan en S3-11.

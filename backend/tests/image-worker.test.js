@@ -1,51 +1,14 @@
+import { fixture } from './helpers/worker-fixture.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import sharp from 'sharp';
-import pg from 'pg';
 import { QueueEvents } from 'bullmq';
 import { createImageJobs, jobPaths } from '../src/workers/image-jobs.js';
 import { createImageQueue, createImageWorker, enqueueImageJob, readWorkerConfig } from '../src/workers/image-queue.js';
 
 const options = { skip: !process.env.TEST_DATABASE_URL && 'Requiere PostgreSQL de pruebas.', timeout: 60000 };
-
-async function fixture(t) {
-  const schema = `worker_test_${randomUUID().replaceAll('-', '')}`;
-  const admin = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 1 });
-  let database;
-  let storageRoot;
-  t.after(async () => {
-    await database?.end();
-    await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-    await admin.end();
-    if (storageRoot) {
-      assert.equal(path.dirname(path.resolve(storageRoot)), path.resolve(os.tmpdir()));
-      assert.match(path.basename(storageRoot), /^smartstorage-worker-[\w-]+$/);
-      await rm(storageRoot, { recursive: true, force: true });
-    }
-  });
-  await admin.query(`CREATE SCHEMA "${schema}"`);
-  database = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, options: `-c search_path=${schema},public`, max: 6 });
-  const migrationDir = new URL('../migrations/', import.meta.url);
-  for (const file of (await readdir(migrationDir)).filter((f) => /^\d+[-_].*\.sql$/.test(f)).sort()) {
-    await database.query(await readFile(new URL(file, migrationDir), 'utf8'));
-  }
-  storageRoot = await mkdtemp(path.join(os.tmpdir(), 'smartstorage-worker-'));
-  const users = [];
-  for (const name of ['A', 'B']) {
-    users.push((await database.query("INSERT INTO users (name, email, password_hash) VALUES ($1, $2, '!test') RETURNING id", [name, `${name.toLowerCase()}@worker.test`])).rows[0].id);
-  }
-  const jobs = createImageJobs({ database, storageRoot });
-  async function stage(buffer, ownerId = users[0]) {
-    const file = path.join(storageRoot, `${randomUUID()}.png`);
-    await writeFile(file, buffer);
-    return jobs.stage({ ownerId, file: { path: file, originalname: 'prueba.png' } });
-  }
-  return { database, storageRoot, users, jobs, stage };
-}
 
 const png = () => sharp({ create: { width: 40, height: 30, channels: 3, background: '#2678a1' } }).png().toBuffer();
 
@@ -102,7 +65,7 @@ test('Worker: contenido falso y temporal alterado fallan sin publicar ni guardar
   await assert.rejects(readFile(jobPaths(f.storageRoot, changed.id).result), { code: 'ENOENT' });
 });
 
-test('Worker: fallo transitorio conserva original y un reintento completa el mismo trabajo', options, async (t) => {
+test('Worker: fallo de persistencia recupera el resultado sin volver a convertir', options, async (t) => {
   const f = await fixture(t);
   const job = await f.stage(await png());
   await f.database.query(`CREATE FUNCTION reject_conversion() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -114,7 +77,7 @@ test('Worker: fallo transitorio conserva original y un reintento completa el mis
   await f.database.query('DROP TRIGGER reject_conversion ON image_processing_jobs');
   await f.jobs.process(job.id);
   assert.equal((await f.jobs.get(f.users[0], job.id)).status, 'converted');
-  assert.equal((await f.jobs.get(f.users[0], job.id)).attempts, 2);
+  assert.equal((await f.jobs.get(f.users[0], job.id)).attempts, 1);
 });
 
 test('Worker: BullMQ entrega un trabajo real con Redis y persiste el resultado en PostgreSQL', {

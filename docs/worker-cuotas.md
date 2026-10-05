@@ -1,89 +1,74 @@
-# S3-04: worker de imágenes y punto de integración con Elden
+# S3-04/S3-05: worker, recuperación y contrato de cuotas
 
-## Dependencia comprobada
+Actualizado el 04/10/2026. S3-04 conserva su núcleo terminado; S3-05 completa la recuperación propia. El acoplamiento real con S3-08 pertenece a S3-11, según [el criterio individual del equipo](https://github.com/g4usSi/Proyecto-IngSoftware1-SaaS/blob/ccb32aa/docs/criterios-cierre-modulos.md).
 
-Trello, consultado el 30/09/2026, indica que [S3-04 de Geovanny](https://trello.com/c/nVmEkUYG) y [S3-08 de Elden](https://trello.com/c/VVR1aLMK) dependen ambas de S2-16. S3-04 no está programada después de S3-08: pueden desarrollarse en paralelo. Elden figura como apoyo del worker y Geovanny como apoyo de las cuotas.
+## Entregado
 
-El límite técnico está en **admitir subidas asíncronas y publicar el resultado como imagen del usuario**. Hace falta reservar capacidad y límites diarios desde la admisión, incluyendo trabajos pendientes, y confirmar o liberar esa reserva sin duplicarla al reintentar. Las cuotas actuales solo cuentan imágenes ya publicadas; no cubren una cola de pendientes.
+- BullMQ/Redis y Sharp con estados PostgreSQL `queued → processing → converted`, o `failed`. Con un adaptador de publicación/cuotas, `converted → published`.
+- Reconciliación al iniciar el worker y cada 30 segundos: repone trabajos admitidos en PostgreSQL cuyo envío a Redis se perdió. Reintenta entradas Redis terminadas cuando PostgreSQL aún tiene trabajo pendiente.
+- Límite persistente de tres intentos de conversión. Vaciar/perder Redis no reinicia ese límite. Los fallos transitorios conservan el original; el backoff pendiente de BullMQ no se adelanta.
+- Recuperación después de una interrupción: un recibo SHA-256 acompaña el WebP. Si ya existe un resultado verificado, confirma su estado sin convertirlo nuevamente. Si la interrupción ocurre durante una conversión incompleta, puede repetir ese intento; nunca publica dos resultados por esa entrega.
+- Expiración a las 24 horas desde admisión de trabajos aún no publicados. Terminan `failed / JOB_EXPIRED`; no queda una fila indefinidamente en `processing` después de reiniciar el consumidor.
+- Limpieza de originales y residuos por UUID. Un trabajo convertido conserva solo `result.webp` y `result.json` hasta publicación o expiración. Los fallidos/publicados eliminan su directorio completo. Los directorios sin fila se eliminan al superar 24 horas.
+- Bloqueo PostgreSQL compartido por admisión, conversión, recuperación, publicación y limpieza. El barrido omite trabajos bloqueados, conserva carpetas recientes y no sigue enlaces/junctions. No recorre ni borra objetos definitivos ni temporales de la ruta síncrona ajenos a este módulo.
+- Consulta HTTP por propietario y cliente JavaScript para Alegría: [guía de integración](s3-05-handoff.md).
 
-## Implementado en este corte
+`converted` significa **WebP temporal verificado**, no imagen disponible. `published` requiere una referencia propia y confirmación de cuota en la misma transacción. La aplicación conserva `POST /api/files` síncrono; `POST /api/jobs` responde `503 ASYNC_UPLOAD_NOT_READY` y no admite archivos.
 
-- BullMQ con Redis, consumidor separado mediante `npm run worker:images` y concurrencia configurable (2 por defecto, máximo 8).
-- Migración incremental `004_image_processing_jobs.sql`: propietario, hash/tamaño original, estados persistentes, intentos y código de error.
-- Conversión Sharp real con las mismas validaciones JPG/PNG/WebP, límites, orientación y eliminación de metadatos que usa Storage.
-- Estados `queued` → `processing` → `converted`, o `failed`. Un error transitorio vuelve a `queued`; BullMQ aplica hasta tres intentos con espera exponencial.
-- Serialización por trabajo en PostgreSQL, repetición idempotente de una conversión terminada y consulta interna de estado limitada al propietario.
-- Redis solo recibe el UUID del trabajo. El original temporal se elimina tras conversión confirmada o fallo terminal. El WebP convertido espera en almacenamiento privado.
+## Arranque
 
-**`converted` significa conversión temporal terminada. No significa imagen publicada, cuota confirmada ni disponibilidad en la galería.** `POST /api/files` conserva el flujo síncrono del 30%, con sus cuotas actuales. Este corte no introduce un endpoint público para saltarse S3-08.
-
-S3-04 está avanzada hasta la integración de admisión/publicación. No se declara completa la entrega funcional del 50% ni S3-05: todavía falta reconciliar trabajos no enviados a Redis, fallos de procesos, temporales expirados y publicación definitiva después de las reservas.
-
-## Archivos y uso interno
-
-```text
-storage/.tmp/jobs/<UUID>/original       Entrada privada pendiente de conversión
-storage/.tmp/jobs/<UUID>/result.webp    Resultado temporal para publicación posterior
-```
-
-El worker y el futuro productor deben compartir `DATABASE_URL` y `STORAGE_ROOT`. No montar este directorio como contenido estático.
-
-`createImageJobs({ database, storageRoot })` ofrece:
-
-| Operación interna | Contrato actual |
-| --- | --- |
-| `stage({ ownerId, file })` | Copia el archivo temporal y registra un trabajo para un usuario activo. Devuelve `{ id, status: 'queued' }`. No reserva cuota. El llamador conserva la responsabilidad sobre el archivo de entrada que proporcionó. |
-| `get(ownerId, id)` | Consulta estado, intentos y error de un trabajo propio, sin exponer hash ni rutas privadas. |
-| `process(id, { finalAttempt })` | Consumidor: convierte y registra resultado persistente. Una repetición de un trabajo convertido no crea otra conversión. |
-
-`createImageQueue(config)` construye la cola; esperar `queue.waitUntilReady()` antes de `enqueueImageJob(queue, id)`. La publicación en Redis se puede repetir con el mismo UUID. Si falla después de registrar el trabajo, conservar ese ID para recuperación; no volver a ejecutar `stage` ciegamente. El reconciliador PostgreSQL→Redis corresponde a S3-05.
-
-Estas funciones permiten desarrollo y pruebas internas. **Antes de conectar `stage` a HTTP, habrá que cambiar su admisión para compartir una transacción con la reserva de Elden.** La función actual hace un INSERT independiente y no acredita ese requisito.
-
-## Lo que falta acordar e integrar con Elden
-
-Propuesta de contrato para S3-08, todavía no implementada ni presentada como acuerdo del equipo:
-
-1. **Reserva por UUID de trabajo:** en una transacción con bloqueo de usuario, verificar plan vigente, sumar imágenes publicadas y reservas pendientes, reservar capacidad/cantidad/bytes diarios y registrar el trabajo. Usar bytes originales, aunque el contenido se deduplique después.
-2. **Confirmación idempotente:** con orden de bloqueo usuario → objeto, publicar o reutilizar el WebP definitivo, crear una única referencia privada, confirmar el consumo y marcar publicación del trabajo en la misma transacción. Repetir el trabajo debe devolver la misma imagen.
-3. **Fallo/cancelación/expiración:** liberar exactamente una vez las reservas pendientes que corresponda. Acordar el tratamiento diario de intentos fallidos; no alterar consumo confirmado accidentalmente.
-4. **Historial diario independiente de `images`:** necesario antes del borrado S3-06 para que eliminar una imagen no reinicie las diez subidas o los 200 MB del día. La capacidad sí se libera al eliminar una referencia lógica.
-
-Pruebas conjuntas necesarias: dos trabajos concurrentes en la última cuota disponible; mismo hash en dos cuentas; fallo/reintento sin doble consumo; expiración o cambio de plan durante procesamiento; borrado sin restituir consumo diario; caída entre COMMIT y respuesta.
-
-Hasta esa integración, Geovanny puede desarrollar cola, conversión y estados como aquí. La activación del recorrido asíncrono, la recuperación completa ligada a reservas y el borrado coordinado quedan pendientes del trabajo conjunto. No es necesario esperar a que Elden termine para trabajar en el núcleo del worker.
-
-## Arranque y pruebas
+Requiere Node 24, PostgreSQL, Redis y el mismo disco privado accesible desde API/worker. Aplicar migraciones con los procesos detenidos antes de arrancar la nueva versión; no mezclar workers S3-04 antiguos con S3-05.
 
 ```powershell
 npm ci
 docker compose --profile worker up -d postgres redis
 npm run db:migrate
+npm run dev
+# En otra terminal:
 npm run worker:images
+# Alternativa operativa: un barrido único (no convierte):
+npm run worker:recover
 ```
 
-Configuración en `backend/.env`, conservando el resto de valores propios:
+En `backend/.env`: `DATABASE_URL`, `STORAGE_ROOT`, `REDIS_URL=redis://127.0.0.1:6379/0` y `IMAGE_WORKER_CONCURRENCY=2`. Compose configura AOF y noeviction. La migración incremental `005_image_job_recovery.sql` conserva filas y añade vencimiento, limpieza y liquidación de cuotas. Las filas heredadas reciben 24 horas desde la migración.
 
-```dotenv
-REDIS_URL=redis://127.0.0.1:6379/0
-IMAGE_WORKER_CONCURRENCY=2
-```
+El reconciliador pagina por UUID y continúa después de errores de una fila; registra códigos, nunca trazas SQL o credenciales. Las liberaciones pendientes permanecen registradas aunque se haya limpiado el original. El barrido se recupera en el siguiente ciclo. Si Redis conserva una entrada `active`, se respeta su bloqueo y BullMQ la devuelve a espera/fallo mediante su detección de trabajos interrumpidos; no se elimina una entrada activa a la fuerza. Referencias: [stalled jobs](https://docs.bullmq.io/guide/jobs/stalled), [reintentos](https://docs.bullmq.io/guide/retrying-failing-jobs) y [cierre ordenado](https://docs.bullmq.io/guide/workers/graceful-shutdown).
 
-El arranque verifica que exista la tabla de trabajos. `SIGINT`/`SIGTERM` dejan terminar el trabajo activo antes de cerrar conexiones. Redis se configura con AOF y `noeviction` en Compose. Referencias: [conexiones BullMQ](https://docs.bullmq.io/guide/connections) y [cierre ordenado](https://docs.bullmq.io/guide/workers/graceful-shutdown).
+`SIGINT`/`SIGTERM` detienen el ciclo y esperan al trabajo activo antes de cerrar las conexiones. Una terminación forzada se recupera al reiniciar. Las pruebas acreditan caída de procesos; no simulan pérdida física del disco o del servidor PostgreSQL.
 
-Para ejecutar también la prueba real de la cola:
+## Contrato interno para Elden y S3-11
+
+`createImageJobs({ database, storageRoot, lifecycle? })` expone `stage({ ownerId, file })`, `get(ownerId, id)`, `list(ownerId, query)`, `process(id)` y `recover(id, ensureQueued)`. El archivo inicial de `stage` pertenece al llamador, quien lo debe eliminar después de la admisión o su fallo.
+
+Sin `lifecycle`, las admisiones son internas, sin reservas (`quota_managed=false`). **No conectar esta modalidad a HTTP.** No existe modo de cuotas falsas activable por configuración. Los dobles se inyectan solo en pruebas.
+
+El puerto de integración está implementado y probado con dobles, pero Elden aún debe entregar su implementación de cuotas y el equipo adaptar sus operaciones a este puerto:
+
+| Función del adaptador | Transacción y resultado |
+| --- | --- |
+| `reserve(client, payload)` | Comparte el INSERT del trabajo. Bloquear usuario, validar plan y pendientes, reservar por UUID. Lanzar error si no hay cupo; se revierten reserva y trabajo. |
+| `confirm(client, payload)` | Orquestador de S3-11: publicar/reutilizar objeto, crear referencia propia y llamar a la confirmación de cuota de Elden usando este mismo cliente. Devuelve `{ imageId }`. El worker verifica propietario/hash/objeto ready y marca `published` en esa transacción. |
+| `release(client, payload)` | Liberar reserva idempotente por UUID en fallo/expiración; el worker registra liquidación en la misma transacción. Si falla, el siguiente barrido repite. |
+
+`payload` contiene `jobId`, `userId`, `originalHash`, `originalSizeBytes` (string) y `originalName`. Confirmación añade `resultPath` (solo servidor); liberación añade `reason` (código de error). El orquestador debe conservar el original de entrada de confirmación hasta COMMIT: copiar/publicar de forma idempotente, nunca mover ni borrar ese WebP temporal antes de confirmar. Debe coordinar y reparar también sus efectos físicos si revierte la transacción.
+
+Todas las funciones reciben un cliente con transacción abierta: no abrir otro pool, no hacer COMMIT propio ni efectos externos irreversibles. Respetar orden bloqueo **trabajo → usuario → objeto**, idempotencia por UUID y validaciones del plan/reserva. Un COMMIT cuya respuesta se pierde se resuelve releyendo la fila, sin repetir un efecto confirmado.
+
+El adaptador de confirmación incluye publicación porque confirmar consumo solo por haber convertido dejaría cuotas inconsistentes si la publicación falla. La implementación de cuotas de Elden puede mantenerse separada y ser llamada por este orquestador.
+
+Al configurar cuotas reales, API, worker y recuperador deben recibir el mismo adaptador. Actualmente los ejecutables no lo instancian porque no existe implementación S3-08 en esta rama. Las filas con cuotas administradas y sin adaptador conservan su liquidación pendiente; jamás se marcan como liberadas/confirmadas ficticiamente.
+
+## Verificación
+
+El 01/10 se verificó el núcleo en `e590ae8`: 50/50; esa evidencia no cubría S3-05. El 04/10 se ejecutó la suite ampliada con PostgreSQL Docker y Redis real: ver [evidencia S3-05](evidencias/2026-10-04-s3-05/resultado.json).
 
 ```powershell
 $env:TEST_REDIS_URL = 'redis://127.0.0.1:6379/0'
 npm run test:storage
+npm run check
 Remove-Item Env:TEST_REDIS_URL
 ```
 
-El supervisor crea y elimina su propia base PostgreSQL local en 5433. La prueba Redis usa una cola de nombre aleatorio y elimina solo esa cola; no ejecuta `FLUSHDB` ni `FLUSHALL`. Sin `TEST_REDIS_URL`, esa prueba se omite explícitamente: un resultado con omisiones no certifica Redis.
+`test:storage` requiere PostgreSQL local en 5433 y permiso para crear una **base temporal propia**, que elimina al finalizar. Cada prueba Redis usa una cola aleatoria y limpia solo esa cola. Nunca usa FLUSHDB/FLUSHALL. Sin las variables de servicios correspondientes, se informan omisiones explícitas.
 
-## Verificación de este corte — 01/10/2026
-
-- `npm run check`: sintaxis backend y compilación frontend correctas.
-- `npm run test:storage` con `TEST_REDIS_URL`: 50 pruebas aprobadas, 0 fallos y 0 omisiones, usando PostgreSQL 18 y Redis 7 reales en servicios temporales locales.
-- La integración de BullMQ verifica entrega diferida a un consumidor, conversión WebP persistida y rechazo de contenido inválido sin reintentos inútiles. Las pruebas de PostgreSQL verifican propietarios, conversiones repetidas y concurrentes, temporales alterados y recuperación de un fallo transitorio.
-- Estas pruebas cubren el núcleo interno; no certifican admisión pública, reservas ni publicación, que todavía requieren la integración descrita arriba.
+Cobertura propia: admisión sin envío, dos reconciliadores, pérdida de entradas Redis, caídas reales antes/después del resultado, máximo de intentos, expiración con conversión activa, huérfanos recientes/bloqueados/enlaces, original perdido, resultado corrupto, errores de confirmación/liberación y rollback con dobles SQL, endpoints JWT/propietario/paginación. S3-11 aún debe comprobar cuotas reales, publicación/deduplicación definitiva y recorrido completo de la interfaz.
