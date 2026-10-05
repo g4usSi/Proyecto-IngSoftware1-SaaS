@@ -30,6 +30,8 @@ if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 npm run dev
 ```
 
+Este único `npm ci` instala las dependencias del frontend y backend, incluidas BullMQ, ioredis y Nodemailer.
+
 En macOS/Linux, copiar el ejemplo solo si aún no existe `.env`. Usar `npm.cmd` si la política local de PowerShell impide ejecutar `npm.ps1`.
 
 - Portada: <http://127.0.0.1:5173/>
