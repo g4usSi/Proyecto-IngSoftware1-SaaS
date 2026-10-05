@@ -1,5 +1,7 @@
 # Traspaso a Alegría: integrar la interfaz de SmartStorage
 
+**Entrega actual de Geovanny, 04/10/2026:** consultar [S3-05: endpoints, cliente y estados](s3-05-handoff.md). Esta nueva guía describe los recursos listos para integrar y el límite de cuotas S3-08/S3-11. El resto de este documento conserva el traspaso histórico del 30%.
+
 > Esta guía se escribió antes del commit `9c29060`, que integró el nuevo frontend. La tabla de archivos describe el punto de partida de esa tarea; los contratos y criterios de comprobación siguen siendo la referencia. Para el estado actual, consulta el código de `frontend/src/` y el README principal.
 
 Trabajar desde `tema-y-flujo-git`. Esta rama contiene el backend de usuarios/autenticación y Storage, además de la demo local de subida. Al redactar esta guía faltaba conectar la sesión real con las pantallas existentes y adaptar el diseño. Los contratos completos están en [auth-frontend.md](auth-frontend.md), [api.md](api.md) y [storage.md](storage.md).

@@ -11,6 +11,7 @@ import { createTokenService } from './modules/auth/token.js';
 import { createStorageRouter, createStorageAdminRouter } from './modules/storage/storage.routes.js';
 import { createStorageDemo } from './dev/storage-demo.js';
 import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js';
+import { createJobsRouter } from './modules/storage/jobs.routes.js';
 
 export function createApp({
   database = defaultDatabase,
@@ -51,6 +52,7 @@ export function createApp({
   const storageOptions = { database, storageRoot, authenticate: storageAuthenticate || demo.authenticate };
   app.use('/api/dev', demo.router);
   app.use('/api/files', createStorageRouter(storageOptions));
+  app.use('/api/jobs', createJobsRouter({ database, storageRoot }));
   app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api', createSubscriptionsRouter(database));
   app.use(notFound);

@@ -37,7 +37,8 @@ export async function enqueueImageJob(queue, id) {
   return queue.add('convert', { id }, { jobId: id });
 }
 
-export function createImageWorker({ jobs, connection, concurrency = 2, name = IMAGE_QUEUE, onError = () => {} }) {
+export function createImageWorker({ jobs, connection, concurrency = 2, name = IMAGE_QUEUE, onError = () => {},
+  lockDuration = 30000, stalledInterval = 30000 }) {
   const worker = new Worker(name, async (job) => {
     if (job.name !== 'convert' || job.data?.id !== job.id) throw new UnrecoverableError('INVALID_JOB');
     try {
@@ -47,7 +48,7 @@ export function createImageWorker({ jobs, connection, concurrency = 2, name = IM
       // No persistir mensajes de conexión, SQL o rutas privadas en Redis.
       throw new Error('PROCESSING_UNAVAILABLE');
     }
-  }, { connection: { ...connection, maxRetriesPerRequest: null }, concurrency });
+  }, { connection: { ...connection, maxRetriesPerRequest: null }, concurrency, lockDuration, stalledInterval });
   worker.on('error', onError);
   return worker;
 }

@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-04",
+  "timezone": "America/Guatemala",
+  "branch": "tema-y-flujo-git",
+  "baseCommit": "99db1cc",
+  "scope": "Cierre propio S3-05; integración de cuotas/publicación real en S3-11",
+  "environment": {
+    "node": "v24.14.0",
+    "postgresql": "17.11 Docker",
+    "redis": "7.4.11 Docker",
+    "bullmq": "6.3.11"
+  },
+  "checks": [
+    {
+      "command": "npm run test:storage (TEST_REDIS_URL local explícita)",
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 9174.2937,
+      "temporaryDatabaseRemoved": true
+    },
+    {
+      "command": "npm run check",
+      "result": "passed; sintaxis backend y build frontend"
+    },
+    {
+      "command": "node --check frontend/src/features/storage/jobs.api.js",
+      "result": "passed"
+    }
+  ],
+  "verified": [
+    "Admisión en PostgreSQL sin envío Redis; dos reconciliadores",
+    "Terminación forzada de proceso durante processing y después de WebP antes de UPDATE converted; recuperación con otro consumidor real",
+    "Resultado terminado se reutiliza sin conversión adicional; intentos persistentes sobreviven pérdida de entradas Redis",
+    "Backoff pendiente conservado; entrada Redis fallida recuperada",
+    "Expiración, original ausente, recibo/resultado corrupto y limpieza terminal",
+    "Huérfanos: conservar recientes, bloqueados y destinos de junctions; no tocar objetos definitivos",
+    "Contrato reserva/confirmación/liberación con dobles SQL: transacción compartida, rollback e idempotencia por UUID",
+    "JWT, cuenta desactivada, propiedad, paginación con empate de microsegundos y campos OpenAPI",
+    "Regresión backend Auth/Storage del 30%"
+  ],
+  "notClaimed": [
+    "Cuotas reales S3-08 y reserva contra límites concurrentes",
+    "Publicación/deduplicación definitiva mediante adaptador de producción",
+    "POST asíncrono 202 y recorrido integrado de interfaz S3-11",
+    "Prueba física de pérdida de disco/servidor PostgreSQL",
+    "Revisión de otro integrante"
+  ],
+  "sha256": {
+    "backend/migrations/005_image_job_recovery.sql": "fe10b5e0ac2c5b4edd647774a0afc34aa51fae977ee3896625ee23695401f3fc",
+    "backend/src/app.js": "530d37a9d9071dfb5ea912e511b26d8a05abe917af3d1a572e9f088a7cd69e07",
+    "backend/src/modules/storage/jobs.routes.js": "b70cf8422663cfba80e8925d76e53bc0edb70b281e0f49686333da6f335b31a9",
+    "backend/src/workers/image-jobs.js": "091c4ac71a0603917801faf10badd2c4ae4d9725dfb67fb373528122c334cd4d",
+    "backend/src/workers/image-job-files.js": "82bc78a69e1642e1a1f838ad642f5a469b0f22bcb11e7bcd568c674c2237f38b",
+    "backend/src/workers/job-lock.js": "59587845f33b265219db692ddf823e8258e140b1926b41956b814bb496ca56b8",
+    "backend/src/workers/image-queue.js": "d31afb240535c25d9957eeeaeb058fbb5e841c46fd53a4e89e2e8cf3ee7bff64",
+    "backend/src/workers/image-recovery.js": "bae6dac0a29c668a354002d1472cd473cb8a6b1399dcc2e36e3e67d290720bef",
+    "backend/src/workers/image-worker.js": "2497615666c30321f45665b5c96e339972fe7f1e647ff892ea91fb691d093ccc",
+    "backend/src/workers/recover-once.js": "fc437a351c3fac9b2f61f5e689f05e49d893810f864f5698a0b0cea86528e33c",
+    "backend/tests/image-recovery.test.js": "43892eb03067f2679cadb6f198bcd2fed3dda6b93f4eafdc97abc5df81a50318",
+    "backend/tests/image-worker.test.js": "c9fd2e28d02cfcc6b581a158b783c6870a8c465687ee82e435550693062a0d6d",
+    "backend/tests/helpers/worker-fixture.js": "8bcb8a6475e13dd474d041dbacde456ffed235427409d1414b42cd63e5cbab1a",
+    "backend/tests/helpers/worker-crash-child.mjs": "fa3a6f20f073d5d07850f917013f18edb9e2e34b2137addd55f4e519852049e9",
+    "frontend/src/features/storage/jobs.api.js": "ca478b417988d2d3a7535afcaa29d148b31b50610e0fb55f4327b949828acf44"
+  },
+  "hashEncoding": "UTF-8 sin BOM, saltos LF"
+}

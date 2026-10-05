@@ -17,6 +17,9 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET | `/files` | `200`, listado paginado privado; necesita autenticación o demo local explícita |
 | POST | `/files` | `201`, recibe una imagen y confirma cuando el WebP está listo |
 | GET | `/files/:fileId/download` | `200`, descarga WebP del propietario; recurso ajeno o inexistente: `404` |
+| GET | `/jobs` | `200`, trabajos propios paginados; Bearer JWT; `limit` y `cursor` |
+| GET | `/jobs/:jobId` | `200`, estado persistente privado; ajeno/inexistente: `404` |
+| POST | `/jobs` | `503 ASYNC_UPLOAD_NOT_READY`; admisión reservada hasta cuotas S3-08/S3-11 |
 | GET | `/admin/storage/stats` | `200`, ahorro global calculado; requiere rol `admin` |
 
 Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimales para no perder precisión. Los contadores diarios limitados son enteros o `null`.
@@ -24,6 +27,8 @@ Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimale
 El login devuelve el campo **`token`**, no `accessToken`. El frontend lo envía con `Authorization: Bearer <token>` en las rutas privadas. `GET /auth/me` devuelve el usuario directamente dentro de `data`, no `{ data: { user } }`. Ver [contrato detallado de autenticación](auth-frontend.md) y [traspaso al frontend](frontend-handoff.md).
 
 ## Storage
+
+Para estados de procesamiento y recuperación, ver [entrega S3-05 a Alegría](s3-05-handoff.md) y [OpenAPI de trabajos](contracts/jobs.openapi.json). `converted` no equivale a imagen disponible; solo `published` puede habilitar descarga. La carga síncrona siguiente sigue vigente.
 
 `POST /files` recibe `multipart/form-data`, un único campo de archivo `file` y `folderId` opcional. No acepta un propietario suministrado en el cuerpo. Admite imágenes estáticas JPG, PNG o WebP de hasta 25,000,000 bytes y 40 millones de píxeles; el servidor valida el contenido real. Convierte a WebP calidad 80, aplica orientación y elimina EXIF/GPS. No persiste el original.
 
