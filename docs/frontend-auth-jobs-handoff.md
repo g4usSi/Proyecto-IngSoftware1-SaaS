@@ -1,10 +1,46 @@
-# Traspaso a Alegría: Auth y estados de trabajos
+# Traspaso a Alegría: contratos y trabajo pendiente del frontend
 
-**Base:** `tema-y-flujo-git` · **Fecha:** 05/10/2026 · **Alcance:** pantallas de verificación/recuperación de cuenta y consulta de trabajos de imagen.
+**Snapshot de ramas consultado:** 05/10/2026, `origin/tema-y-flujo-git` en `8d60ba3` · **Alcance:** ramas remotas, contratos backend y trabajo pendiente del frontend.
 
-Trae los cambios de `tema-y-flujo-git` a tu rama de frontend antes de empezar. Esa rama ya reúne Auth, Storage y el worker. Desde la raíz del proyecto ejecuta `npm ci`; no agregues paquetes manualmente en el frontend. Las dependencias SMTP son solo del backend. No copies `SMTP_*`, `DATABASE_URL` ni `JWT_SECRET` al frontend.
+Trae los cambios de `tema-y-flujo-git` a tu rama de frontend antes de empezar. Esa rama reúne Auth, Storage y el worker. Desde la raíz del proyecto ejecuta `npm ci`; no agregues paquetes manualmente en el frontend. Las dependencias SMTP son solo del backend. No copies `SMTP_*`, `DATABASE_URL` ni `JWT_SECRET` al frontend.
 
 Contratos completos: [Auth](auth-frontend.md), [API](api.md), [estados de trabajos](contracts/job-states.json), [OpenAPI de trabajos](contracts/jobs.openapi.json) y [traspaso S3-05](s3-05-handoff.md).
+
+## Ramas remotas y equipo comprobados
+
+Se ejecutó `git fetch origin` el 05/10/2026 y se compararon las ramas remotas. Solo `tema-y-flujo-git` está en el corte actual del 05/10; las demás referencias están en commits del 04/10 o anteriores. No aparecieron commits nuevos de Andy con las correcciones pendientes de S3-02.
+
+| Rama remota | HEAD observado | Qué significa para Alegría |
+| --- | --- | --- |
+| `origin/tema-y-flujo-git` | `8d60ba3` | Base compartida actual. Incluye worker/contratos S3-04/S3-05, Auth de Andy, dependencias y esta guía. |
+| `origin/feature/usuarios-login` | `fccb279` | Tiene los commits de Andy `687f79b` (recuperación) y `a8dd16b` (verificación), ya incorporados a `tema-y-flujo-git` en `5c2b1aa`. No tiene las dos correcciones pendientes de S3-02. |
+| `origin/feature/storage-subida` | `b07d370` | Sin commits funcionales exclusivos respecto de `origin/main`; su entrega de Storage ya forma parte de la base compartida. |
+| `origin/feature/pagos-planes` | `3874f4c` | Sin commits funcionales exclusivos respecto de `origin/main`; no hay una implementación nueva de suscripciones o pagos para integrar. |
+| `origin/feature/ui-tema` | `3874f4c` | Apunta al mismo commit que `feature/pagos-planes`; no contiene cambios de UI posteriores. Los commits previos de Alegría (`d332bdd`, `9c29060`) forman parte del frontend existente. |
+| `origin/docs` | `704a43e` | Rama documental anterior; no aporta contratos nuevos de API para este frontend. |
+| `origin/codex/release-30-v0-1-0` | `e6c4cac` | Rama de publicación anterior; no añade contratos de frontend posteriores al corte del 30%. |
+| `origin/main` | `22c1ef1` | Corte v0.1.0 del 30%; no usarlo como base de esta integración porque carece de los cambios recientes de `tema-y-flujo-git`. |
+
+El historial Git de las ramas consultadas muestra commits de Geovanny, Andy (`LanyXD`) y Diego/Alegría (`diegojao`). No aparecen commits de Elden en esas referencias, aunque `docs/flujo-git.md` le asigna suscripciones y cuotas. Esto comprueba autores Git, no miembros actuales ni trabajo local aún no publicado.
+
+## Contratos disponibles para consumir
+
+| Área | Contrato actual | Qué puede agregar Alegría |
+| --- | --- | --- |
+| Cuenta | `POST /api/auth/register` crea usuario cliente y Free; responde `emailVerified: false` y no inicia sesión. `POST /api/auth/login`, `GET /api/auth/me` y `POST /api/auth/logout` usan JWT; el campo se llama `token`. | Corregir el aviso tras registro para pedir verificación; mantener sesión solo después de un login correcto y enviar Bearer a rutas privadas. |
+| Verificación y recuperación | `POST /api/auth/verify-email` recibe `{ token }` (24 h); `POST /api/auth/resend-verification` recibe `{ email }`; `POST /api/auth/forgot-password` recibe `{ email }`; `POST /api/auth/reset-password` recibe `{ token, password }` (1 h). | Agregar las vistas descritas abajo y el aviso `EMAIL_NOT_VERIFIED`. Los errores son `{ error: { code, message } }`; `apiRequest()` entrega directamente el contenido de `data`. |
+| Storage síncrono | `POST /api/files` recibe `multipart/form-data` con `file`; `GET /api/files?limit=20&cursor=...` lista; `GET /api/files/:fileId/download` entrega un WebP autenticado. La carga responde cuando termina. | Conservar subida, galería y descarga actuales. No cambiar a trabajos asíncronos antes de S3-11. |
+| Trabajos asíncronos | `GET /api/jobs` y `GET /api/jobs/:jobId` son privados y consultables; estados `queued`, `processing`, `converted`, `published`, `failed`. | Agregar una vista/lista de estado con polling cancelable; solo `published` con `available` permite refrescar galería y descargar. |
+| Catálogo | `GET /api/plans` devuelve planes activos desde PostgreSQL. El seed actual publica únicamente Free; cantidades `BIGINT`/precios `NUMERIC` pueden venir como strings. | Mantener pagos como “Próximamente”; no inventar alta/cambio de plan. `GET /api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`. |
+| Administración y demo | `GET /api/admin/storage/stats` requiere rol `admin`; `/api/dev/storage-demo` es opt-in y solo local. La demo no habilita Auth ni trabajos. | No mostrar métricas globales a cuentas cliente ni usar identidad demo como sesión real. |
+
+## Límites que siguen pendientes
+
+- `POST /api/jobs` está reservado y responde `503 ASYNC_UPLOAD_NOT_READY`; todavía no admite archivos ni crea trabajos desde la UI. `converted` es un WebP temporal, no una imagen publicada.
+- S3-08 (reserva/liquidación real de cuotas de Elden) y el acoplamiento S3-11 (petición HTTP → cola → publicación/deduplicación) siguen pendientes. El puerto en `docs/worker-cuotas.md` es interno; no es una API que el navegador deba llamar.
+- Borrado de imágenes S3-06 y álbumes/mover imágenes S3-07 no están entregados. No habilitar botones que aparenten realizarlos.
+- La lista de planes contiene tarjetas de pago de muestra, pero no hay pagos ni endpoint personal operativo; conserva el aviso de “Próximamente”.
+- S3-02 tiene dos defectos en la rama integrada: el consumo del token y el cambio de contraseña no son atómicos, y un error SMTP puede revelar si existe una cuenta. Andy hará un segundo pull con las correcciones; no diseñes la pantalla para distinguir esos casos.
 
 ## Auth: pantallas y recorrido
 
