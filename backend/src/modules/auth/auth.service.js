@@ -1,35 +1,210 @@
-import { notImplemented } from '../../lib/app-error.js';
+import { randomBytes, createHash } from 'node:crypto';
+import { AppError } from '../../lib/app-error.js';
+import { hashPassword, verifyPassword } from './password.js';
+import { normalizeEmail, passwordProblems, validateRegistration } from './auth.validation.js';
+import { createLoginLimiter } from './login-limiter.js';
+import { invalidToken } from './token.js';
 
-// Punto de entrada para validación, hash de contraseña y emisión/verificación JWT.
-// No almacenar contraseñas en texto plano ni devolver password_hash en respuestas.
-export async function register(_input) {
-  return pending();
+const UNIQUE_VIOLATION = '23505';
+const PASSWORD_MAX = 128;
+const RESET_TOKEN_BYTES = 32;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora, según lo acordado
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+// Se compara contra este hash cuando el correo no existe, para que el tiempo de respuesta
+// no revele si la cuenta existe. Se calcula una sola vez, la primera vez que hace falta.
+let dummyHash;
+
+export function createAuthService({ repository, tokens, loginLimiter = createLoginLimiter(), mailer, frontendUrl }) {
+  // Deja un solo enlace de verificación válido por cuenta y lo envía por correo.
+  async function sendVerification(user) {
+    const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
+    await repository.invalidateUserEmailVerificationTokens(user.id);
+    await repository.createEmailVerificationToken({
+      userId: user.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
+    });
+    const verifyLink = `${frontendUrl}/verify-email?token=${rawToken}`;
+    await mailer.sendEmailVerification({ to: user.email, name: user.name, verifyLink });
+  }
+
+  // Si el correo falla, la cuenta sigue existiendo y el usuario puede pedir el reenvío.
+  async function trySendVerification(user) {
+    try {
+      await sendVerification(user);
+    } catch (error) {
+      console.error('No se pudo enviar el correo de verificación:', error?.message ?? error);
+    }
+  }
+
+  return {
+    // RF01, RF11, RNF01: valida, hashea la contraseña y crea la cuenta (activa por defecto, RF10).
+    async register(input) {
+      const { name, email, password } = validateRegistration(input);
+
+      if (await repository.findUserByEmail(email)) throw emailTaken();
+
+      const passwordHash = await hashPassword(password);
+      let user;
+      try {
+        user = await repository.createUser({ name, email, passwordHash });
+      } catch (error) {
+        // Dos registros simultáneos pueden pasar la consulta anterior; la restricción UNIQUE los frena.
+        if (error?.code === UNIQUE_VIOLATION) throw emailTaken();
+        throw error;
+      }
+      if (!user) {
+        throw new AppError(503, 'FREE_PLAN_UNAVAILABLE', 'El plan Free no está disponible para registrar cuentas.');
+      }
+      await trySendVerification(user);
+      return toPublicUser(user);
+    },
+
+    // RF02, RF04, RF10, RNF11: credenciales -> token. Nunca revela si el correo existe.
+    async login(input) {
+      const { email, password } = input ?? {};
+      if (typeof email !== 'string' || email.trim() === '' || typeof password !== 'string' || password === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El correo electrónico y la contraseña son obligatorios.');
+      }
+      tokens.ensureConfigured();
+
+      const key = normalizeEmail(email);
+      const lockedSeconds = loginLimiter.lockedFor(key);
+      if (lockedSeconds > 0) {
+        const minutes = Math.ceil(lockedSeconds / 60);
+        throw new AppError(429, 'TOO_MANY_ATTEMPTS',
+          `Demasiados intentos fallidos. Inténtalo de nuevo en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}.`);
+      }
+
+      const user = await repository.findUserByEmail(key);
+      // Una contraseña enorme se rechaza sin hashearla (evita gastar CPU); cuenta como intento fallido.
+      const passwordOk = password.length <= PASSWORD_MAX &&
+        await verifyPassword(password, user?.password_hash ?? await getDummyHash());
+      if (!user || !passwordOk) {
+        loginLimiter.recordFailure(key);
+        throw new AppError(401, 'INVALID_CREDENTIALS', 'Correo electrónico o contraseña incorrectos.');
+      }
+      // Solo se informa de la desactivación cuando la contraseña es correcta (no revela qué correos existen).
+      if (!user.active) {
+        throw new AppError(403, 'ACCOUNT_DISABLED', 'Tu cuenta está desactivada. Contacta al administrador.');
+      }
+      if (!user.email_verified) {
+        throw new AppError(403, 'EMAIL_NOT_VERIFIED',
+          'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.');
+      }
+
+      loginLimiter.reset(key);
+      const { token, expiresAt } = tokens.issue(user.id);
+      return { token, expiresAt: expiresAt.toISOString(), user: toPublicUser(user) };
+    },
+
+    // RF03: revoca el token de la sesión actual (identity = req.session, cargado por requireAuth).
+    async logout(session) {
+      await repository.revokeToken(session);
+      await repository.purgeExpiredRevocations();
+      return { loggedOut: true };
+    },
+
+    async getCurrentUser(identity) {
+      const user = await repository.findUserById(identity.id);
+      if (!user) throw invalidToken();
+      return toPublicUser(user);
+    },
+
+    // RF05: nunca revela si el correo existe (mismo principio que el login, RNF12).
+    async forgotPassword(input) {
+      const rawEmail = input?.email;
+      if (typeof rawEmail !== 'string' || rawEmail.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El correo electrónico es obligatorio.');
+      }
+      const email = normalizeEmail(rawEmail);
+
+      const user = await repository.findUserByEmail(email);
+      if (user) {
+        const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
+        const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+        // Solo puede quedar un enlace válido a la vez por cuenta.
+        await repository.invalidateUserPasswordResetTokens(user.id);
+        await repository.createPasswordResetToken({ userId: user.id, tokenHash: hashToken(rawToken), expiresAt });
+        const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
+        await mailer.sendPasswordReset({ to: user.email, name: user.name, resetLink });
+      }
+      return { message: 'Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña.' };
+    },
+
+    // RF05: consume el token de un solo uso y cambia la contraseña.
+    async resetPassword(input) {
+      const { token, password } = input ?? {};
+      if (typeof token !== 'string' || token.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El token de recuperación es obligatorio.');
+      }
+      if (typeof password !== 'string' || password === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'La contraseña es obligatoria.');
+      }
+      const problems = passwordProblems(password);
+      if (problems.length > 0) throw new AppError(400, 'VALIDATION_ERROR', problems[0]);
+
+      // Un solo error para "no existe", "ya se usó" y "venció": no distingue el motivo.
+      const record = await repository.findValidPasswordResetToken(hashToken(token));
+      if (!record) throw invalidResetToken();
+
+      await repository.updateUserPassword(record.user_id, await hashPassword(password));
+      await repository.markPasswordResetTokenUsed(record.id);
+      await repository.invalidateUserPasswordResetTokens(record.user_id);
+      return { reset: true };
+    },
+
+    async verifyEmail(input) {
+      const token = input?.token;
+      if (typeof token !== 'string' || token.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El token de verificación es obligatorio.');
+      }
+      // Un solo error para "no existe", "ya se usó" y "venció".
+      const userId = await repository.consumeEmailVerificationToken(hashToken(token));
+      if (!userId) {
+        throw new AppError(400, 'VERIFICATION_TOKEN_INVALID', 'El enlace de verificación no es válido o expiró.');
+      }
+      return { verified: true };
+    },
+
+    // Misma respuesta exista o no la cuenta, o si ya está verificada: no revela qué correos existen.
+    async resendVerification(input) {
+      const rawEmail = input?.email;
+      if (typeof rawEmail !== 'string' || rawEmail.trim() === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'El correo electrónico es obligatorio.');
+      }
+      const user = await repository.findUserByEmail(normalizeEmail(rawEmail));
+      if (user && user.active && !user.email_verified) await trySendVerification(user);
+      return { message: 'Si el correo está registrado y aún no está verificado, se envió un nuevo enlace de verificación.' };
+    },
+  };
 }
 
-export async function login(_input) {
-  return pending();
+function hashToken(token) {
+  return createHash('sha256').update(token).digest('hex');
 }
 
-export async function logout(_identity) {
-  return pending();
+function invalidResetToken() {
+  return new AppError(400, 'RESET_TOKEN_INVALID', 'El enlace de recuperación no es válido o expiró.');
 }
 
-export async function getCurrentUser(_identity) {
-  return pending();
+async function getDummyHash() {
+  dummyHash ??= hashPassword('contraseña-de-relleno');
+  return dummyHash;
 }
 
-export async function verifyEmail(_input) {
-  return pending();
+// Nunca incluye password_hash.
+function toPublicUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    active: user.active,
+    emailVerified: user.email_verified,
+    createdAt: user.created_at instanceof Date ? user.created_at.toISOString() : user.created_at,
+  };
 }
 
-export async function forgotPassword(_input) {
-  return pending();
-}
-
-export async function resetPassword(_input) {
-  return pending();
-}
-
-function pending() {
-  return notImplemented('AUTH_NOT_IMPLEMENTED', 'El módulo de autenticación está pendiente de implementación.');
+function emailTaken() {
+  return new AppError(409, 'EMAIL_ALREADY_REGISTERED', 'El correo electrónico ya está registrado.');
 }

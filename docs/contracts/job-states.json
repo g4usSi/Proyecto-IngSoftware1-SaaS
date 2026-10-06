@@ -1,0 +1,92 @@
+{
+  "queued": {
+    "data": {
+      "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+      "originalName": "foto.png",
+      "status": "queued",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "errorCode": null,
+      "imageId": null,
+      "available": false,
+      "downloadUrl": null,
+      "quotaState": "pending",
+      "createdAt": "2026-10-04T18:00:00.000Z",
+      "updatedAt": "2026-10-04T18:00:00.000Z",
+      "expiresAt": "2026-10-05T18:00:00.000Z",
+      "nextPollAfterMs": 2000
+    }
+  },
+  "processing": {
+    "data": {
+      "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+      "originalName": "foto.png",
+      "status": "processing",
+      "attempts": 1,
+      "maxAttempts": 3,
+      "errorCode": null,
+      "imageId": null,
+      "available": false,
+      "downloadUrl": null,
+      "quotaState": "pending",
+      "createdAt": "2026-10-04T18:00:00.000Z",
+      "updatedAt": "2026-10-04T18:00:00.000Z",
+      "expiresAt": "2026-10-05T18:00:00.000Z",
+      "nextPollAfterMs": 2000
+    }
+  },
+  "converted": {
+    "data": {
+      "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+      "originalName": "foto.png",
+      "status": "converted",
+      "attempts": 1,
+      "maxAttempts": 3,
+      "errorCode": null,
+      "imageId": null,
+      "available": false,
+      "downloadUrl": null,
+      "quotaState": "pending",
+      "createdAt": "2026-10-04T18:00:00.000Z",
+      "updatedAt": "2026-10-04T18:00:00.000Z",
+      "expiresAt": "2026-10-05T18:00:00.000Z",
+      "nextPollAfterMs": 2000
+    }
+  },
+  "published": {
+    "data": {
+      "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+      "originalName": "foto.png",
+      "status": "published",
+      "attempts": 1,
+      "maxAttempts": 3,
+      "errorCode": null,
+      "imageId": "b10aa8ef-b2f5-482c-89bd-d60a72ac0921",
+      "available": true,
+      "downloadUrl": "/api/files/b10aa8ef-b2f5-482c-89bd-d60a72ac0921/download",
+      "quotaState": "settled",
+      "createdAt": "2026-10-04T18:00:00.000Z",
+      "updatedAt": "2026-10-04T18:00:00.000Z",
+      "expiresAt": "2026-10-05T18:00:00.000Z",
+      "nextPollAfterMs": null
+    }
+  },
+  "failed": {
+    "data": {
+      "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+      "originalName": "foto.png",
+      "status": "failed",
+      "attempts": 1,
+      "maxAttempts": 3,
+      "errorCode": "JOB_EXPIRED",
+      "imageId": null,
+      "available": false,
+      "downloadUrl": null,
+      "quotaState": "settled",
+      "createdAt": "2026-10-04T18:00:00.000Z",
+      "updatedAt": "2026-10-04T18:00:00.000Z",
+      "expiresAt": "2026-10-05T18:00:00.000Z",
+      "nextPollAfterMs": null
+    }
+  }
+}

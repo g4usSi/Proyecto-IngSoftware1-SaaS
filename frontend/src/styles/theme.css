@@ -1,122 +1,143 @@
 /* Paleta única de la interfaz. Responsable de coordinación: Alegría.
- * Los nombres describen el uso; se puede cambiar el color sin renombrar clases.
- * Mantener contraste de texto, botones, estados y foco al cambiar la paleta.
+ * Basada en la identidad "SmartStorage · Tipografía moderna" (ver assets/brand/GUIA-DE-USO.md).
+ * Solo se eligen a mano los colores base; el resto se derivan con color-mix,
+ * así que al cambiar un color base cambian también sus variantes.
  */
 :root {
   --font-sans: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
 
-  /* Marca y colores generales. */
-  --color-ink: #171325;
-  --color-dark: #0e0b18;
-  --color-paper: #fdf3ea;
-  --color-primary: #fb7a3c;
-  --color-secondary: #8b5cf6;
-  --color-white: #ffffff;
-  --color-text-muted: #71697b;
-  --color-border: #e9e3ec;
+  /* ── Colores base de la marca ───────────────────────────────── */
+  --brand-orange: #fb7a3c; /* Acento y pieza inferior del símbolo */
+  --brand-navy: #1b304a;   /* Pieza superior y fondos oscuros */
+  --brand-ink: #171325;    /* Texto sobre fondo claro */
+  --brand-paper: #fdf3ea;  /* Fondo claro cálido */
+  --brand-white: #ffffff;
+  --brand-muted: #5f6b7a;  /* Texto secundario (gris azulado, AA sobre claro) */
 
-  /* Botones y etiquetas. Ajustar también hover y estados deshabilitados. */
-  --color-primary-hover: #ff9563;
-  --color-disabled-surface: #e5e0e9;
-  --color-disabled-text: #655d71;
-  --color-eyebrow: #735295;
-
-  /* Portada e ilustración: tonos de texto, superficies y transparencias. */
-  --color-dark-divider: #ffffff15;
-  --color-public-nav: #c9bed3;
-  --color-hero-kicker: #e1c6b4;
-  --color-hero-description: #c1b7cc;
-  --color-hero-link: #e1d9e9;
-  --color-development-text: #aca0bc;
-  --color-development-dot: #92859f;
-  --color-pipeline-start: #2a223b;
-  --color-pipeline-end: #201a2e;
-  --color-pipeline-border: #5e4c724d;
-  --color-pipeline-shadow: #0b071d50;
-  --color-pipeline-label: #b7a5c9;
-  --color-file-border: #ffffff16;
-  --color-file-surface: #ffffff03;
-  --color-file-icon-surface: #ffffff0a;
-  --color-file-icon: #c9b5dc;
-  --color-file-description: #b7a7c7;
-  --color-file-format: #c9bad7;
-  --color-process-line: #8b5cf673;
-  --color-process-border: #8b5cf656;
-  --color-process-text: #d7bffd;
-  --color-secondary-soft: #8b5cf611;
-  --color-optimized-border: #ffffff2b;
-  --color-optimized-shadow: #08041140;
-  --color-illustration-sky: #ccc2ea;
-  --color-illustration-sun: #fbad79;
-  --color-illustration-mountain-back: #8a6aad;
-  --color-illustration-mountain-front: #4e3c73;
-  --color-image-label-surface: #fdf3eae8;
-  --color-image-caption: #756381;
-  --color-image-symbol-border: #dcc9dd;
-  --color-pipeline-footer: #c2b2d0;
-  --color-pipeline-footer-icon: #b28aff;
-  --color-pipeline-caption: #a697b8;
-  --color-paper-divider: #e8dace;
-  --color-process-step-icon: #705385;
-  --color-process-step-number: #927586;
-
-  /* Indicador de disponibilidad de la API. */
-  --color-status-pending: #a89eb1;
-  --color-status-online: #328460;
+  /* Estados */
+  --color-status-online: #2f7d5b;
   --color-status-offline: #a16a33;
+  --color-status-error: #c2413a;
+  --color-status-pending: color-mix(in srgb, var(--brand-muted) 60%, white);
 
-  /* Navegación y estructura de la aplicación. */
-  --color-sidebar-text: #c9bed4;
-  --color-sidebar-label: #a391b6;
-  --color-sidebar-hover: #ffffff08;
-  --color-sidebar-active-text: #fff1e7;
-  --color-sidebar-active-start: #8b5cf633;
-  --color-sidebar-active-end: #fb7a3c1c;
-  --color-sidebar-description: #c9b8d7;
-  --color-sidebar-link: #a99ab9;
-  --color-workspace-surface: #fcfafc;
-  --color-preview-text: #675179;
-  --color-preview-border: #e9dff0;
-  --color-preview-surface: #f9f5fc;
+  /* ── Tokens generales ──────────────────────────────────────── */
+  --color-ink: var(--brand-navy);        /* superficies oscuras y botones oscuros */
+  --color-dark: color-mix(in srgb, var(--brand-navy) 82%, black);
+  --color-text: var(--brand-ink);
+  --color-paper: var(--brand-paper);
+  --color-primary: var(--brand-orange);
+  --color-secondary: var(--brand-navy);
+  --color-white: var(--brand-white);
+  --color-text-muted: var(--brand-muted);
+  --color-border: color-mix(in srgb, var(--brand-navy) 12%, white);
 
-  /* Paneles y mensajes compartidos. */
-  --color-panel-divider: #efebf2;
-  --color-panel-icon: #8c719e;
-  --color-badge-text: #6d597e;
-  --color-badge-surface: #f4eef8;
-  --color-pending-border: #eaddf3;
-  --color-pending-start: #f5ecff;
-  --color-pending-end: #fff4e9;
-  --color-pending-icon: #8a64b0;
-  --color-note-surface: #fdfbff;
-  --color-note-text: #7a6b88;
-  --color-explainer-surface: #f8f2ed;
-  --color-explainer-icon: #9c613f;
-  --color-explainer-text: #7d706b;
+  /* Variantes reutilizadas */
+  --on-dark-strong: color-mix(in srgb, white 88%, var(--brand-navy));
+  --on-dark: color-mix(in srgb, white 72%, var(--brand-navy));
+  --on-dark-soft: color-mix(in srgb, white 56%, var(--brand-navy));
+  --navy-text: color-mix(in srgb, var(--brand-navy) 85%, white);
+  --navy-tint: color-mix(in srgb, var(--brand-navy) 6%, white);
+  --navy-tint-strong: color-mix(in srgb, var(--brand-navy) 14%, white);
+  --orange-tint: color-mix(in srgb, var(--brand-orange) 10%, white);
+  --orange-text: color-mix(in srgb, var(--brand-orange) 55%, var(--brand-ink));
 
-  /* Planes y suscripciones. */
-  --color-plan-border: #e5d9ec;
-  --color-plan-start: #fdf9ff;
-  --color-plan-end: #fffaf5;
-  --color-plan-divider: #e8dfee;
+  /* Botones y etiquetas */
+  --color-primary-hover: color-mix(in srgb, var(--brand-orange) 82%, white);
+  --color-disabled-surface: color-mix(in srgb, var(--brand-navy) 10%, white);
+  --color-disabled-text: var(--brand-muted);
+  --color-eyebrow: var(--orange-text);
 
-  /* Autenticación y campos de formulario. */
-  --color-auth-kicker: #bd9fcb;
-  --color-auth-description: #b5a5c5;
-  --color-auth-mark-border: #8b5cf646;
-  --color-auth-mark: #b486f8;
-  --color-auth-back: #d1c1dd;
-  --color-auth-surface: #fdfaf7;
-  --color-auth-notice-border: #e6ddef;
-  --color-auth-notice-surface: #f5effa;
-  --color-auth-notice-icon: #806291;
-  --color-auth-notice-text: #705b81;
-  --color-input-label: #514657;
-  --color-input-border: #ded4e4;
-  --color-input-surface: #fbf8fc;
-  --color-input-placeholder: #8b7e94;
-  --color-auth-link: #725295;
-  --color-auth-divider: #e9e0e7;
-  --color-auth-explore: #776886;
-  --color-public-nav-divider: #ffffff12;
+  /* Portada e ilustración */
+  --color-dark-divider: color-mix(in srgb, white 10%, transparent);
+  --color-public-nav: var(--on-dark);
+  --color-public-nav-divider: color-mix(in srgb, white 8%, transparent);
+  --color-hero-kicker: color-mix(in srgb, var(--brand-orange) 45%, white);
+  --color-hero-description: var(--on-dark);
+  --color-hero-link: var(--on-dark-strong);
+  --color-development-text: var(--on-dark-soft);
+  --color-development-dot: var(--on-dark-soft);
+  --color-pipeline-start: color-mix(in srgb, var(--brand-navy) 85%, white);
+  --color-pipeline-end: color-mix(in srgb, var(--brand-navy) 95%, white);
+  --color-pipeline-border: color-mix(in srgb, white 14%, transparent);
+  --color-pipeline-shadow: color-mix(in srgb, black 30%, transparent);
+  --color-pipeline-label: var(--on-dark);
+  --color-file-border: color-mix(in srgb, white 9%, transparent);
+  --color-file-surface: color-mix(in srgb, white 2%, transparent);
+  --color-file-icon-surface: color-mix(in srgb, white 5%, transparent);
+  --color-file-icon: var(--on-dark-strong);
+  --color-file-description: var(--on-dark);
+  --color-file-format: var(--on-dark);
+  --color-process-line: color-mix(in srgb, var(--brand-orange) 45%, transparent);
+  --color-process-border: color-mix(in srgb, var(--brand-orange) 35%, transparent);
+  --color-process-text: color-mix(in srgb, var(--brand-orange) 45%, white);
+  --color-secondary-soft: color-mix(in srgb, white 8%, transparent);
+  --color-optimized-border: color-mix(in srgb, white 17%, transparent);
+  --color-optimized-shadow: color-mix(in srgb, black 25%, transparent);
+  --color-illustration-sky: color-mix(in srgb, var(--brand-navy) 18%, white);
+  --color-illustration-sun: color-mix(in srgb, var(--brand-orange) 75%, white);
+  --color-illustration-mountain-back: color-mix(in srgb, var(--brand-navy) 55%, white);
+  --color-illustration-mountain-front: var(--brand-navy);
+  --color-image-label-surface: color-mix(in srgb, var(--brand-paper) 91%, transparent);
+  --color-image-caption: var(--brand-muted);
+  --color-image-symbol-border: var(--color-border);
+  --color-pipeline-footer: var(--on-dark);
+  --color-pipeline-footer-icon: var(--brand-orange);
+  --color-pipeline-caption: var(--on-dark-soft);
+  --color-paper-divider: color-mix(in srgb, var(--brand-orange) 14%, var(--brand-paper));
+  --color-process-step-icon: var(--brand-navy);
+  --color-process-step-number: var(--orange-text);
+
+  /* Navegación y estructura de la aplicación */
+  --color-sidebar-text: var(--on-dark);
+  --color-sidebar-label: var(--on-dark-soft);
+  --color-sidebar-hover: color-mix(in srgb, white 5%, transparent);
+  --color-sidebar-active-text: var(--brand-white);
+  --color-sidebar-active-start: color-mix(in srgb, var(--brand-orange) 22%, transparent);
+  --color-sidebar-active-end: color-mix(in srgb, var(--brand-orange) 6%, transparent);
+  --color-sidebar-description: var(--on-dark);
+  --color-sidebar-link: var(--on-dark-soft);
+  --color-workspace-surface: color-mix(in srgb, var(--brand-navy) 2%, white);
+  --color-preview-text: var(--navy-text);
+  --color-preview-border: var(--color-border);
+  --color-preview-surface: var(--navy-tint);
+
+  /* Paneles y mensajes compartidos */
+  --color-panel-divider: color-mix(in srgb, var(--brand-navy) 8%, white);
+  --color-panel-icon: var(--navy-text);
+  --color-badge-text: var(--navy-text);
+  --color-badge-surface: var(--navy-tint);
+  --color-pending-border: var(--color-border);
+  --color-pending-start: var(--navy-tint);
+  --color-pending-end: var(--orange-tint);
+  --color-pending-icon: var(--brand-navy);
+  --color-note-surface: color-mix(in srgb, var(--brand-navy) 3%, white);
+  --color-note-text: var(--brand-muted);
+  --color-explainer-surface: color-mix(in srgb, var(--brand-orange) 7%, white);
+  --color-explainer-icon: var(--orange-text);
+  --color-explainer-text: var(--brand-muted);
+
+  /* Planes y suscripciones */
+  --color-plan-border: var(--color-border);
+  --color-plan-start: var(--navy-tint);
+  --color-plan-end: var(--orange-tint);
+  --color-plan-divider: var(--color-panel-divider);
+
+  /* Autenticación y campos de formulario */
+  --color-auth-kicker: color-mix(in srgb, var(--brand-orange) 45%, white);
+  --color-auth-description: var(--on-dark);
+  --color-auth-mark-border: color-mix(in srgb, white 16%, transparent);
+  --color-auth-mark: var(--brand-orange);
+  --color-auth-back: var(--on-dark);
+  --color-auth-surface: color-mix(in srgb, var(--brand-paper) 40%, white);
+  --color-auth-notice-border: var(--color-border);
+  --color-auth-notice-surface: var(--navy-tint);
+  --color-auth-notice-icon: var(--brand-navy);
+  --color-auth-notice-text: var(--navy-text);
+  --color-input-label: var(--brand-ink);
+  --color-input-border: var(--navy-tint-strong);
+  --color-input-surface: var(--brand-white);
+  --color-input-placeholder: var(--brand-muted);
+  --color-auth-link: var(--brand-navy);
+  --color-auth-divider: var(--color-border);
+  --color-auth-explore: var(--brand-muted);
 }

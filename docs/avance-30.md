@@ -2,6 +2,10 @@
 
 El enunciado fija el 25 de septiembre de 2026 y no detalla una rúbrica funcional del 30 %. Este alcance es una propuesta del equipo. Tener este esqueleto no equivale a haber completado ese avance.
 
+Estado técnico al 30/09/2026: registro, login JWT, asignación Free y Storage ya están integrados. Se comprobó el recorrido desde un navegador real con cuentas independientes, subida múltiple, deduplicación, galería, descarga y logout. `npm run test:browser` permite repetirlo. Ver [aceptación y evidencia](aceptacion-30.md) y [guía de uso y límites](storage.md).
+
+Esta verificación local aporta la evidencia pendiente de S2-15; no acredita revisión de un compañero, integración en `main` ni presentación académica de S2-16.
+
 ## Recorrido de aceptación
 
 Un cliente se registra, inicia sesión, recibe un plan Free, carga una imagen, la encuentra en su galería y descarga su WebP. Otra subida idéntica reutiliza el objeto físico global. El administrador puede consultar ahorro calculado con tamaños originales y bytes WebP reales.
@@ -27,7 +31,7 @@ La decisión de conservar solo WebP obliga a incluir una primera conversión fun
 
 ## Hitos siguientes
 
-- Completar verificación de correo, recuperación/cambio de contraseña y sesiones revocables.
+- Completar verificación de correo y recuperación/cambio de contraseña. La revocación al salir ya funciona; la expiración se prueba en backend, sin prueba del vencimiento por tiempo en navegador.
 - Incorporar Redis + BullMQ + worker Sharp, reintentos y recuperación de trabajos.
 - Borrado coordinado con referencias, álbumes y movimiento de imágenes.
 - Pagos simulados, historial, renovación y reglas de cambio de plan.
