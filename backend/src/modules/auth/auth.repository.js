@@ -99,6 +99,25 @@ export function createAuthRepository(database) {
       );
     },
 
+    // RF06, una sola sentencia: cambia la contraseña solo si el hash sigue siendo el que se verificó
+    // (si dos cambios simultáneos usan la misma contraseña actual, solo se aplica el primero) e
+    // invalida los enlaces de recuperación pendientes. Devuelve null si no cambió nada.
+    async changePassword(userId, expectedHash, newHash) {
+      const { rows } = await database.query(
+        `WITH changed AS (
+           UPDATE users SET password_hash = $3, updated_at = now()
+            WHERE id = $1 AND password_hash = $2
+            RETURNING id
+         ), pending_resets AS (
+           UPDATE password_reset_tokens SET used_at = now()
+            WHERE user_id IN (SELECT id FROM changed) AND used_at IS NULL
+         )
+         SELECT id FROM changed`,
+        [userId, expectedHash, newHash],
+      );
+      return rows[0]?.id ?? null;
+    },
+
     async createEmailVerificationToken({ userId, tokenHash, expiresAt }) {
       await database.query(
         'INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',

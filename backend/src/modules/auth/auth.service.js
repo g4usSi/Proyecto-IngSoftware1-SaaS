@@ -85,11 +85,7 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
 
       const key = normalizeEmail(email);
       const lockedSeconds = loginLimiter.lockedFor(key);
-      if (lockedSeconds > 0) {
-        const minutes = Math.ceil(lockedSeconds / 60);
-        throw new AppError(429, 'TOO_MANY_ATTEMPTS',
-          `Demasiados intentos fallidos. Inténtalo de nuevo en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}.`);
-      }
+      if (lockedSeconds > 0) throw tooManyAttempts(lockedSeconds);
 
       const user = await repository.findUserByEmail(key);
       // Una contraseña enorme se rechaza sin hashearla (evita gastar CPU); cuenta como intento fallido.
@@ -160,6 +156,43 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       return { reset: true };
     },
 
+    // RF06: el usuario autenticado (identity = req.user) cambia su contraseña dando la actual.
+    // Las demás sesiones siguen abiertas, igual que tras un reset.
+    async changePassword(identity, input) {
+      const { currentPassword, newPassword } = input ?? {};
+      if (typeof currentPassword !== 'string' || currentPassword === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'La contraseña actual es obligatoria.');
+      }
+      if (typeof newPassword !== 'string' || newPassword === '') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'La nueva contraseña es obligatoria.');
+      }
+      const problems = passwordProblems(newPassword);
+      if (problems.length > 0) throw new AppError(400, 'VALIDATION_ERROR', problems[0]);
+
+      // Adivinar la contraseña desde aquí cuenta igual que en el login (RNF11): mismo límite, misma clave.
+      const key = identity.email;
+      const lockedSeconds = loginLimiter.lockedFor(key);
+      if (lockedSeconds > 0) throw tooManyAttempts(lockedSeconds);
+
+      const user = await repository.findUserByEmail(key);
+      if (!user) throw invalidToken();
+      const currentOk = currentPassword.length <= PASSWORD_MAX &&
+        await verifyPassword(currentPassword, user.password_hash);
+      if (!currentOk) {
+        loginLimiter.recordFailure(key);
+        throw invalidCurrentPassword();
+      }
+      if (newPassword === currentPassword) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'La nueva contraseña debe ser distinta de la actual.');
+      }
+
+      // Si otro cambio simultáneo ya reemplazó el hash, la contraseña actual dejó de ser válida.
+      const changed = await repository.changePassword(user.id, user.password_hash, await hashPassword(newPassword));
+      if (!changed) throw invalidCurrentPassword();
+      loginLimiter.reset(key);
+      return { changed: true };
+    },
+
     async verifyEmail(input) {
       const token = input?.token;
       if (typeof token !== 'string' || token.trim() === '') {
@@ -188,6 +221,17 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
 
 function hashToken(token) {
   return createHash('sha256').update(token).digest('hex');
+}
+
+function tooManyAttempts(lockedSeconds) {
+  const minutes = Math.ceil(lockedSeconds / 60);
+  return new AppError(429, 'TOO_MANY_ATTEMPTS',
+    `Demasiados intentos fallidos. Inténtalo de nuevo en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}.`);
+}
+
+// 400 y no 401: el frontend cierra la sesión ante cualquier 401.
+function invalidCurrentPassword() {
+  return new AppError(400, 'INVALID_CURRENT_PASSWORD', 'La contraseña actual es incorrecta.');
 }
 
 function invalidResetToken() {

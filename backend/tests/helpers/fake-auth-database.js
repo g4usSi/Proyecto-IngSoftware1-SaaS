@@ -87,6 +87,17 @@ export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {
         }
         return { rows: [] };
       }
+      // Cambio de contraseña: solo si el hash sigue siendo el esperado (sin `await` intermedio).
+      if (/WITH changed AS/i.test(sql)) {
+        const [user_id, expected_hash, new_hash] = params;
+        const user = [...users.values()].find((candidate) => candidate.id === user_id);
+        if (!user || user.password_hash !== expected_hash) return { rows: [] };
+        user.password_hash = new_hash;
+        for (const record of passwordResets.values()) {
+          if (record.user_id === user_id && !record.used_at) record.used_at = new Date();
+        }
+        return { rows: [{ id: user.id }] };
+      }
       if (/^\s*INSERT INTO email_verification_tokens/i.test(sql)) {
         const [user_id, token_hash, expires_at] = params;
         const id = `verify-${nextVerificationId++}`;
