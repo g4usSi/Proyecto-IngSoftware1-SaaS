@@ -16,6 +16,7 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | `POST /api/auth/register` | Implementado (Bloque 1) |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Implementado (Bloque 2) |
 | `POST /api/auth/forgot-password`, `reset-password` | Implementado (Bloque 3) |
+| `POST /api/auth/change-password` | Implementado (Bloque 3) |
 | `POST /api/auth/verify-email`, `resend-verification` | Implementado. El login exige el correo verificado |
 
 Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se envían de verdad. Sin ellas, en desarrollo, el enlace se escribe en la consola del servidor (la terminal de `npm run dev`). El contrato de la API es el mismo en ambos casos.
@@ -27,6 +28,7 @@ Pantallas que necesita el frontend:
 - `/reset-password?token=...`: formulario de nueva contraseña que llama a `POST /api/auth/reset-password`.
 - En el login, ante `403 EMAIL_NOT_VERIFIED`, ofrecer "Reenviar correo de verificación" (`POST /api/auth/resend-verification`).
 - Tras registrarse, avisar al usuario que revise su correo antes de iniciar sesión.
+- Dentro de la sesión (por ejemplo, en el menú de la cuenta): formulario "Cambiar contraseña" con la contraseña actual y la nueva, que llama a `POST /api/auth/change-password`.
 
 Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
 
@@ -226,6 +228,41 @@ La contraseña nueva debe cumplir la misma política que en el registro (ver arr
 | 400 | `RESET_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta para los tres casos, a propósito) | `El enlace de recuperación no es válido o expiró.` |
 
 Tras un reset exitoso, ese token y cualquier otro enlace de recuperación pendiente de la misma cuenta quedan invalidados. El enlace sirve una sola vez aunque lleguen dos envíos al mismo tiempo (por ejemplo, un doble clic): uno responde `200` y el otro `400 RESET_TOKEN_INVALID`, así que conviene desactivar el botón mientras la petición está en curso. Las sesiones (tokens Bearer) que ya existían **no** se cierran automáticamente; si se necesita ese comportamiento, avisar para agregarlo.
+
+## `POST /api/auth/change-password`
+
+Cambia la contraseña del usuario de la sesión actual. **Requiere token** (`Authorization: Bearer <token>`). El usuario se toma del token, nunca del cuerpo.
+
+Cuerpo:
+
+```json
+{ "currentPassword": "Clave#Segura1", "newPassword": "OtraClave#9" }
+```
+
+La nueva contraseña debe cumplir la misma política que en el registro y ser distinta de la actual.
+
+Éxito: `200`
+
+```json
+{ "data": { "changed": true } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta la contraseña actual | `La contraseña actual es obligatoria.` |
+| 400 | `VALIDATION_ERROR` | Falta la nueva contraseña | `La nueva contraseña es obligatoria.` |
+| 400 | `VALIDATION_ERROR` | La nueva no cumple la política | (el primer problema encontrado, mismos mensajes que en registro) |
+| 400 | `VALIDATION_ERROR` | La nueva es igual a la actual | `La nueva contraseña debe ser distinta de la actual.` |
+| 400 | `INVALID_CURRENT_PASSWORD` | La contraseña actual es incorrecta | `La contraseña actual es incorrecta.` |
+| 429 | `TOO_MANY_ATTEMPTS` | 5 intentos fallidos seguidos | `Demasiados intentos fallidos. Inténtalo de nuevo en N minutos.` |
+| 401/403 | (ver "Errores de cualquier ruta privada") | Sin token, token inválido o vencido, cuenta desactivada | |
+
+Notas:
+
+- `INVALID_CURRENT_PASSWORD` es un **400 a propósito**: no borres la sesión ni redirijas al login; muestra el mensaje junto al campo de la contraseña actual.
+- El límite de intentos es el mismo que el del login y es por cuenta: 5 fallos aquí también bloquean el inicio de sesión durante 15 minutos, y al revés.
+- La sesión actual y las de otros dispositivos **siguen abiertas** tras el cambio. Los enlaces de recuperación pendientes de la cuenta dejan de servir.
+- Desactiva el botón mientras la petición está en curso: si llegan dos cambios a la vez, solo se aplica uno y el otro recibe `INVALID_CURRENT_PASSWORD`.
 
 ## `POST /api/auth/verify-email`
 
