@@ -93,11 +93,23 @@ export function createStorageService({ database, storageRoot }) {
       const more = rows.length > pagination.limit;
       const page = rows.slice(0, pagination.limit);
       const items = [];
+      const unavailableItems = [];
       for (const row of page) {
-        const stored = await inspectStoredFile(storageRoot, row);
-        items.push(imageDto(row, stored.size));
+        try {
+          const stored = await inspectStoredFile(storageRoot, row);
+          items.push(imageDto(row, stored.size));
+        } catch (error) {
+          if (error.code !== 'STORAGE_INTEGRITY_ERROR') throw error;
+          // Conservar el registro y la paginación sin bloquear los archivos sanos.
+          unavailableItems.push({
+            id: row.id, originalName: row.original_name,
+            createdAt: new Date(row.created_at).toISOString(),
+            originalSizeBytes: String(row.original_size_bytes),
+            status: 'unavailable', errorCode: 'STORAGE_INTEGRITY_ERROR',
+          });
+        }
       }
-      return { items, nextCursor: more ? cursorFor(page.at(-1)) : null };
+      return { items, unavailableItems, nextCursor: more ? cursorFor(page.at(-1)) : null };
     },
     async downloadFile(ownerId, imageId) {
       validateImageId(imageId);

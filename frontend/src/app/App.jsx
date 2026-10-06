@@ -8,6 +8,8 @@ import { OverviewPage } from '../features/storage/OverviewPage.jsx';
 import { UploadPage } from '../features/storage/UploadPage.jsx';
 import { HistoryPage } from '../features/storage/HistoryPage.jsx';
 import { InsightsPage } from '../features/storage/InsightsPage.jsx';
+import { JobsPage } from '../features/storage/JobsPage.jsx';
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from '../features/auth/RecoveryPages.jsx';
 import { PlansPage } from '../features/subscriptions/PlansPage.jsx';
 import { Brand } from '../components/Brand.jsx';
 
@@ -20,6 +22,10 @@ const titles = {
   '/app/upload': 'Subir imágenes',
   '/app/history': 'Historial',
   '/app/insights': 'Ahorro',
+  '/app/jobs': 'Procesos',
+  '/verify-email': 'Verificar correo',
+  '/forgot-password': 'Recuperar contraseña',
+  '/reset-password': 'Nueva contraseña',
   '/app/plans': 'Mejorar plan',
 };
 
@@ -36,14 +42,18 @@ export function App() {
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<AuthPage mode="login" />} />
-        <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/login" element={<AuthPage key="login" mode="login" />} />
+        <Route path="/register" element={<AuthPage key="register" mode="register" />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/app" element={<AppLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="storage" element={<StoragePage />} />
           <Route path="upload" element={<UploadPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="insights" element={<InsightsPage />} />
+          <Route path="jobs" element={<JobsPage />} />
           <Route path="plans" element={<PlansPage />} />
         </Route>
         <Route path="*" element={

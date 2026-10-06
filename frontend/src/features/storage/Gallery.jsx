@@ -52,7 +52,7 @@ export function SavingBadge({ file }) {
 
 export function Gallery() {
   const navigate = useNavigate();
-  const { items, loading, loaded, error, nextCursor, refresh, loadMore, download, downloadingId } = useLibrary();
+  const { items, unavailableItems, loading, loaded, error, nextCursor, refresh, loadMore, download, downloadingId } = useLibrary();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
   const [view, setView] = useState('grid');
@@ -108,7 +108,16 @@ export function Gallery() {
         </div>
       )}
 
-      {loaded && !error && items.length === 0 && (
+      {unavailableItems.length > 0 && (
+        <div className="gallery-unavailable" role="status">
+          <h3>{unavailableItems.length} {unavailableItems.length === 1 ? 'archivo no disponible' : 'archivos no disponibles'}</h3>
+          <p>No encontramos estas imágenes guardadas. Solicita su restauración para volver a verlas y descargarlas. El ahorro mostrado corresponde solo a los archivos disponibles.</p>
+          <ul>{unavailableItems.map((file) => <li key={file.id}>{file.originalName}</li>)}</ul>
+          <button type="button" className="btn btn-secondary" onClick={refresh} disabled={loading}>Comprobar de nuevo</button>
+        </div>
+      )}
+
+      {loaded && !error && items.length === 0 && unavailableItems.length === 0 && (
         <div className="empty-state">
           <div className="empty-art" aria-hidden="true"><span /><span /><span /></div>
           <h3>Tu biblioteca está vacía</h3>

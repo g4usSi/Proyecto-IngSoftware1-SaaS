@@ -1,5 +1,23 @@
 # Traspaso a Alegría: contratos y trabajo pendiente del frontend
 
+## Correcciones de la entrega del frontend
+
+Revisión posterior al commit `4ba7663` de `feature/ui-tema`:
+
+- Registro y login tienen estados separados; el enlace posterior al registro vuelve al formulario.
+- Reenvío reinicia su estado al cambiar de correo; verificación y restablecimiento reinician al cambiar de token.
+- El formulario usa un solo control para mostrar contraseña en Edge, campos de confirmación diferenciados y avisos ocultos fuera del recorrido de teclado.
+- Todas las rutas `/app/*` requieren sesión. Sin ella se muestra «Página no disponible» y se vuelve a `/` a los tres segundos. El frontend ya no ofrece acceso demo; la API demo sigue disponible para pruebas explícitas.
+- El layout recibe archivos soltados en cualquier parte, incluida la zona de subida. Cancela el aviso al soltar, salir, perder foco o pulsar Escape. La cola conserva una sola subida por entrada.
+- Los procesos siguen consultándose aunque no cambien; reintentan errores temporales y cancelan peticiones al salir.
+- `GET /api/files` agrega `unavailableItems`: permite mostrar las imágenes sanas y enumerar las faltantes sin borrar registros. Ver el [contrato actualizado](api.md). Los faltantes cuentan para cuota, pero se excluyen del ahorro mostrado.
+
+Validación reproducible: `npm run check`, `npm run test:frontend` (API simulada, sin correo/BD) y `npm run test:storage` (BD temporal aislada). Las capturas de frontend se guardan en `output/playwright/frontend-regression`, fuera de Git. La prueba de navegador usa Edge en Windows; se puede seleccionar otro navegador instalado con `E2E_BROWSER_CHANNEL`.
+
+La sesión continúa en memoria: al recargar se pierde y se aplica el aviso de acceso. Los archivos físicos ausentes necesitan restauración desde una copia; estas correcciones no recrean su contenido.
+
+## Auditoría anterior de ramas
+
 **Snapshot de ramas consultado:** 05/10/2026, `origin/tema-y-flujo-git` en `8d60ba3` · **Alcance:** ramas remotas, contratos backend y trabajo pendiente del frontend.
 
 Trae los cambios de `tema-y-flujo-git` a tu rama de frontend antes de empezar. Esa rama reúne Auth, Storage y el worker. Desde la raíz del proyecto ejecuta `npm ci`; no agregues paquetes manualmente en el frontend. Las dependencias SMTP son solo del backend. No copies `SMTP_*`, `DATABASE_URL` ni `JWT_SECRET` al frontend.
