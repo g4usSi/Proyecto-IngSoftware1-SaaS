@@ -46,6 +46,39 @@ test('forgot-password con un correo inexistente responde igual y no envía nada 
   assert.equal(mailer.sent.length, 0);
 });
 
+test('forgot-password responde igual si el envío del correo falla (no revela si la cuenta existe)', async (t) => {
+  const database = createFakeDatabase();
+  database.addUser({ name: VALID.name, email: VALID.email, email_verified: true });
+  let attempts = 0;
+  const mailer = {
+    async sendPasswordReset() { attempts += 1; throw new Error('SMTP caído'); },
+    async sendEmailVerification() {},
+  };
+  const logged = t.mock.method(console, 'error', () => {});
+  const request = await withApi(t, database, { mailer });
+
+  const existing = await postJson(request, '/api/auth/forgot-password', { email: VALID.email });
+  const missing = await postJson(request, '/api/auth/forgot-password', { email: 'nadie@example.com' });
+
+  assert.equal(existing.status, 200);
+  assert.equal(missing.status, 200);
+  assert.deepEqual(await existing.json(), await missing.json());
+  assert.equal(attempts, 1);
+  assert.equal(logged.mock.callCount(), 1);
+});
+
+test('forgot-password no espera al servidor de correo para responder', async (t) => {
+  const database = createFakeDatabase();
+  database.addUser({ name: VALID.name, email: VALID.email, email_verified: true });
+  // Un envío que nunca termina: si la respuesta lo esperara, la petición no volvería.
+  const mailer = { sendPasswordReset: () => new Promise(() => {}), async sendEmailVerification() {} };
+  const request = await withApi(t, database, { mailer });
+
+  const response = await postJson(request, '/api/auth/forgot-password', { email: VALID.email });
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).data.message, GENERIC_MESSAGE);
+});
+
 test('forgot-password exige el correo', async (t) => {
   const { request } = await registeredApp(t);
   const response = await postJson(request, '/api/auth/forgot-password', {});
@@ -73,6 +106,43 @@ test('reset-password con un token válido cambia la contraseña y consume el tok
   const reuse = await postJson(request, '/api/auth/reset-password', { token, password: 'OtraClave#8' });
   assert.equal(reuse.status, 400);
   assert.equal((await reuse.json()).error.code, 'RESET_TOKEN_INVALID');
+});
+
+test('reset-password gasta el enlace y cambia la contraseña en una sola consulta', async (t) => {
+  const { database, request, mailer } = await registeredApp(t);
+  await postJson(request, '/api/auth/forgot-password', { email: VALID.email });
+  const token = tokenFromLink(mailer.sent[0].resetLink);
+
+  const before = database.calls.length;
+  const reset = await postJson(request, '/api/auth/reset-password', { token, password: NEW_PASSWORD });
+  assert.equal(reset.status, 200);
+
+  const queries = database.calls.slice(before);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0].sql, /UPDATE password_reset_tokens/);
+  assert.match(queries[0].sql, /UPDATE users SET password_hash/);
+});
+
+test('dos reset-password simultáneos con el mismo enlace: solo uno cambia la contraseña', async (t) => {
+  const { request, mailer } = await registeredApp(t);
+  await postJson(request, '/api/auth/forgot-password', { email: VALID.email });
+  const token = tokenFromLink(mailer.sent[0].resetLink);
+
+  const responses = await Promise.all([
+    postJson(request, '/api/auth/reset-password', { token, password: NEW_PASSWORD }),
+    postJson(request, '/api/auth/reset-password', { token, password: 'OtraClave#8' }),
+  ]);
+  const statuses = responses.map((response) => response.status).sort();
+  assert.deepEqual(statuses, [200, 400]);
+
+  const rejected = responses.find((response) => response.status === 400);
+  assert.equal((await rejected.json()).error.code, 'RESET_TOKEN_INVALID');
+
+  // La contraseña que quedó es la de la petición que ganó, y solo esa.
+  const winner = responses[0].status === 200 ? NEW_PASSWORD : 'OtraClave#8';
+  const loser = winner === NEW_PASSWORD ? 'OtraClave#8' : NEW_PASSWORD;
+  assert.equal((await postJson(request, '/api/auth/login', { email: VALID.email, password: winner })).status, 200);
+  assert.equal((await postJson(request, '/api/auth/login', { email: VALID.email, password: loser })).status, 401);
 });
 
 test('reset-password rechaza un token desconocido, vencido o inventado con el mismo error', async (t) => {

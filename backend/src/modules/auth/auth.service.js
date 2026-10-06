@@ -36,6 +36,22 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
     }
   }
 
+  // Deja un solo enlace de recuperación válido por cuenta y lo envía por correo. Si algo falla,
+  // solo se registra: la respuesta debe ser la misma exista o no la cuenta (RNF12).
+  async function trySendPasswordReset(user) {
+    try {
+      const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
+      await repository.invalidateUserPasswordResetTokens(user.id);
+      await repository.createPasswordResetToken({
+        userId: user.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      });
+      const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
+      await mailer.sendPasswordReset({ to: user.email, name: user.name, resetLink });
+    } catch (error) {
+      console.error('No se pudo enviar el correo de recuperación:', error?.message ?? error);
+    }
+  }
+
   return {
     // RF01, RF11, RNF01: valida, hashea la contraseña y crea la cuenta (activa por defecto, RF10).
     async register(input) {
@@ -119,15 +135,9 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       const email = normalizeEmail(rawEmail);
 
       const user = await repository.findUserByEmail(email);
-      if (user) {
-        const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
-        const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
-        // Solo puede quedar un enlace válido a la vez por cuenta.
-        await repository.invalidateUserPasswordResetTokens(user.id);
-        await repository.createPasswordResetToken({ userId: user.id, tokenHash: hashToken(rawToken), expiresAt });
-        const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
-        await mailer.sendPasswordReset({ to: user.email, name: user.name, resetLink });
-      }
+      // Sin `await`: la respuesta no espera al servidor de correo, así que tarda lo mismo
+      // exista o no la cuenta. trySendPasswordReset nunca rechaza (registra el error).
+      if (user) void trySendPasswordReset(user);
       return { message: 'Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña.' };
     },
 
@@ -143,13 +153,10 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       const problems = passwordProblems(password);
       if (problems.length > 0) throw new AppError(400, 'VALIDATION_ERROR', problems[0]);
 
+      // El hash se calcula antes porque entra en la misma sentencia que gasta el enlace.
       // Un solo error para "no existe", "ya se usó" y "venció": no distingue el motivo.
-      const record = await repository.findValidPasswordResetToken(hashToken(token));
-      if (!record) throw invalidResetToken();
-
-      await repository.updateUserPassword(record.user_id, await hashPassword(password));
-      await repository.markPasswordResetTokenUsed(record.id);
-      await repository.invalidateUserPasswordResetTokens(record.user_id);
+      const userId = await repository.consumePasswordResetToken(hashToken(token), await hashPassword(password));
+      if (!userId) throw invalidResetToken();
       return { reset: true };
     },
 

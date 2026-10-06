@@ -67,17 +67,19 @@ export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {
         passwordResets.set(id, { id, user_id, token_hash, expires_at: new Date(expires_at), used_at: null });
         return { rows: [] };
       }
-      if (/FROM password_reset_tokens WHERE token_hash/i.test(sql)) {
-        const [token_hash] = params;
+      // Todo ocurre sin `await` intermedio, igual que la sentencia única de PostgreSQL.
+      if (/WITH consumed_reset AS/i.test(sql)) {
+        const [token_hash, password_hash] = params;
         const record = [...passwordResets.values()].find(
           (candidate) => candidate.token_hash === token_hash && !candidate.used_at && candidate.expires_at > new Date(),
         );
-        return { rows: record ? [{ id: record.id, user_id: record.user_id }] : [] };
-      }
-      if (/^\s*UPDATE password_reset_tokens SET used_at = now\(\) WHERE id/i.test(sql)) {
-        const record = passwordResets.get(params[0]);
-        if (record) record.used_at = new Date();
-        return { rows: [] };
+        if (!record) return { rows: [] };
+        for (const candidate of passwordResets.values()) {
+          if (candidate.user_id === record.user_id && !candidate.used_at) candidate.used_at = new Date();
+        }
+        const user = [...users.values()].find((candidate) => candidate.id === record.user_id);
+        user.password_hash = password_hash;
+        return { rows: [{ id: user.id }] };
       }
       if (/^\s*UPDATE password_reset_tokens SET used_at = now\(\) WHERE user_id/i.test(sql)) {
         for (const record of passwordResets.values()) {
@@ -106,12 +108,6 @@ export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {
         const user = [...users.values()].find((candidate) => candidate.id === record.user_id);
         user.email_verified = true;
         return { rows: [{ id: user.id }] };
-      }
-      if (/^\s*UPDATE users SET password_hash/i.test(sql)) {
-        const [user_id, password_hash] = params;
-        const user = [...users.values()].find((candidate) => candidate.id === user_id);
-        if (user) user.password_hash = password_hash;
-        return { rows: [] };
       }
       throw new Error(`Consulta inesperada: ${sql}`);
     },
