@@ -136,6 +136,12 @@
 .privacy-footnote svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--app-success); }
 
 /* ── Soltar en cualquier parte ────────────────────────────── */
+.gallery-unavailable { display: grid; gap: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface-2); color: var(--app-text); }
+.gallery-unavailable h3 { font-size: 17px; }
+.gallery-unavailable p { color: var(--app-muted); }
+.gallery-unavailable ul { margin: 0; padding-left: 20px; overflow-wrap: anywhere; }
+.gallery-unavailable a { text-decoration: underline; }
+.gallery-unavailable button { justify-self: start; }
 .page-drop { position: fixed; z-index: 90; inset: 12px; display: grid; place-items: center; border-radius: 26px; border: 2px dashed var(--app-accent); background: color-mix(in srgb, var(--app-bg) 80%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
 .page-drop.is-active { opacity: 1; }
 .page-drop div { display: grid; justify-items: center; gap: 6px; transform: scale(.9); transition: transform .4s var(--app-spring); }

@@ -10,6 +10,10 @@ import { newPasswordErrors, validateEmailOnly } from './auth.validation.js';
 export function VerifyEmailPage() {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
+  return <VerifyEmailToken key={token} token={token} />;
+}
+
+function VerifyEmailToken({ token }) {
   const [state, setState] = useState({ status: token ? 'loading' : 'invalid', message: null });
   const [email, setEmail] = useState('');
   const started = useRef(false);
@@ -128,6 +132,10 @@ export function ForgotPasswordPage() {
 export function ResetPasswordPage() {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
+  return <ResetPasswordToken key={token} token={token} />;
+}
+
+function ResetPasswordToken({ token }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -189,7 +197,7 @@ export function ResetPasswordPage() {
       <form onSubmit={handleSubmit} noValidate>
         <fieldset disabled={busy} className="auth-fields">
           <PasswordField isNew label="Nueva contraseña" value={password} onChange={(event) => { setPassword(event.target.value); setServerError(null); }} errors={showPassword} />
-          <PasswordField label="Repite la contraseña" placeholder="Escríbela otra vez" value={confirm} onChange={(event) => setConfirm(event.target.value)}
+          <PasswordField name="passwordConfirmation" autoComplete="new-password" label="Repite la contraseña" placeholder="Escríbela otra vez" value={confirm} onChange={(event) => setConfirm(event.target.value)}
             errors={(submitted || confirm) && confirmErrors.length && !passwordErrors.length ? confirmErrors : null} />
           <SubmitButton busy={busy} busyLabel="Guardando…" icon={KeyRound}>Guardar contraseña</SubmitButton>
         </fieldset>

@@ -43,7 +43,7 @@ export function JobsPage() {
       {session ? <JobsList token={session.token} /> : (
         <div className="panel panel-empty">
           <LockKeyhole strokeWidth={1.6} aria-hidden="true" className="panel-empty-icon" />
-          <p>Los procesos solo se consultan con una sesión real. La cuenta de demostración no tiene acceso.</p>
+          <p>Inicia sesión para consultar tus procesos.</p>
           <Link className="btn btn-primary" to="/login">Iniciar sesión</Link>
         </div>
       )}
@@ -57,8 +57,6 @@ function JobsList({ token }) {
   const [state, setState] = useState({ items: [], nextCursor: null, loading: true, error: null, loaded: false });
   const [filter, setFilter] = useState('all');
   const listController = useRef(null);
-  const pollController = useRef(null);
-  const pollTimer = useRef(null);
 
   const load = useCallback(async (cursor = null) => {
     listController.current?.abort();
@@ -67,6 +65,7 @@ function JobsList({ token }) {
     setState((current) => ({ ...current, loading: true, error: null }));
     try {
       const data = await listImageJobs({ token, cursor, signal: controller.signal });
+      if (controller.signal.aborted) return;
       setState((current) => ({
         items: cursor ? [...current.items, ...data.items.filter((job) => !current.items.some((item) => item.id === job.id))] : data.items ?? [],
         nextCursor: data.nextCursor ?? null,
@@ -87,27 +86,39 @@ function JobsList({ token }) {
 
   // Consulta solo los trabajos activos, cuando el servidor lo indique (nextPollAfterMs).
   const active = state.items.filter((job) => ACTIVE.has(job.status) && job.nextPollAfterMs != null);
-  const pollKey = active.map((job) => `${job.id}:${job.status}:${job.updatedAt}`).join('|');
+  const pollKey = JSON.stringify(active.map(({ id, nextPollAfterMs }) => ({ id, nextPollAfterMs })));
   useEffect(() => {
-    if (!active.length) return undefined;
-    const delay = Math.max(1000, Math.min(...active.map((job) => job.nextPollAfterMs)));
-    pollTimer.current = setTimeout(async () => {
-      const controller = new AbortController();
-      pollController.current = controller;
-      const results = await Promise.allSettled(active.map((job) => getImageJob(job.id, { token, signal: controller.signal })));
+    const jobs = JSON.parse(pollKey);
+    if (!jobs.length) return undefined;
+    const controller = new AbortController();
+    const delay = Math.max(1000, Math.min(...jobs.map((job) => job.nextPollAfterMs)));
+    let timer;
+    async function poll() {
+      const request = new AbortController();
+      const timeout = setTimeout(() => request.abort(), 15_000);
+      const cancel = () => request.abort();
+      controller.signal.addEventListener('abort', cancel, { once: true });
+      const results = await Promise.allSettled(jobs.map((job) => getImageJob(job.id, { token, signal: request.signal })));
+      clearTimeout(timeout);
+      controller.signal.removeEventListener('abort', cancel);
       if (controller.signal.aborted) return;
       const updated = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+      const failed = results.some((result) => result.status === 'rejected');
       const newlyReady = updated.filter((job) => isReady(job));
-      setState((current) => ({ ...current, items: current.items.map((item) => updated.find((job) => job.id === item.id) ?? item) }));
+      setState((current) => ({ ...current,
+        error: failed ? 'No se pudo actualizar algún proceso. Volveremos a intentarlo automáticamente.' : null,
+        items: current.items.map((item) => updated.find((job) => job.id === item.id) ?? item),
+      }));
       if (newlyReady.length) {
         refresh();
         toast({ type: 'success', title: newlyReady.length === 1 ? 'Imagen disponible' : `${newlyReady.length} imágenes disponibles`, message: newlyReady.map((job) => job.originalName).join(', ') });
       }
-    }, delay);
-    return () => { clearTimeout(pollTimer.current); pollController.current?.abort(); };
-    // pollKey resume los trabajos activos y su estado.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pollKey, token]);
+      // Repetir también si el servidor devuelve el mismo estado o falla temporalmente.
+      timer = setTimeout(poll, failed ? Math.max(delay, 5000) : delay);
+    }
+    timer = setTimeout(poll, delay);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [pollKey, token, refresh, toast]);
 
   const counts = useMemo(() => Object.fromEntries(Object.entries(filters).map(([key, { test }]) => [key, state.items.filter(test).length])), [state.items]);
   const visible = state.items.filter(filters[filter].test);

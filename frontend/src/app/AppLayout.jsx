@@ -1,19 +1,16 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartNoAxesColumn, CloudUpload, FlaskConical, HardDrive, History, House, Images, Menu, Moon, Sun, Workflow, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ChartNoAxesColumn, CloudUpload, HardDrive, History, House, Images, Menu, Moon, Sun, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
 import { useSession } from '../features/auth/session.jsx';
 import { LibraryProvider, useLibrary } from '../features/storage/library.jsx';
 import { formatBytes } from '../features/storage/format.js';
-import { NoIdentity } from '../features/storage/NoIdentity.jsx';
+import { SessionRequired } from '../features/auth/SessionRequired.jsx';
 import { FREE_CAPACITY_BYTES } from '../features/subscriptions/plans.data.js';
 import { AccountMenu } from './AccountMenu.jsx';
 import { useTheme } from './theme.jsx';
-
-const DemoContext = createContext({ demoAccount: null, setDemoAccount: () => {} });
-export const useDemoAccount = () => useContext(DemoContext);
 
 export const navGroups = [
   {
@@ -33,23 +30,14 @@ const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.
 
 export function AppLayout() {
   const { session } = useSession();
-  const [demoAccount, setDemoAccount] = useState(null);
-  useEffect(() => { if (session) setDemoAccount(null); }, [session]);
-  // Con sesión se usa el JWT; sin sesión, solo la cuenta demo elegida explícitamente (modo dev:demo).
-  const authorization = useMemo(() => {
-    if (session) return { token: session.token };
-    if (demoAccount) return { headers: { 'X-Storage-Demo-User': demoAccount.id } };
-    return null;
-  }, [session, demoAccount]);
-  const identity = session ? `session:${session.user.id}` : demoAccount ? `demo:${demoAccount.id}` : 'none';
+  const authorization = useMemo(() => session ? { token: session.token } : null, [session]);
+  if (!session) return <SessionRequired />;
 
   return (
     <ToastProvider>
-      <DemoContext.Provider value={{ demoAccount, setDemoAccount }}>
-        <LibraryProvider key={identity} authorization={authorization}>
-          <Shell />
-        </LibraryProvider>
-      </DemoContext.Provider>
+      <LibraryProvider key={session.user.id} authorization={authorization}>
+        <Shell />
+      </LibraryProvider>
     </ToastProvider>
   );
 }
@@ -58,12 +46,10 @@ function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
-  const { session } = useSession();
-  const { demoAccount, setDemoAccount } = useDemoAccount();
-  const { enabled, addFiles } = useLibrary();
+  const { enabled, addFiles, error, items, unavailableItems, refresh } = useLibrary();
+  const showLibraryNotice = !['/app/storage', '/app/plans', '/app/jobs', '/app/upload'].includes(pathname);
   const [drawer, setDrawer] = useState(false);
   const [pageDrag, setPageDrag] = useState(false);
-  const needsLibrary = pathname !== '/app/plans';
 
   useEffect(() => { setDrawer(false); }, [pathname]);
   useEffect(() => {
@@ -79,25 +65,41 @@ function Shell() {
     let depth = 0;
     const hasFiles = (event) => [...(event.dataTransfer?.types ?? [])].includes('Files');
     const enter = (event) => { if (hasFiles(event)) { depth += 1; setPageDrag(true); } };
-    const leave = (event) => { if (hasFiles(event)) { depth = Math.max(0, depth - 1); if (!depth) setPageDrag(false); } };
-    const over = (event) => { if (hasFiles(event)) event.preventDefault(); };
+    const reset = () => { depth = 0; setPageDrag(false); };
+    const leave = (event) => {
+      if (!hasFiles(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth || event.clientX <= 0 || event.clientY <= 0 || event.clientX >= window.innerWidth || event.clientY >= window.innerHeight) reset();
+    };
+    const over = (event) => { if (hasFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } };
     const drop = (event) => {
+      reset();
       if (!hasFiles(event)) return;
       event.preventDefault();
-      depth = 0;
-      setPageDrag(false);
-      addFiles(event.dataTransfer.files);
+      event.stopPropagation();
+      // Copiar mientras el evento conserva acceso a DataTransfer.
+      const files = [...event.dataTransfer.files];
+      if (!files.length) return;
+      addFiles(files);
       navigate('/app/upload');
     };
+    const keydown = (event) => { if (event.key === 'Escape') reset(); };
     window.addEventListener('dragenter', enter);
     window.addEventListener('dragleave', leave);
     window.addEventListener('dragover', over);
-    window.addEventListener('drop', drop);
+    window.addEventListener('drop', drop, true);
+    window.addEventListener('dragend', reset);
+    window.addEventListener('blur', reset);
+    window.addEventListener('keydown', keydown);
     return () => {
       window.removeEventListener('dragenter', enter);
       window.removeEventListener('dragleave', leave);
       window.removeEventListener('dragover', over);
-      window.removeEventListener('drop', drop);
+      window.removeEventListener('drop', drop, true);
+      window.removeEventListener('dragend', reset);
+      window.removeEventListener('blur', reset);
+      window.removeEventListener('keydown', keydown);
+      reset();
     };
   }, [enabled, addFiles, navigate]);
 
@@ -110,7 +112,7 @@ function Shell() {
         </div>
         <SidebarNav />
         <UsageCard />
-        <AccountMenu demoAccount={!session ? demoAccount : null} onExitDemo={() => setDemoAccount(null)} />
+        <AccountMenu />
       </aside>
       <button type="button" className="drawer-scrim" aria-label="Cerrar menú" tabIndex={-1} onClick={() => setDrawer(false)} />
 
@@ -131,14 +133,13 @@ function Shell() {
           </div>
         </header>
         <main className="app-content" id="main-content" key={pathname}>
-          {demoAccount && !session && (
-            <div className="demo-banner" role="status">
-              <FlaskConical strokeWidth={2} aria-hidden="true" />
-              <span>Modo demo: estás usando <strong>{demoAccount.name}</strong>. No es un inicio de sesión real.</span>
-              <button type="button" className="link-button" onClick={() => setDemoAccount(null)}>Cambiar de cuenta</button>
-            </div>
+          {showLibraryNotice && error && (
+            <div className="gallery-error" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary" onClick={refresh}>Volver a intentar</button></div>
           )}
-          {needsLibrary && !enabled ? <NoIdentity /> : <Outlet />}
+          {showLibraryNotice && unavailableItems.length > 0 && (
+            <p className="gallery-unavailable" role="status">Hay {unavailableItems.length} archivos no disponibles. Los totales de ahorro solo incluyen archivos disponibles. <Link to="/app/storage">Revisar imágenes</Link></p>
+          )}
+          {!(showLibraryNotice && error && !items.length) && <Outlet />}
         </main>
       </div>
 
@@ -175,11 +176,10 @@ function SidebarNav() {
 /** Solo informa el uso; la mejora de plan está en el menú de la cuenta. */
 function UsageCard() {
   const { session } = useSession();
-  const { demoAccount } = useDemoAccount();
   const { enabled, stats } = useLibrary();
-  if ((!session && !demoAccount) || !enabled) return null;
+  if (!session || !enabled) return null;
   // La capacidad del plan se mide con el tamaño original de cada subida.
-  const ratio = Math.min(1, stats.originalBytes / FREE_CAPACITY_BYTES);
+  const ratio = Math.min(1, stats.quotaBytes / FREE_CAPACITY_BYTES);
   const known = stats.loaded;
 
   return (
@@ -192,7 +192,7 @@ function UsageCard() {
         <i style={{ transform: `scaleX(${known ? Math.max(ratio, 0.012) : 0})` }} />
       </div>
       <p className="usage-text">
-        {known ? <><strong>{stats.complete ? '' : 'Al menos '}{formatBytes(stats.originalBytes)}</strong> de 2 GB · Plan Free</> : 'Calculando…'}
+        {known ? <><strong>{stats.complete ? '' : 'Al menos '}{formatBytes(stats.quotaBytes)}</strong> de 2 GB · Plan Free</> : 'Calculando…'}
       </p>
     </div>
   );
