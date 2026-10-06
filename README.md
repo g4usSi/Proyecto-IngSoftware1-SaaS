@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: esqueleto ejecutable.** Esta entrega prepara el trabajo del equipo; todavía no es el avance funcional del 30 %. Se parte de cero y no se reutiliza el ZIP de autenticación generado previamente.
+**Estado: autenticación, Storage e interfaz integrados.** El registro asigna el plan Free y, tras iniciar sesión, un token JWT permite subir y descargar imágenes. La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 
@@ -10,38 +10,53 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Servidor Express con comprobación de estado, disponibilidad de PostgreSQL y consulta del catálogo.
 - Esquema inicial, plan Free y ejecución de migraciones con historial.
 - Separación por módulos y capas, cliente HTTP común y respuestas de error uniformes.
+- Subida de imágenes estáticas JPG/PNG/WebP de hasta 25 MB y conversión a WebP calidad 80.
+- Listado paginado, descarga del propietario, cuotas transaccionales y deduplicación entre cuentas.
+- Metadatos en PostgreSQL, archivos privados en `storage/` y ahorro calculado para administrador.
+- Demostración local opcional con dos cuentas y acceso visible desde la portada cuando está activa.
+- Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
 
-Registro, login, sesiones, subida, conversión, deduplicación, pagos y workers **están pendientes**. Las rutas reservadas responden `501`; nunca autentican ni simulan una operación exitosa. Las vistas iniciales de la aplicación no contienen datos privados ni una sesión ficticia.
+Los pagos y el borrado **están pendientes**. Existe un worker interno de conversión; su integración con subidas públicas y reservas de cuota aún está pendiente. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
 
 ## Arranque rápido
 
-Requisitos: Node.js 24 y npm 11. PostgreSQL 17 o 18 se necesita para migraciones y catálogo, pero la interfaz y `/api/health` pueden arrancar sin base de datos.
+Requisitos: Node.js 24 y npm 11. PostgreSQL 17 o 18 se necesita para Storage, migraciones y catálogo, pero la interfaz y `/api/health` pueden arrancar sin base de datos.
 
 Desde la raíz:
 
 ```powershell
 npm ci
-Copy-Item backend/.env.example backend/.env
+if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 npm run dev
 ```
 
-En macOS/Linux, sustituir `Copy-Item ...` por `cp backend/.env.example backend/.env`. Usar `npm.cmd` si la política local de PowerShell impide ejecutar `npm.ps1`.
+Este único `npm ci` instala las dependencias del frontend y backend, incluidas BullMQ, ioredis y Nodemailer.
 
-- Interfaz: <http://localhost:5173>
+En macOS/Linux, copiar el ejemplo solo si aún no existe `.env`. Usar `npm.cmd` si la política local de PowerShell impide ejecutar `npm.ps1`.
+
+- Portada: <http://127.0.0.1:5173/>
+- Panel: <http://127.0.0.1:5173/app>
 - Estado del servidor: <http://127.0.0.1:3000/api/health>
 - Disponibilidad de PostgreSQL: <http://127.0.0.1:3000/api/ready>
 - Catálogo real: <http://127.0.0.1:3000/api/plans>
 
-`/api/health` confirma que la API funciona; `/api/ready` devuelve `503` hasta configurar una conexión PostgreSQL válida. El catálogo requiere además ejecutar migraciones. No hay credenciales de usuario de demostración.
+`/api/health` confirma que la API funciona; `/api/ready` devuelve `503` hasta configurar una conexión PostgreSQL válida. Storage y el catálogo requieren además ejecutar migraciones.
 
 ### Base de datos con Docker (opcional)
 
 ```powershell
 docker compose up -d postgres
 npm run db:migrate
+npm run dev:demo
 ```
 
-La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el equipo para evitar el 5432 de una instalación existente, base/usuario `smartstorage` y contraseña de desarrollo `smartstorage_local`. El servicio se expone solo en localhost; esas credenciales son exclusivamente locales. No se requiere Docker para Node o React.
+La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el equipo para evitar el 5432 de una instalación existente, base/usuario `smartstorage` y contraseña de desarrollo `smartstorage_local`. El servicio se expone solo en localhost; esas credenciales son exclusivamente locales. Docker Desktop debe estar instalado y en ejecución para este camino. No se requiere Docker para Node o React.
+
+`dev:demo` prepara dos cuentas locales y arranca API + frontend con la demostración habilitada **solo durante ese comando**. Abre <http://127.0.0.1:5173/>, pulsa **Probar demo local sin crear cuenta** y selecciona Demo Storage A o B en Mi biblioteca. El panel identifica la cuenta elegida, muestra su plan Free y permite cambiar de cuenta. Sube una imagen y descarga su WebP; repetir con la otra cuenta y el mismo archivo conserva una sola copia física. Las cuentas y sus imágenes persisten entre ejecuciones. `npm run dev` arranca con la demo desactivada por defecto. No hay contraseñas demo ni acceso al panel administrativo mediante esas cuentas. Cierra cualquier ejecución previa de `npm run dev` antes de iniciar `dev:demo`, pues ambos usan los puertos 3000 y 5173.
+
+Para usar el login real, configura un `JWT_SECRET` propio de al menos 32 caracteres en `backend/.env`. El ejemplo incluido debe reemplazarse antes de compartir o desplegar la aplicación. Sin ese valor, las rutas de autenticación protegidas devuelven `503`.
+
+Al iniciar o reiniciar la API en desarrollo, la terminal muestra las direcciones de la API, la portada y el panel. En modo demo también muestra el enlace directo a la biblioteca: <http://127.0.0.1:5173/app/storage>. Vite imprime su dirección cuando arranca.
 
 ### Base de datos instalada localmente
 
@@ -62,12 +77,20 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run dev` | API y frontend juntos; Ctrl+C termina ambos |
 | `npm run dev:api` | Solo API |
 | `npm run dev:web` | Solo interfaz |
+| `npm run dev:demo` | Preparar dos cuentas y ejecutar la demostración local de Storage |
 | `npm run check` | Sintaxis backend y compilación frontend |
-| `npm test` | Pruebas HTTP de contratos y configuración, sin una BD real |
+| `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
+| `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
+| `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
+| `npm run worker:images` | BullMQ/Sharp y recuperación automática; requiere Redis y migraciones 004/005; ver [integración con cuotas](docs/worker-cuotas.md) |
+| `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
+| `npm run db:seed:demo` | Preparar las dos cuentas locales sin activar la demostración |
 
 El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el puerto del backend, actualizar `API_PROXY_TARGET` en `frontend/.env` y reiniciar Vite. `frontend/dist` es solo la interfaz: el despliegue deberá proporcionar la API y configurar `/api` en el servidor frontal.
+
+Los contratos del backend están en [autenticación](docs/auth-frontend.md) y [API](docs/api.md). El [traspaso al frontend](docs/frontend-handoff.md) conserva los criterios de integración usados para esta versión.
 
 ## Organización
 
@@ -81,17 +104,17 @@ frontend/src/
 backend/
   src/
     config/                Entorno y PostgreSQL
-    middleware/            Autenticación pendiente, errores
+    middleware/            Autenticación y errores
     modules/               auth, storage, subscriptions
-    workers/               Punto de extensión documentado
+    workers/               Conversión, reconciliación y limpieza de trabajos
   migrations/              Esquema y datos iniciales versionados
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
-  data/                    Archivos privados y temporales; ignorados por Git
+storage/                   WebP privados y .tmp/; datos ignorados por Git
 docs/                      Decisiones, contratos y alcance del avance
 ```
 
-Cada módulo del backend sigue rutas → controladores → servicios → repositorios. Los controladores hablan HTTP; los servicios implementarán reglas de negocio; los repositorios acceden a PostgreSQL. Todos usan el mismo `Pool`.
+Cada módulo del backend sigue rutas → controladores → servicios → repositorios. Los controladores hablan HTTP; los servicios implementan reglas de negocio; los repositorios acceden a PostgreSQL. Todos usan el mismo `Pool`.
 
 ## Decisiones confirmadas
 
@@ -102,14 +125,21 @@ Cada módulo del backend sigue rutas → controladores → servicios → reposit
 - Almacenamiento privado: conocer un hash no concede acceso a una imagen.
 - Free: 2 GB lógicos, máximo 10 subidas y 200 MB diarios. Los precios definitivos de planes pagados siguen pendientes.
 
-Ver [decisiones y cálculo del ahorro](docs/decisiones.md), [contratos de API](docs/api.md), [tareas del avance del 30 %](docs/avance-30.md) y [verificaciones realizadas](docs/verificacion.md).
+Ver [guía de Storage y demostración](docs/storage.md), [decisiones y cálculo del ahorro](docs/decisiones.md), [contratos de API](docs/api.md), [tareas del avance del 30 %](docs/avance-30.md) y [verificaciones realizadas](docs/verificacion.md).
 
 ## Para trabajar en equipo
 
-Andy puede iniciar el módulo `backend/src/modules/auth/` usando el contrato de `requireAuth`. Geovanny continúa Storage; Elden, planes/suscripciones; Diego, frontend e integración. Cada trabajo nuevo parte de esta base compartida.
+Para conciliar el Excel de Drive, GitHub y Trello, escribe **`Sincroniza SmartStorage`**
+en Codex abierto en este proyecto. Consulta las reglas en
+[sincronización de SmartStorage](docs/sincronizacion-smartstorage.md).
+Es un comando del asistente a pedido; no programa ejecuciones automáticas.
+
+Andy continúa la verificación de correo y recuperación sobre el módulo de autenticación existente. Geovanny continúa Storage y workers; Elden, planes/suscripciones; Diego, frontend e integración. Cada trabajo nuevo parte de esta base compartida.
 
 Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos con un compañero antes de integrar a `main`. No subir `.env`, imágenes de usuarios, contraseñas o `node_modules`. El archivo `package-lock.json` se versiona para instalar las mismas dependencias con `npm ci`.
 
 Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
-Redis queda disponible mediante `docker compose --profile worker up -d`, pero todavía no hay worker ni colas implementadas.
+Redis queda disponible mediante `docker compose --profile worker up -d`. La [base del worker S3-04](docs/worker-cuotas.md) ya permite convertir trabajos internos; S3-08 debe integrar las reservas antes de activar subidas asíncronas para clientes.
+
+S3-05 añade recuperación tras interrupción y limpieza segura. Alegría puede consumir [los endpoints, cliente y ejemplos de estados](docs/s3-05-handoff.md). El contrato de cuotas está preparado con dobles transaccionales; su implementación real y la publicación se acoplan en S3-11.

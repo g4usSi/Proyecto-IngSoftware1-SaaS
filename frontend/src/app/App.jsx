@@ -1,9 +1,13 @@
 import { useEffect } from 'react';
-import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { LandingPage } from './LandingPage.jsx';
 import { AppLayout } from './AppLayout.jsx';
 import { AuthPage } from '../features/auth/AuthPage.jsx';
 import { StoragePage } from '../features/storage/StoragePage.jsx';
+import { OverviewPage } from '../features/storage/OverviewPage.jsx';
+import { UploadPage } from '../features/storage/UploadPage.jsx';
+import { HistoryPage } from '../features/storage/HistoryPage.jsx';
+import { InsightsPage } from '../features/storage/InsightsPage.jsx';
 import { PlansPage } from '../features/subscriptions/PlansPage.jsx';
 import { Brand } from '../components/Brand.jsx';
 
@@ -11,8 +15,12 @@ const titles = {
   '/': 'Imágenes con menos espacio',
   '/login': 'Iniciar sesión',
   '/register': 'Crear cuenta',
+  '/app': 'Resumen',
   '/app/storage': 'Mis imágenes',
-  '/app/plans': 'Planes',
+  '/app/upload': 'Subir imágenes',
+  '/app/history': 'Historial',
+  '/app/insights': 'Ahorro',
+  '/app/plans': 'Mejorar plan',
 };
 
 export function App() {
@@ -31,8 +39,11 @@ export function App() {
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
         <Route path="/app" element={<AppLayout />}>
-          <Route index element={<Navigate to="storage" replace />} />
+          <Route index element={<OverviewPage />} />
           <Route path="storage" element={<StoragePage />} />
+          <Route path="upload" element={<UploadPage />} />
+          <Route path="history" element={<HistoryPage />} />
+          <Route path="insights" element={<InsightsPage />} />
           <Route path="plans" element={<PlansPage />} />
         </Route>
         <Route path="*" element={

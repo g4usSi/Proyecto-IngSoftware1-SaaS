@@ -1,9 +1,9 @@
-/* Reglas globales, tipografía y accesibilidad. Coordinación: Alegría.
+﻿/* Reglas globales, tipografía y accesibilidad. Coordinación: Alegría.
  * Colores: usar variables de styles/theme.css.
  */
 :root {
   font-family: var(--font-sans);
-  color: var(--color-ink);
+  color: var(--color-text);
   background: var(--color-paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;

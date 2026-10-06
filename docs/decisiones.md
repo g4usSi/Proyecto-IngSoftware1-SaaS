@@ -1,14 +1,14 @@
 # Decisiones de SmartStorage
 
-Este archivo registra las aclaraciones directas del equipo del 21 de septiembre de 2026. Prevalecen sobre el contexto heredado de otra IA y los ejemplos del mockup. Los PDF originales no se han modificado.
+Este archivo registra las aclaraciones directas del equipo del 21 y 23 de septiembre de 2026. Prevalecen sobre el contexto heredado de otra IA y los ejemplos del mockup. Los PDF originales no se han modificado.
 
 ## Base y alcance de esta entrega
 
 - Se construye desde cero. El ZIP de autenticación anterior no se usa ni se considera código verificado.
-- Se entrega un esqueleto ejecutable, con módulos separados y contratos documentados. Todavía no es el avance funcional del 30 %.
+- Sobre el esqueleto ejecutable se implementa Storage para el primer avance. El 30 % completo depende también de la integración de autenticación y suscripciones.
 - React + Vite, JavaScript con módulos ES, Node.js + Express, PostgreSQL y acceso SQL con `pg`.
 - Un repositorio, dos paquetes npm: `frontend` y `backend`. Capas dentro de cada módulo: rutas → controladores → servicios → repositorios.
-- Cola Redis + BullMQ y worker de Sharp quedan para la implementación del procesamiento. No se ejecutan trabajos ficticios.
+- La conversión Sharp inicial es síncrona. Cola Redis + BullMQ, worker y recuperación completa tras interrupciones quedan para el siguiente hito.
 - El HTML de mockups es referencia visual. Sus datos, mensajes, botones y afirmaciones no se consideran funciones implementadas.
 
 ## Almacenamiento aprobado
@@ -21,6 +21,10 @@ Este archivo registra las aclaraciones directas del equipo del 21 de septiembre 
 6. Obtener el tamaño físico del WebP con `stat`; calcular el ahorro cuando el administrador lo consulta. No guardar porcentajes, totales de ahorro ni contadores duplicados.
 7. Descargar únicamente WebP; ofrecer la descarga original dejaría de ser coherente con esta decisión.
 8. La clave del objeto será `<primeros-2-caracteres-del-hash>/<hash-original>.webp`, relativa a `STORAGE_ROOT`. No publicar esa carpeta con `express.static`.
+9. `STORAGE_ROOT` apunta por defecto a `storage/` en la raíz del proyecto. PostgreSQL es la única fuente de metadatos; no se mantiene un JSON paralelo.
+10. Aceptar imágenes estáticas JPG, PNG y WebP, hasta 25,000,000 bytes. Rechazar animaciones explícitamente, sin quedarse solo con el primer fotograma.
+11. Convertir a WebP con calidad 80, sin redimensionar; aplicar la orientación de la fotografía y eliminar EXIF/GPS. Es compresión con pérdida autorizada. Las dimensiones resultantes se intercambian cuando la orientación exige una rotación de 90°.
+12. Modo demo local, desactivado por defecto, con dos cuentas seleccionadas explícitamente. No sustituye ni modifica el contrato de autenticación de Andy.
 
 ## Única métrica persistida y cálculo de ahorro
 
@@ -45,7 +49,8 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 - Contrato de autenticación previsto: Bearer JWT; `requireAuth` verificará firma, expiración y estado de la cuenta antes de asignar `req.user = { id, email, role }`. La revocación/cierre de sesión se implementará antes de considerar completo el módulo.
 - La deduplicación no concede autorización. Las descargas y borrados se resuelven por el ID de imagen y su propietario autenticado, aunque físicamente el objeto sea compartido.
 - Referencias derivadas de `images`, sin contador redundante. La eliminación del último enlace y la creación concurrente deben serializarse bloqueando el objeto en una transacción; la FK sola no coordina operaciones en disco.
-- Capacidad del plan: inicialmente se propone contabilizar bytes originales por referencia lógica, coherente con los planes de capacidad lógica del diseño. No es otra métrica persistida. El enforcement y la cuota diaria se implementan después con control transaccional; el esquema actual no finge que existan.
+- Capacidad del plan: contabilizar bytes originales por referencia lógica. Storage valida capacidad, número de subidas y bytes diarios dentro de la transacción, serializando por usuario. El día se calcula en `America/Guatemala`. Estos valores se derivan de `images`; no son nuevas métricas persistidas.
+- No se implementa borrado todavía. Antes de añadirlo, Elden y Geovanny deberán acordar un historial de consumo u otro mecanismo que impida recuperar cuota diaria eliminando imágenes.
 - Los planes usan bytes decimales: 1 GB = 1,000,000,000 bytes. El plan Free aplica ambos límites diarios, 10 subidas y 200 MB.
 - Solo se precarga Free. Los precios pagados se decidirán antes de cargar Estándar, Pro y Enterprise.
 
@@ -54,9 +59,11 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 - Cambiar RF-03 de Storage de deduplicación por cuenta a global.
 - Cambiar RF-04 y RF-08: no conservar ni descargar el original.
 - Ajustar mockups y requisitos de métricas: ahorro calculado para administrador; retirar métricas persistidas o promesas de descarga original.
-- Actualizar modelo relacional y diagramas al esquema incremental implementado. Tokens, pagos, trabajos y cuotas aún requieren sus propias migraciones.
+- Actualizar modelo relacional y diagramas al esquema incremental implementado. Tokens, pagos, trabajos y consumo diario resistente al borrado aún requieren sus propias migraciones.
 
 ## Referencias técnicas verificadas
 
 - [Guía de Vite](https://vite.dev/guide/)
 - [Instalación de Express](https://expressjs.com/en/starter/installing/)
+- [Recepción multipart con Multer](https://expressjs.com/en/resources/middleware/multer/)
+- [Salida WebP con Sharp](https://sharp.pixelplumbing.com/api-output/#webp)

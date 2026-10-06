@@ -1,0 +1,447 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SmartStorage — Trabajos S3-05",
+    "version": "2026-10-04",
+    "description": "Consulta y recuperación propias. converted es temporal. POST asíncrono aún responde 503; cuotas y publicación reales se acoplan en S3-11."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/jobs": {
+      "get": {
+        "operationId": "listImageJobs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaco: enviar nextCursor de la página anterior."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista privada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ImageJob"
+                          }
+                        },
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT ausente o inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cuenta desactivada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trabajo inexistente o ajeno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "asyncUploadUnavailable",
+        "description": "No recibe multipart ni guarda archivos. Continuar usando POST /files; el contrato de admisión se fijará en S3-11.",
+        "responses": {
+          "401": {
+            "description": "JWT ausente o inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cuenta desactivada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ASYNC_UPLOAD_NOT_READY",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{jobId}": {
+      "get": {
+        "operationId": "getImageJob",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "jobId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado privado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImageJob"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT ausente o inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cuenta desactivada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trabajo inexistente o ajeno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ImageJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "originalName",
+          "status",
+          "attempts",
+          "maxAttempts",
+          "errorCode",
+          "imageId",
+          "available",
+          "downloadUrl",
+          "quotaState",
+          "createdAt",
+          "updatedAt",
+          "expiresAt",
+          "nextPollAfterMs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "originalName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "converted",
+              "published",
+              "failed"
+            ]
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "const": 3
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "downloadUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quotaState": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "pending",
+              "settled"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextPollAfterMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "examples": [
+          {
+            "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+            "originalName": "foto.png",
+            "status": "queued",
+            "attempts": 0,
+            "maxAttempts": 3,
+            "errorCode": null,
+            "imageId": null,
+            "available": false,
+            "downloadUrl": null,
+            "quotaState": "pending",
+            "createdAt": "2026-10-04T18:00:00.000Z",
+            "updatedAt": "2026-10-04T18:00:00.000Z",
+            "expiresAt": "2026-10-05T18:00:00.000Z",
+            "nextPollAfterMs": 2000
+          },
+          {
+            "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+            "originalName": "foto.png",
+            "status": "processing",
+            "attempts": 1,
+            "maxAttempts": 3,
+            "errorCode": null,
+            "imageId": null,
+            "available": false,
+            "downloadUrl": null,
+            "quotaState": "pending",
+            "createdAt": "2026-10-04T18:00:00.000Z",
+            "updatedAt": "2026-10-04T18:00:00.000Z",
+            "expiresAt": "2026-10-05T18:00:00.000Z",
+            "nextPollAfterMs": 2000
+          },
+          {
+            "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+            "originalName": "foto.png",
+            "status": "converted",
+            "attempts": 1,
+            "maxAttempts": 3,
+            "errorCode": null,
+            "imageId": null,
+            "available": false,
+            "downloadUrl": null,
+            "quotaState": "pending",
+            "createdAt": "2026-10-04T18:00:00.000Z",
+            "updatedAt": "2026-10-04T18:00:00.000Z",
+            "expiresAt": "2026-10-05T18:00:00.000Z",
+            "nextPollAfterMs": 2000
+          },
+          {
+            "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+            "originalName": "foto.png",
+            "status": "published",
+            "attempts": 1,
+            "maxAttempts": 3,
+            "errorCode": null,
+            "imageId": "b10aa8ef-b2f5-482c-89bd-d60a72ac0921",
+            "available": true,
+            "downloadUrl": "/api/files/b10aa8ef-b2f5-482c-89bd-d60a72ac0921/download",
+            "quotaState": "settled",
+            "createdAt": "2026-10-04T18:00:00.000Z",
+            "updatedAt": "2026-10-04T18:00:00.000Z",
+            "expiresAt": "2026-10-05T18:00:00.000Z",
+            "nextPollAfterMs": null
+          },
+          {
+            "id": "5f8a61c2-a3bf-4d7e-9eb9-0a33733bbb71",
+            "originalName": "foto.png",
+            "status": "failed",
+            "attempts": 1,
+            "maxAttempts": 3,
+            "errorCode": "JOB_EXPIRED",
+            "imageId": null,
+            "available": false,
+            "downloadUrl": null,
+            "quotaState": "settled",
+            "createdAt": "2026-10-04T18:00:00.000Z",
+            "updatedAt": "2026-10-04T18:00:00.000Z",
+            "expiresAt": "2026-10-05T18:00:00.000Z",
+            "nextPollAfterMs": null
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
