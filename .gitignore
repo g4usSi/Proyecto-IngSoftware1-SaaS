@@ -11,6 +11,7 @@ backend/data/*
 !backend/data/README.md
 /storage/*
 !/storage/README.md
+outputs/
 tmp/
 outputs/smartstorage-sync/
 .DS_Store
