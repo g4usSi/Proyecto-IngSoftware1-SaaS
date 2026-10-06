@@ -23,6 +23,7 @@ Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se e
 Pantallas que necesita el frontend:
 
 - `/verify-email?token=...`: al abrirse, llama a `POST /api/auth/verify-email` con el `token` de la URL y muestra el resultado.
+- `/forgot-password`: formulario con el correo que llama a `POST /api/auth/forgot-password` y muestra siempre el mismo aviso neutral (el `message` de la respuesta). El login debe tener un enlace "¿Olvidaste tu contraseña?" hacia esta pantalla.
 - `/reset-password?token=...`: formulario de nueva contraseña que llama a `POST /api/auth/reset-password`.
 - En el login, ante `403 EMAIL_NOT_VERIFIED`, ofrecer "Reenviar correo de verificación" (`POST /api/auth/resend-verification`).
 - Tras registrarse, avisar al usuario que revise su correo antes de iniciar sesión.
@@ -193,7 +194,7 @@ Cuerpo:
 { "data": { "message": "Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña." } }
 ```
 
-Ese `message` se puede mostrar tal cual al usuario.
+Ese `message` se puede mostrar tal cual al usuario. La respuesta no espera al envío del correo y no cambia si el envío falla: no hay un caso de error que el frontend deba distinguir.
 
 | Estado | `code` | Cuándo | Mensaje |
 | --- | --- | --- | --- |
@@ -224,7 +225,7 @@ La contraseña nueva debe cumplir la misma política que en el registro (ver arr
 | 400 | `VALIDATION_ERROR` | Falta el token o la contraseña, o la contraseña no cumple la política | (el primer problema encontrado, mismos mensajes que en registro) |
 | 400 | `RESET_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta para los tres casos, a propósito) | `El enlace de recuperación no es válido o expiró.` |
 
-Tras un reset exitoso, ese token y cualquier otro enlace de recuperación pendiente de la misma cuenta quedan invalidados. Las sesiones (tokens Bearer) que ya existían **no** se cierran automáticamente; si se necesita ese comportamiento, avisar para agregarlo.
+Tras un reset exitoso, ese token y cualquier otro enlace de recuperación pendiente de la misma cuenta quedan invalidados. El enlace sirve una sola vez aunque lleguen dos envíos al mismo tiempo (por ejemplo, un doble clic): uno responde `200` y el otro `400 RESET_TOKEN_INVALID`, así que conviene desactivar el botón mientras la petición está en curso. Las sesiones (tokens Bearer) que ya existían **no** se cierran automáticamente; si se necesita ese comportamiento, avisar para agregarlo.
 
 ## `POST /api/auth/verify-email`
 
