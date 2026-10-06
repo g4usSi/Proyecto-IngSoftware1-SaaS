@@ -55,11 +55,13 @@ Respuesta `201`:
 
 Es un ejemplo de formato, no una promesa de compresión. `optimizedSizeBytes` se obtiene del archivo físico. No se expone si otra cuenta ya tenía el contenido.
 
-`GET /files?limit=20&cursor=...` devuelve `{ data: { items: [/* imágenes con ese formato */], nextCursor: null } }`. Para continuar, enviar el cursor recibido sin interpretarlo. El orden es descendente por fecha e ID; `nextCursor` es una cadena mientras queden resultados. La biblioteca vacía devuelve `items: []`.
+`GET /files?limit=20&cursor=...` devuelve `{ data: { items: [/* imágenes disponibles con ese formato */], unavailableItems: [], nextCursor: null } }`. Para continuar, enviar el cursor recibido sin interpretarlo. El orden es descendente por fecha e ID; `nextCursor` es una cadena mientras queden resultados. La biblioteca vacía devuelve ambos arrays vacíos.
+
+Si falta un archivo físico o su referencia no es válida, el listado sigue devolviendo `200` con las imágenes sanas. `unavailableItems` contiene `{ id, originalName, createdAt, originalSizeBytes, status: "unavailable", errorCode: "STORAGE_INTEGRITY_ERROR" }` para los registros afectados del propietario; no incluye rutas, hashes ni un tamaño WebP inventado. Los registros y cuotas se conservan. El cursor y `limit` cuentan tanto disponibles como no disponibles: una página puede tener `items: []` y un `nextCursor` válido. El frontend debe mostrar los faltantes, permitir avanzar de página y excluirlos del cálculo de ahorro; su tamaño original sí cuenta para la cuota. Consumidores antiguos pueden omitir este campo adicional.
 
 `GET /files/:fileId/download` devuelve `image/webp` con `Content-Disposition: attachment`. Requiere las mismas credenciales que el listado; un hash o ruta física no sirve como credencial. El frontend obtiene un blob mediante su cliente autorizado, sin publicar el directorio de archivos.
 
-Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inválida; `413 FILE_TOO_LARGE`; `415` formato o animación no admitidos; `403` capacidad o suscripción no válida; `429` cualquiera de los límites diarios; `503 STORAGE_INTEGRITY_ERROR` si falta un objeto que la BD declara disponible.
+Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inválida; `413 FILE_TOO_LARGE`; `415` formato o animación no admitidos; `403` capacidad o suscripción no válida; `429` cualquiera de los límites diarios; `503 STORAGE_INTEGRITY_ERROR` en descarga, deduplicación o estadísticas si falta un objeto que la BD declara disponible. El listado informa esos objetos mediante `unavailableItems`.
 
 `GET /admin/storage/stats` devuelve strings decimales: `originalSizeBytes` (B), `uniqueOriginalSizeBytes` (U), `optimizedSizeBytes` (P), `savedBytes` (B−P), `savedPercent`, `imageCount` y `objectCount`. Biblioteca vacía: ceros y `savedPercent: "0.00"`. Incluye cada objeto físico una sola vez y puede informar ahorro negativo. Las cuentas demo son clientes, no administradores.
 

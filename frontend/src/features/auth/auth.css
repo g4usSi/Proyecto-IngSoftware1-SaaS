@@ -45,6 +45,11 @@
 .auth-input input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-orange) 22%, transparent); background: color-mix(in srgb, var(--color-dark) 75%, transparent); }
 .auth-input:focus-within > svg { color: var(--color-primary); }
 .auth-input:has(.auth-eye) input { padding-right: 50px; }
+/* Edge agrega su propio ojo al escribir: conservar un único control accesible. */
+.auth-input input::-ms-reveal, .auth-input input::-ms-clear { display: none; }
+.auth-input input { min-width: 0; font-size: 16px; caret-color: var(--color-white); }
+.auth-input input:autofill { -webkit-text-fill-color: var(--color-white); box-shadow: 0 0 0 1000px var(--brand-navy) inset; }
+.auth-input > svg, .auth-eye { z-index: 1; }
 .auth-eye { position: absolute; right: 6px; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 10px; background: none; color: var(--on-dark-soft); cursor: pointer; transition: color .2s ease, background-color .2s ease; }
 .auth-eye:hover { color: var(--color-white); background: color-mix(in srgb, white 8%, transparent); }
 .auth-eye svg { width: 18px; height: 18px; }
@@ -56,6 +61,7 @@
 .auth-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .35s var(--ease-out), opacity .3s ease; }
 .auth-collapse.is-open { grid-template-rows: 1fr; opacity: 1; }
 .auth-collapse > div { overflow: hidden; min-height: 0; }
+.auth-fields > .auth-collapse:not(.is-open) { display: none; }
 
 .auth-field-error { display: flex; align-items: flex-start; gap: 7px; padding-top: 8px; font-size: 13px; line-height: 1.5; color: var(--error-on-dark); }
 .auth-field-error svg, .auth-requirements p svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
