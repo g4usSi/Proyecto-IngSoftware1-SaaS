@@ -12,7 +12,7 @@ const THUMB_CONCURRENCY = 4;
  */
 export function LibraryProvider({ authorization, children }) {
   const { toast } = useToast();
-  const [gallery, setGallery] = useState({ items: [], nextCursor: null, loading: Boolean(authorization), error: null, loaded: false });
+  const [gallery, setGallery] = useState({ items: [], unavailableItems: [], nextCursor: null, loading: Boolean(authorization), error: null, loaded: false });
   const [queue, setQueue] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
   const listRequest = useRef(null);
@@ -21,7 +21,12 @@ export function LibraryProvider({ authorization, children }) {
   const thumbQueue = useRef({ active: 0, waiting: [] });
   const queueRunning = useRef(false);
   const queueRef = useRef([]);
-  queueRef.current = queue;
+  const mounted = useRef(false);
+  const updateQueue = useCallback((update) => {
+    const next = update(queueRef.current);
+    queueRef.current = next;
+    setQueue(next);
+  }, []);
 
   const track = (controller) => { controllers.current.add(controller); return () => controllers.current.delete(controller); };
 
@@ -37,6 +42,9 @@ export function LibraryProvider({ authorization, children }) {
       if (listRequest.current !== controller) return;
       setGallery((current) => ({
         items: cursor ? [...new Map([...current.items, ...data.items].map((file) => [file.id, file])).values()] : data.items,
+        unavailableItems: cursor
+          ? [...new Map([...current.unavailableItems, ...(data.unavailableItems ?? [])].map((file) => [file.id, file])).values()]
+          : data.unavailableItems ?? [],
         nextCursor: data.nextCursor,
         loading: false,
         error: null,
@@ -51,34 +59,37 @@ export function LibraryProvider({ authorization, children }) {
   }, [authorization]);
 
   useEffect(() => {
+    mounted.current = true;
     load();
     const allControllers = controllers.current;
     const allThumbs = thumbs.current;
     return () => {
+      mounted.current = false;
       listRequest.current?.abort();
       allControllers.forEach((controller) => controller.abort());
       allThumbs.forEach((entry) => { if (entry.url) URL.revokeObjectURL(entry.url); });
       allThumbs.clear();
+      queueRef.current.forEach((item) => { if (item.preview) URL.revokeObjectURL(item.preview); });
     };
   }, [load]);
 
   // ── Subidas: cola secuencial (el servidor valida cuota y límites en cada una). ──
   const runQueue = useCallback(async () => {
-    if (queueRunning.current || !authorization) return;
+    if (queueRunning.current || !authorization || !mounted.current) return;
     queueRunning.current = true;
     let done = 0;
     let failed = 0;
     try {
-      for (;;) {
+      while (mounted.current) {
         const next = queueRef.current.find((item) => item.status === 'queued');
         if (!next) break;
-        setQueue((current) => current.map((item) => (item.id === next.id ? { ...item, status: 'uploading' } : item)));
+        updateQueue((current) => current.map((item) => (item.id === next.id ? { ...item, status: 'uploading' } : item)));
         const controller = new AbortController();
         const untrack = track(controller);
         const timeout = setTimeout(() => controller.abort('timeout'), 120_000);
         try {
           const image = await uploadFile(next.file, { ...authorization, signal: controller.signal });
-          setQueue((current) => current.map((item) => (item.id === next.id ? { ...item, status: 'done', image } : item)));
+          updateQueue((current) => current.map((item) => (item.id === next.id ? { ...item, status: 'done', image } : item)));
           setGallery((current) => ({ ...current, items: [image, ...current.items.filter((file) => file.id !== image.id)] }));
           done += 1;
         } catch (error) {
@@ -86,7 +97,7 @@ export function LibraryProvider({ authorization, children }) {
           const message = controller.signal.aborted
             ? 'Tardó demasiado. Actualiza la galería: podría haberse guardado.'
             : storageErrorMessage(error, 'No se pudo subir. Vuelve a intentarlo.');
-          setQueue((current) => current.map((item) => (item.id === next.id ? { ...item, status: 'error', message } : item)));
+          updateQueue((current) => current.map((item) => (item.id === next.id ? { ...item, status: 'error', message } : item)));
           failed += 1;
         } finally {
           clearTimeout(timeout);
@@ -97,9 +108,10 @@ export function LibraryProvider({ authorization, children }) {
     } finally {
       queueRunning.current = false;
     }
+    if (!mounted.current) return;
     if (done && !failed) toast({ type: 'success', title: done === 1 ? 'Imagen guardada en WebP' : `${done} imágenes guardadas en WebP` });
     else if (failed) toast({ type: 'error', title: failed === 1 ? 'Una imagen no se pudo subir' : `${failed} imágenes no se pudieron subir`, message: 'Revisa el detalle en la lista de subidas.' });
-  }, [authorization, toast]);
+  }, [authorization, toast, updateQueue]);
 
   const addFiles = useCallback((fileList) => {
     const files = [...fileList];
@@ -116,28 +128,24 @@ export function LibraryProvider({ authorization, children }) {
         message: problem,
       };
     });
-    setQueue((current) => {
-      const next = [...current, ...entries];
-      queueRef.current = next;
-      return next;
-    });
+    updateQueue((current) => [...current, ...entries]);
     setTimeout(runQueue, 0);
-  }, [runQueue]);
+  }, [runQueue, updateQueue]);
 
   const dismissUpload = useCallback((id) => {
-    setQueue((current) => {
+    updateQueue((current) => {
       const item = current.find((entry) => entry.id === id);
       if (item?.preview) URL.revokeObjectURL(item.preview);
       return current.filter((entry) => entry.id !== id);
     });
-  }, []);
+  }, [updateQueue]);
 
   const clearFinished = useCallback(() => {
-    setQueue((current) => {
+    updateQueue((current) => {
       current.filter((item) => item.status === 'done' || item.status === 'error').forEach((item) => item.preview && URL.revokeObjectURL(item.preview));
       return current.filter((item) => item.status === 'queued' || item.status === 'uploading');
     });
-  }, []);
+  }, [updateQueue]);
 
   // ── Miniaturas con concurrencia limitada y caché por id. ──
   const pumpThumbs = useCallback(() => {
@@ -209,27 +217,29 @@ export function LibraryProvider({ authorization, children }) {
     return {
       count: gallery.items.length,
       originalBytes,
+      quotaBytes: originalBytes + gallery.unavailableItems.reduce((sum, file) => sum + Number(file.originalSizeBytes || 0), 0),
       webpBytes,
       savedRatio: originalBytes > 0 ? (originalBytes - webpBytes) / originalBytes : 0,
       complete: gallery.loaded && !gallery.nextCursor,
-      loaded: gallery.loaded,
+      loaded: gallery.loaded && !gallery.error,
     };
-  }, [gallery.items, gallery.loaded, gallery.nextCursor]);
+  }, [gallery.items, gallery.unavailableItems, gallery.loaded, gallery.nextCursor, gallery.error]);
 
+  const refresh = useCallback(() => load(), [load]);
   const value = useMemo(() => ({
     enabled: Boolean(authorization),
     ...gallery,
     stats,
     queue,
     downloadingId,
-    refresh: () => load(),
+    refresh,
     loadMore: () => load(gallery.nextCursor),
     addFiles,
     dismissUpload,
     clearFinished,
     download,
     getThumbnail,
-  }), [authorization, gallery, stats, queue, downloadingId, load, addFiles, dismissUpload, clearFinished, download, getThumbnail]);
+  }), [authorization, gallery, stats, queue, downloadingId, load, refresh, addFiles, dismissUpload, clearFinished, download, getThumbnail]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }

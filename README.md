@@ -77,11 +77,12 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run dev` | API y frontend juntos; Ctrl+C termina ambos |
 | `npm run dev:api` | Solo API |
 | `npm run dev:web` | Solo interfaz |
-| `npm run dev:demo` | Preparar dos cuentas y ejecutar la demostración local de Storage |
+| `npm run dev:demo` | Preparar cuentas para pruebas de la API demo; el panel web requiere sesión JWT |
 | `npm run check` | Sintaxis backend y compilación frontend |
 | `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
 | `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
 | `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
+| `npm run test:frontend` | Regresiones de sesión, formularios, arrastre y procesos con API simulada; usa Edge en Windows o `E2E_BROWSER_CHANNEL`, sin tocar la BD |
 | `npm run worker:images` | BullMQ/Sharp y recuperación automática; requiere Redis y migraciones 004/005; ver [integración con cuotas](docs/worker-cuotas.md) |
 | `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
