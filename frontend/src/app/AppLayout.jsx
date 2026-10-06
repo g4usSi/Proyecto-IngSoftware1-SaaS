@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartNoAxesColumn, CloudUpload, FlaskConical, HardDrive, History, House, Images, Menu, Moon, Sun, X } from 'lucide-react';
+import { ChartNoAxesColumn, CloudUpload, FlaskConical, HardDrive, History, House, Images, Menu, Moon, Sun, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
@@ -23,6 +23,7 @@ export const navGroups = [
       { to: '/app/storage', label: 'Mis imágenes', icon: Images, count: true },
       { to: '/app/upload', label: 'Subir', icon: CloudUpload, activity: true },
       { to: '/app/history', label: 'Historial', icon: History },
+      { to: '/app/jobs', label: 'Procesos', icon: Workflow },
     ],
   },
   { label: 'Análisis', items: [{ to: '/app/insights', label: 'Ahorro', icon: ChartNoAxesColumn }] },

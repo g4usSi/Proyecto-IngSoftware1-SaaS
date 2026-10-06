@@ -1,10 +1,9 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, UserRound } from 'lucide-react';
-import { Brand } from '../../components/Brand.jsx';
-import { HeroShader } from '../../app/landing/HeroShader.jsx';
-import { authErrorMessage } from './auth.api.js';
-import { fieldForServerError, passwordRules, validateLogin, validateRegistration } from './auth.validation.js';
+import { AlertCircle, ArrowRight, CheckCircle2, MailCheck, MailWarning, Mail, RotateCw, UserRound } from 'lucide-react';
+import { authErrorMessage, resendVerification } from './auth.api.js';
+import { AuthShell, AuthStatusIcon, Collapse, Field, PasswordField, SubmitButton } from './AuthLayout.jsx';
+import { fieldForServerError, validateLogin, validateRegistration } from './auth.validation.js';
 import { useSession } from './session.jsx';
 
 const empty = { name: '', email: '', password: '' };
@@ -19,9 +18,12 @@ export function AuthPage({ mode }) {
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState({});
   const [formError, setFormError] = useState(null);
+  const [unverified, setUnverified] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState(null);
   const [busy, setBusy] = useState(false);
 
   if (session) return <Navigate to="/app" replace />;
+  if (registeredEmail) return <CheckEmail email={registeredEmail} />;
 
   const localErrors = register ? validateRegistration(values) : validateLogin(values);
   const errorFor = (field) => ((submitted || touched[field]) && localErrors[field]) || (serverErrors[field] ? [serverErrors[field]] : null);
@@ -31,6 +33,7 @@ export function AuthPage({ mode }) {
       setValues((current) => ({ ...current, [field]: event.target.value }));
       setServerErrors((current) => ({ ...current, [field]: undefined }));
       setFormError(null);
+      if (field === 'email') setUnverified(false);
     };
   }
   const blur = (field) => () => { if (values[field]) setTouched((current) => ({ ...current, [field]: true })); };
@@ -39,6 +42,7 @@ export function AuthPage({ mode }) {
     event.preventDefault();
     setSubmitted(true);
     setFormError(null);
+    setUnverified(false);
     if (Object.keys(localErrors).length) {
       const first = ['name', 'email', 'password'].find((field) => localErrors[field]);
       event.currentTarget.querySelector(`[name="${first}"]`)?.focus();
@@ -47,136 +51,119 @@ export function AuthPage({ mode }) {
     setBusy(true);
     try {
       if (register) {
-        const signedIn = await registerAccount(values);
-        if (!signedIn) {
-          navigate('/login', { replace: true, state: { notice: 'Tu cuenta se creó. Inicia sesión para continuar.' } });
-          return;
-        }
-      } else {
-        await login({ email: values.email, password: values.password });
+        // El registro no inicia sesión: primero hay que verificar el correo.
+        await registerAccount(values);
+        setRegisteredEmail(values.email.trim());
+        return;
       }
+      await login({ email: values.email, password: values.password });
       navigate('/app', { replace: true });
     } catch (error) {
-      const field = fieldForServerError(error);
-      if (field) setServerErrors({ [field]: authErrorMessage(error) });
-      else setFormError(authErrorMessage(error));
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        setUnverified(true);
+      } else {
+        const field = fieldForServerError(error);
+        if (field) setServerErrors({ [field]: authErrorMessage(error) });
+        else setFormError(authErrorMessage(error));
+      }
+    } finally {
       setBusy(false);
     }
   }
 
   return (
-    <main id="main-content" className="auth-screen">
-      <HeroShader />
-      <header className="auth-top">
-        <Brand light />
-        <Link className="auth-back" to="/"><ArrowLeft strokeWidth={2} aria-hidden="true" />Volver al inicio</Link>
-      </header>
+    <AuthShell
+      badge={register ? 'Plan Free · 2 GB gratis' : 'Tu biblioteca te espera'}
+      title={register ? 'Crea tu cuenta' : 'Bienvenido de vuelta'}
+      intro={register ? 'Empieza a guardar tus imágenes en WebP, sin copias repetidas.' : 'Inicia sesión para ver y subir tus imágenes.'}
+    >
+      {notice && !formError && <p className="auth-notice" role="status"><CheckCircle2 strokeWidth={2} aria-hidden="true" />{notice}</p>}
 
-      <section className="auth-panel" aria-labelledby="auth-title">
-        <span className="auth-badge">{register ? 'Plan Free · 2 GB gratis' : 'Tu biblioteca te espera'}</span>
-        <h1 id="auth-title">{register ? 'Crea tu cuenta' : 'Bienvenido de vuelta'}</h1>
-        <p className="auth-intro">{register ? 'Empieza a guardar tus imágenes en WebP, sin copias repetidas.' : 'Inicia sesión para ver y subir tus imágenes.'}</p>
+      <form onSubmit={handleSubmit} noValidate>
+        <fieldset disabled={busy} className="auth-fields">
+          <legend className="sr-only">{register ? 'Datos de registro' : 'Credenciales'}</legend>
+          {register && (
+            <Field label="Nombre" name="name" icon={UserRound} autoComplete="name" placeholder="Tu nombre" maxLength={120}
+              value={values.name} onChange={update('name')} onBlur={blur('name')} errors={errorFor('name')} />
+          )}
+          <Field label="Correo electrónico" name="email" type="email" icon={Mail} autoComplete="email" placeholder="tu@correo.com" maxLength={254}
+            value={values.email} onChange={update('email')} onBlur={blur('email')} errors={errorFor('email')} />
+          <PasswordField isNew={register} value={values.password} onChange={update('password')} onBlur={blur('password')} errors={errorFor('password')} />
 
-        {notice && !formError && <p className="auth-notice" role="status"><CheckCircle2 strokeWidth={2} aria-hidden="true" />{notice}</p>}
+          {!register && <Link className="auth-forgot" to="/forgot-password" state={{ email: values.email }}>¿Olvidaste tu contraseña?</Link>}
 
-        <form onSubmit={handleSubmit} noValidate>
-          <fieldset disabled={busy} className="auth-fields">
-            <legend className="sr-only">{register ? 'Datos de registro' : 'Credenciales'}</legend>
-            {register && (
-              <Field label="Nombre" name="name" icon={UserRound} autoComplete="name" placeholder="Tu nombre" maxLength={120}
-                value={values.name} onChange={update('name')} onBlur={blur('name')} errors={errorFor('name')} />
-            )}
-            <Field label="Correo electrónico" name="email" type="email" icon={Mail} autoComplete="email" placeholder="tu@correo.com" maxLength={254}
-              value={values.email} onChange={update('email')} onBlur={blur('email')} errors={errorFor('email')} />
-            <PasswordField register={register} value={values.password} onChange={update('password')} onBlur={blur('password')} errors={errorFor('password')} />
+          <Collapse open={unverified}>
+            <UnverifiedNotice email={values.email.trim()} />
+          </Collapse>
 
-            <Collapse open={Boolean(formError)}>
-              <p className="auth-form-error" role="alert"><AlertCircle strokeWidth={2} aria-hidden="true" />{formError}</p>
-            </Collapse>
+          <Collapse open={Boolean(formError)}>
+            <p className="auth-form-error" role="alert"><AlertCircle strokeWidth={2} aria-hidden="true" />{formError}</p>
+          </Collapse>
 
-            <button className="auth-submit" type="submit">
-              <span>{busy ? (register ? 'Creando tu cuenta…' : 'Entrando…') : (register ? 'Crear cuenta' : 'Iniciar sesión')}</span>
-              {busy ? <span className="auth-spinner" aria-hidden="true" /> : <ArrowRight strokeWidth={2} aria-hidden="true" />}
-            </button>
-          </fieldset>
-        </form>
+          <SubmitButton busy={busy} busyLabel={register ? 'Creando tu cuenta…' : 'Entrando…'} icon={ArrowRight}>
+            {register ? 'Crear cuenta' : 'Iniciar sesión'}
+          </SubmitButton>
+        </fieldset>
+      </form>
 
-        <p className="auth-switch">
-          {register ? '¿Ya tienes cuenta?' : '¿Todavía no tienes cuenta?'}{' '}
-          <Link to={register ? '/login' : '/register'}>{register ? 'Inicia sesión' : 'Crea una gratis'}</Link>
-        </p>
-      </section>
-    </main>
+      <p className="auth-switch">
+        {register ? '¿Ya tienes cuenta?' : '¿Todavía no tienes cuenta?'}{' '}
+        <Link to={register ? '/login' : '/register'}>{register ? 'Inicia sesión' : 'Crea una gratis'}</Link>
+      </p>
+    </AuthShell>
   );
 }
 
-/** Contenedor que se abre y cierra con animación de altura. */
-function Collapse({ open, children }) {
-  return <div className={`auth-collapse${open ? ' is-open' : ''}`} aria-hidden={!open}><div>{children}</div></div>;
-}
+/** Botón de reenvío con estado propio. La respuesta del servidor es neutral. */
+export function ResendButton({ email }) {
+  const [state, setState] = useState('idle');
+  const [message, setMessage] = useState(null);
 
-function Field({ label, name, type = 'text', icon: FieldIcon, errors, ...input }) {
-  const id = useId();
-  const invalid = Boolean(errors?.length);
+  async function resend() {
+    setState('sending');
+    try {
+      await resendVerification(email);
+      setState('sent');
+      setMessage('Si la cuenta existe y no está verificada, te enviamos un nuevo enlace.');
+    } catch (error) {
+      setState('idle');
+      setMessage(authErrorMessage(error));
+    }
+  }
+
   return (
-    <div className={`auth-field${invalid ? ' is-invalid' : ''}`}>
-      <label htmlFor={id}>{label}</label>
-      <div className="auth-input">
-        <FieldIcon strokeWidth={1.8} aria-hidden="true" />
-        <input id={id} name={name} type={type} aria-invalid={invalid} aria-describedby={invalid ? `${id}-error` : undefined} {...input} />
-      </div>
-      <Collapse open={invalid}>
-        <p className="auth-field-error" id={`${id}-error`}><AlertCircle strokeWidth={2} aria-hidden="true" />{errors?.[0]}</p>
-      </Collapse>
+    <div className="auth-resend">
+      <button type="button" className="auth-secondary" onClick={resend} disabled={state === 'sending' || state === 'sent' || !email}>
+        {state === 'sending' ? <span className="auth-spinner" aria-hidden="true" /> : state === 'sent' ? <CheckCircle2 strokeWidth={2} aria-hidden="true" /> : <RotateCw strokeWidth={2} aria-hidden="true" />}
+        {state === 'sent' ? 'Enlace reenviado' : 'Reenviar correo de verificación'}
+      </button>
+      <Collapse open={Boolean(message)}><p className="auth-resend-note" role="status">{message}</p></Collapse>
     </div>
   );
 }
 
-function PasswordField({ register, value, onChange, onBlur, errors }) {
-  const id = useId();
-  const [visible, setVisible] = useState(false);
-  // En registro, los errores de contraseña son los ids de los requisitos que faltan.
-  const missing = register && errors?.every((item) => passwordRules.some((rule) => rule.id === item)) ? errors : null;
-  const message = !missing && errors?.length ? errors[0] : null;
-  const invalid = Boolean(missing?.length || message);
-
+function UnverifiedNotice({ email }) {
   return (
-    <div className={`auth-field${invalid ? ' is-invalid' : ''}`}>
-      <label htmlFor={id}>Contraseña</label>
-      <div className="auth-input">
-        <LockKeyhole strokeWidth={1.8} aria-hidden="true" />
-        <input
-          id={id} name="password" type={visible ? 'text' : 'password'} value={value} onChange={onChange} onBlur={onBlur}
-          autoComplete={register ? 'new-password' : 'current-password'} placeholder={register ? 'Crea una contraseña segura' : 'Tu contraseña'}
-          maxLength={128} aria-invalid={invalid} aria-describedby={invalid ? `${id}-error` : undefined}
-        />
-        <button type="button" className="auth-eye" onClick={() => setVisible((current) => !current)} aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={visible}>
-          {visible ? <EyeOff strokeWidth={1.8} /> : <Eye strokeWidth={1.8} />}
-        </button>
-      </div>
-
-      {register && (
-        <Collapse open={!invalid && !value}>
-          <p className="auth-hint">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</p>
-        </Collapse>
-      )}
-
-      <Collapse open={Boolean(missing?.length)}>
-        <div className="auth-requirements" id={missing ? `${id}-error` : undefined} role="status">
-          <p><AlertCircle strokeWidth={2} aria-hidden="true" />A tu contraseña le falta:</p>
-          <ul>
-            {passwordRules.map((rule) => (
-              <li key={rule.id} className={missing?.includes(rule.id) ? 'is-missing' : undefined}>
-                <div><span>{rule.label}</span></div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Collapse>
-
-      <Collapse open={Boolean(message)}>
-        <p className="auth-field-error" id={message ? `${id}-error` : undefined}><AlertCircle strokeWidth={2} aria-hidden="true" />{message}</p>
-      </Collapse>
+    <div className="auth-warning" role="alert">
+      <p><MailWarning strokeWidth={2} aria-hidden="true" /><span><strong>Verifica tu correo para entrar.</strong> Abre el enlace que te enviamos a <b>{email}</b>.</span></p>
+      <ResendButton email={email} />
     </div>
+  );
+}
+
+/** Pantalla tras registrarse: la cuenta existe pero falta verificar el correo. */
+function CheckEmail({ email }) {
+  return (
+    <AuthShell badge="Último paso" title="Revisa tu correo">
+      <div className="auth-state">
+        <AuthStatusIcon icon={MailCheck} tone="accent" />
+        <p>Enviamos un enlace de verificación a <strong>{email}</strong>. Ábrelo para activar tu cuenta y después inicia sesión.</p>
+        <p className="auth-small">El enlace vence en 24 horas. Si no lo ves, revisa la carpeta de spam.</p>
+      </div>
+      <div className="auth-actions">
+        <Link className="auth-submit" to="/login"><span>Ir a iniciar sesión</span><ArrowRight strokeWidth={2} aria-hidden="true" /></Link>
+        <ResendButton email={email} />
+      </div>
+    </AuthShell>
   );
 }

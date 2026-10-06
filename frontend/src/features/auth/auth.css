@@ -86,6 +86,34 @@
 .auth-switch a { font-weight: 700; color: var(--color-primary); }
 .auth-switch a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
+/* ── Recuperación, verificación y estados ─────────────────── */
+.auth-forgot { justify-self: end; margin-top: -8px; font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--brand-orange) 60%, white); }
+.auth-forgot:hover { text-decoration: underline; text-underline-offset: 3px; }
+.auth-warning { display: grid; gap: 12px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--brand-orange) 13%, transparent); border: 1px solid color-mix(in srgb, var(--brand-orange) 35%, transparent); }
+.auth-warning > p { display: flex; gap: 10px; font-size: 14px; line-height: 1.5; color: var(--on-dark-strong); }
+.auth-warning > p svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; color: var(--brand-orange); }
+.auth-warning b { color: var(--color-white); overflow-wrap: anywhere; }
+.auth-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 18px; border: 1px solid var(--glass-border); border-radius: 999px; background: color-mix(in srgb, white 7%, transparent); color: var(--color-white); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .2s ease, opacity .2s ease; }
+.auth-secondary:hover:not(:disabled) { background: color-mix(in srgb, white 13%, transparent); }
+.auth-secondary:disabled { opacity: .7; cursor: default; }
+.auth-secondary svg { width: 17px; height: 17px; }
+.auth-secondary .auth-spinner { width: 16px; height: 16px; border-color: color-mix(in srgb, white 25%, transparent); border-top-color: var(--color-white); }
+.auth-resend-note { padding-top: 8px; font-size: 13px; line-height: 1.5; text-align: center; color: var(--on-dark); }
+a.auth-submit { text-decoration: none; }
+.auth-state { display: grid; justify-items: center; gap: 12px; margin-top: 22px; text-align: center; }
+.auth-state p { font-size: 15px; line-height: 1.6; color: var(--on-dark-strong); }
+.auth-state strong { color: var(--color-white); overflow-wrap: anywhere; }
+.auth-small { font-size: 13px !important; color: var(--on-dark) !important; }
+.auth-status-icon { display: grid; place-items: center; width: 76px; height: 76px; margin-bottom: 4px; border-radius: 24px; animation: auth-pop .6s cubic-bezier(.3, 1.4, .4, 1) both; }
+.auth-status-icon svg { width: 36px; height: 36px; }
+.auth-status-icon.is-accent { background: color-mix(in srgb, var(--brand-orange) 18%, transparent); color: var(--brand-orange); }
+.auth-status-icon.is-success { background: color-mix(in srgb, var(--color-status-online) 25%, transparent); color: color-mix(in srgb, var(--color-status-online) 45%, white); }
+.auth-status-icon.is-danger { background: color-mix(in srgb, var(--color-status-error) 20%, transparent); color: var(--error-on-dark); }
+.auth-spinner.is-large { width: 40px; height: 40px; border-width: 3px; border-color: color-mix(in srgb, white 18%, transparent); border-top-color: var(--brand-orange); }
+.auth-actions { display: grid; gap: 12px; margin-top: 26px; }
+.auth-inline-resend { display: grid; gap: 10px; margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--glass-border); }
+@keyframes auth-pop { from { opacity: 0; transform: scale(.6); } }
+
 @keyframes auth-fade { from { opacity: 0; } }
 @keyframes auth-rise { from { opacity: 0; transform: translateY(26px) scale(.98); } }
 @keyframes auth-shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
