@@ -60,10 +60,22 @@ export function createStorageRepository(database) {
   }
 
   return {
+    lockObject,
+    async withImageTransaction(ownerId, imageId, operation) {
+      return transaction(async (connection) => {
+        await query(connection, 'SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE', [ownerId]);
+        const { rows: [image] } = await query(connection, `SELECT ${imageColumns}
+          FROM images i JOIN stored_objects o ON o.hash_sha256=i.object_hash
+          WHERE i.id=$1 AND i.user_id=$2`, [imageId, ownerId]);
+        if (!image) throw new AppError(404, 'FILE_NOT_FOUND', 'La imagen no existe o no está disponible para esta cuenta.');
+        await lockObject(connection, image.hash_sha256);
+        return operation(connection, image);
+      });
+    },
     async withUploadTransaction(ownerId, hash, operation) {
       return transaction(async (connection) => {
         // Toda subida/borrado futuro mantiene este orden: usuario → objeto.
-        const user = await query(connection, 'SELECT id, active FROM users WHERE id = $1 FOR UPDATE', [ownerId]);
+        const user = await query(connection, 'SELECT id, active FROM users WHERE id = $1 FOR NO KEY UPDATE', [ownerId]);
         if (!user.rows[0]?.active) {
           throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
         }
@@ -83,47 +95,6 @@ export function createStorageRepository(database) {
         'SELECT id FROM folders WHERE id = $1 AND user_id = $2 FOR SHARE', [folderId, ownerId]);
       if (result.rows.length === 0) {
         throw new AppError(404, 'FOLDER_NOT_FOUND', 'La carpeta no existe o no está disponible para esta cuenta.');
-      }
-    },
-    async assertUploadQuota(connection, ownerId, incomingBytes) {
-      const plans = await query(connection, `
-        SELECT p.capacity_bytes, p.daily_upload_limit, p.daily_bytes_limit
-          FROM subscriptions s JOIN plans p ON p.id = s.plan_id
-         WHERE s.user_id = $1 AND s.status = 'active' AND p.active = TRUE
-           AND s.started_at <= CURRENT_TIMESTAMP
-           AND (s.expires_at IS NULL OR s.expires_at > CURRENT_TIMESTAMP)
-         FOR SHARE OF s, p
-      `, [ownerId]);
-      const plan = plans.rows[0];
-      if (!plan) {
-        throw new AppError(403, 'NO_ACTIVE_SUBSCRIPTION', 'La cuenta necesita una suscripción activa para subir imágenes.');
-      }
-      // Antes de implementar DELETE, sustituir este consumo diario derivado
-      // por un historial que no se borre al eliminar una imagen.
-      const usage = await query(connection, `
-        WITH day_start AS (
-          SELECT date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'America/Guatemala')
-                   AT TIME ZONE 'America/Guatemala' AS start_at
-        )
-        SELECT COALESCE(SUM(o.original_size_bytes), 0)::text AS used_bytes,
-               COUNT(*) FILTER (WHERE i.created_at >= d.start_at
-                 AND i.created_at < d.start_at + INTERVAL '1 day')::text AS daily_count,
-               COALESCE(SUM(o.original_size_bytes) FILTER (WHERE i.created_at >= d.start_at
-                 AND i.created_at < d.start_at + INTERVAL '1 day'), 0)::text AS daily_bytes
-          FROM images i JOIN stored_objects o ON o.hash_sha256 = i.object_hash
-          CROSS JOIN day_start d
-         WHERE i.user_id = $1
-      `, [ownerId]);
-      const totals = usage.rows[0];
-      const size = BigInt(incomingBytes);
-      if (BigInt(totals.used_bytes) + size > BigInt(plan.capacity_bytes)) {
-        throw new AppError(403, 'CAPACITY_EXCEEDED', 'La imagen supera la capacidad disponible del plan.');
-      }
-      if (plan.daily_upload_limit !== null && BigInt(totals.daily_count) + 1n > BigInt(plan.daily_upload_limit)) {
-        throw new AppError(429, 'DAILY_UPLOAD_LIMIT_EXCEEDED', 'Se alcanzó el número de subidas permitido para hoy.');
-      }
-      if (plan.daily_bytes_limit !== null && BigInt(totals.daily_bytes) + size > BigInt(plan.daily_bytes_limit)) {
-        throw new AppError(429, 'DAILY_BYTES_LIMIT_EXCEEDED', 'La imagen supera los bytes de subida permitidos para hoy.');
       }
     },
     async findObject(connection, hash) {

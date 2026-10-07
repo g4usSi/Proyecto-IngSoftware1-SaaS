@@ -13,10 +13,13 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Subida de imágenes estáticas JPG/PNG/WebP de hasta 25 MB y conversión a WebP calidad 80.
 - Listado paginado, descarga del propietario, cuotas transaccionales y deduplicación entre cuentas.
 - Metadatos en PostgreSQL, archivos privados en `storage/` y ahorro calculado para administrador.
-- Demostración local opcional con dos cuentas y acceso visible desde la portada cuando está activa.
+- Herramienta de demostración local por API con dos cuentas reservadas; la interfaz requiere sesión real.
 - Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
+- Verificación de correo, recuperación de contraseña y consulta privada de procesos.
+- Admisión asíncrona `POST /api/jobs`, worker Redis/BullMQ, publicación privada y recuperación.
+- Cuotas compartidas entre ambas rutas, consulta `GET /api/quotas/me` y borrado privado que conserva el consumo diario.
 
-Los pagos y el borrado **están pendientes**. Existe un worker interno de conversión; su integración con subidas públicas y reservas de cuota aún está pendiente. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
+Pagos y álbumes siguen pendientes. Alegría debe conectar la admisión asíncrona, los indicadores de cuotas y el borrado a la interfaz: [guía de contratos pendientes](docs/frontend-auth-jobs-handoff.md). El frontend de esta entrega se conserva sin modificaciones.
 
 ## Arranque rápido
 
@@ -45,14 +48,18 @@ En macOS/Linux, copiar el ejemplo solo si aún no existe `.env`. Usar `npm.cmd` 
 ### Base de datos con Docker (opcional)
 
 ```powershell
-docker compose up -d postgres
+docker compose --profile worker up -d postgres redis
 npm run db:migrate
-npm run dev:demo
+npm run dev
+# Otra terminal:
+npm run worker:images
 ```
 
 La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el equipo para evitar el 5432 de una instalación existente, base/usuario `smartstorage` y contraseña de desarrollo `smartstorage_local`. El servicio se expone solo en localhost; esas credenciales son exclusivamente locales. Docker Desktop debe estar instalado y en ejecución para este camino. No se requiere Docker para Node o React.
 
-`dev:demo` prepara dos cuentas locales y arranca API + frontend con la demostración habilitada **solo durante ese comando**. Abre <http://127.0.0.1:5173/>, pulsa **Probar demo local sin crear cuenta** y selecciona Demo Storage A o B en Mi biblioteca. El panel identifica la cuenta elegida, muestra su plan Free y permite cambiar de cuenta. Sube una imagen y descarga su WebP; repetir con la otra cuenta y el mismo archivo conserva una sola copia física. Las cuentas y sus imágenes persisten entre ejecuciones. `npm run dev` arranca con la demo desactivada por defecto. No hay contraseñas demo ni acceso al panel administrativo mediante esas cuentas. Cierra cualquier ejecución previa de `npm run dev` antes de iniciar `dev:demo`, pues ambos usan los puertos 3000 y 5173.
+Aplicar las migraciones con API/workers detenidos y luego iniciar ambos procesos. API y worker deben compartir PostgreSQL y `STORAGE_ROOT`. El frontend actual aún usa la subida síncrona; el nuevo contrato asíncrono ya se puede consumir desde la rama de Alegría.
+
+`dev:demo` prepara dos identidades locales para pruebas de Storage por API y activa la cabecera `X-Storage-Demo-User` sólo durante ese comando. No crea sesiones JWT ni habilita el panel web sin login. Ver [límites de esa herramienta](docs/storage.md). `npm run dev` la mantiene desactivada.
 
 Para usar el login real, configura un `JWT_SECRET` propio de al menos 32 caracteres en `backend/.env`. El ejemplo incluido debe reemplazarse antes de compartir o desplegar la aplicación. Sin ese valor, las rutas de autenticación protegidas devuelven `503`.
 
@@ -83,7 +90,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
 | `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
 | `npm run test:frontend` | Regresiones de sesión, formularios, arrastre y procesos con API simulada; usa Edge en Windows o `E2E_BROWSER_CHANNEL`, sin tocar la BD |
-| `npm run worker:images` | BullMQ/Sharp y recuperación automática; requiere Redis y migraciones 004/005; ver [integración con cuotas](docs/worker-cuotas.md) |
+| `npm run worker:images` | BullMQ/Sharp, publicación privada y recuperación automática; requiere Redis y todas las migraciones hasta 006; ver [cuotas](docs/worker-cuotas.md) |
 | `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
@@ -91,7 +98,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 
 El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el puerto del backend, actualizar `API_PROXY_TARGET` en `frontend/.env` y reiniciar Vite. `frontend/dist` es solo la interfaz: el despliegue deberá proporcionar la API y configurar `/api` en el servidor frontal.
 
-Los contratos del backend están en [autenticación](docs/auth-frontend.md) y [API](docs/api.md). El [traspaso al frontend](docs/frontend-handoff.md) conserva los criterios de integración usados para esta versión.
+Los contratos del backend están en [autenticación](docs/auth-frontend.md), [API](docs/api.md) y [OpenAPI de trabajos/cuotas/borrado](docs/contracts/jobs.openapi.json). La [guía de Alegría](docs/frontend-auth-jobs-handoff.md) enumera sólo el trabajo pendiente.
 
 ## Organización
 
@@ -141,6 +148,10 @@ Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos c
 
 Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
-Redis queda disponible mediante `docker compose --profile worker up -d`. La [base del worker S3-04](docs/worker-cuotas.md) ya permite convertir trabajos internos; S3-08 debe integrar las reservas antes de activar subidas asíncronas para clientes.
+Redis está disponible mediante `docker compose --profile worker up -d postgres redis`. El [worker y las cuotas compartidas](docs/worker-cuotas.md) admiten `POST /api/jobs`, publican referencias privadas y recuperan interrupciones. Arranca el consumidor con `npm run worker:images`; la API y el worker deben compartir PostgreSQL y almacenamiento.
 
-S3-05 añade recuperación tras interrupción y limpieza segura. Alegría puede consumir [los endpoints, cliente y ejemplos de estados](docs/s3-05-handoff.md). El contrato de cuotas está preparado con dobles transaccionales; su implementación real y la publicación se acoplan en S3-11.
+Alegría puede consultar la [guía de contratos pendientes del frontend](docs/frontend-auth-jobs-handoff.md). El frontend actual conserva su carga síncrona hasta que conecte el nuevo contrato.
+
+## Primera versión funcional: v0.1.0 (30%)
+
+El corte histórico v0.1.0 contiene registro, acceso, Free y Storage síncrono. Consultar [sistemas listos y cómo reportarlos](docs/estado-sistemas.md) y [aceptación reproducible](docs/aceptacion-30.md). Los cambios posteriores del worker y cuotas se desarrollan en `tema-y-flujo-git`. La entrega académica se acredita por separado.

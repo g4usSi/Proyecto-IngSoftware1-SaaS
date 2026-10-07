@@ -34,3 +34,7 @@ Comprobaciones realizadas sobre esta entrega:
 Las pruebas usan esquemas y archivos temporales propios. No se modificaron bases preexistentes del equipo ni se cambiaron sus credenciales. Docker Compose no se ejecutó porque Docker no está instalado en este entorno; el entorno acordado para el proyecto sigue siendo PostgreSQL de Compose en el puerto 5433.
 
 Estas comprobaciones validan Storage con autenticación inyectada de pruebas y el modo demo local. No verifican login real, pagos, Docker, borrado ni recuperación tras una caída abrupta del equipo. La integración del recorrido completo del 30 % sigue dependiendo del trabajo de Andy y Elden. Ver [guía de Storage](storage.md).
+
+## Primer corte v0.1.0 — 01/10/2026
+
+La aceptación anterior conserva su fecha histórica. El usuario confirmó que Alegría revisa los módulos al integrar el frontend. Esta revisión se registra como reportada por el usuario, sin atribuir una aprobación formal de GitHub. El primer corte se propone a `main` mediante PR; consultar [estado y criterios de cierre](estado-sistemas.md) para distinguir desarrollo listo, publicación y entrega académica. S2-16 mantiene pendiente la constancia de presentación; su fecha no se reprograma.
