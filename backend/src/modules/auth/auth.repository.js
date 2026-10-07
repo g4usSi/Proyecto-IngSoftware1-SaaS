@@ -67,17 +67,28 @@ export function createAuthRepository(database) {
       );
     },
 
-    // Solo un token no usado y vigente es válido; no distingue el motivo por el que no lo es.
-    async findValidPasswordResetToken(tokenHash) {
+    // Una sola sentencia: gasta el enlace, cambia la contraseña e invalida los demás enlaces
+    // pendientes de la cuenta, o nada. Solo un token no usado y vigente es válido; dos peticiones
+    // simultáneas con el mismo token no pueden gastarlo dos veces (la segunda no actualiza filas).
+    // `token_hash <> $1` evita tocar dos veces la misma fila en una sentencia.
+    async consumePasswordResetToken(tokenHash, passwordHash) {
       const { rows } = await database.query(
-        'SELECT id, user_id FROM password_reset_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()',
-        [tokenHash],
+        `WITH consumed_reset AS (
+           UPDATE password_reset_tokens SET used_at = now()
+            WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+            RETURNING user_id
+         ), updated_user AS (
+           UPDATE users SET password_hash = $2, updated_at = now()
+             FROM consumed_reset WHERE users.id = consumed_reset.user_id
+           RETURNING users.id
+         ), other_resets AS (
+           UPDATE password_reset_tokens SET used_at = now()
+            WHERE user_id IN (SELECT id FROM updated_user) AND used_at IS NULL AND token_hash <> $1
+         )
+         SELECT id FROM updated_user`,
+        [tokenHash, passwordHash],
       );
-      return rows[0] ?? null;
-    },
-
-    async markPasswordResetTokenUsed(id) {
-      await database.query('UPDATE password_reset_tokens SET used_at = now() WHERE id = $1', [id]);
+      return rows[0]?.id ?? null;
     },
 
     // Evita que queden varios enlaces de recuperación válidos al mismo tiempo para una cuenta.
@@ -86,6 +97,25 @@ export function createAuthRepository(database) {
         'UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL',
         [userId],
       );
+    },
+
+    // RF06, una sola sentencia: cambia la contraseña solo si el hash sigue siendo el que se verificó
+    // (si dos cambios simultáneos usan la misma contraseña actual, solo se aplica el primero) e
+    // invalida los enlaces de recuperación pendientes. Devuelve null si no cambió nada.
+    async changePassword(userId, expectedHash, newHash) {
+      const { rows } = await database.query(
+        `WITH changed AS (
+           UPDATE users SET password_hash = $3, updated_at = now()
+            WHERE id = $1 AND password_hash = $2
+            RETURNING id
+         ), pending_resets AS (
+           UPDATE password_reset_tokens SET used_at = now()
+            WHERE user_id IN (SELECT id FROM changed) AND used_at IS NULL
+         )
+         SELECT id FROM changed`,
+        [userId, expectedHash, newHash],
+      );
+      return rows[0]?.id ?? null;
     },
 
     async createEmailVerificationToken({ userId, tokenHash, expiresAt }) {
@@ -117,13 +147,6 @@ export function createAuthRepository(database) {
         [tokenHash],
       );
       return rows[0]?.id ?? null;
-    },
-
-    async updateUserPassword(userId, passwordHash) {
-      await database.query(
-        'UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1',
-        [userId, passwordHash],
-      );
     },
   };
 }

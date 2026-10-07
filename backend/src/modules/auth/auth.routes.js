@@ -15,6 +15,7 @@ export function createAuthRouter(database, { tokens, loginLimiter, mailer, front
   router.post('/resend-verification', controller.resendVerification);
   router.post('/forgot-password', controller.forgotPassword);
   router.post('/reset-password', controller.resetPassword);
+  router.post('/change-password', requireAuth, controller.changePassword);
   router.post('/logout', requireAuth, controller.logout);
   router.get('/me', requireAuth, controller.me);
   return router;
