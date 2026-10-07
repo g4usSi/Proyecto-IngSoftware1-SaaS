@@ -4,6 +4,7 @@ import { checkJobDirectory, cleanJobFiles, jobPaths, normalizeJobId, statOrNull 
 import { JOB_TTL_MS } from './image-jobs.js';
 import { enqueueImageJob } from './image-queue.js';
 import { withJobLock } from './job-lock.js';
+import { createStorageCleanup } from '../modules/storage/storage.cleanup.js';
 
 export async function ensureImageQueued(queue, id) {
   const existing = await queue.getJob(id);
@@ -20,6 +21,8 @@ export function createImageRecovery({ database, storageRoot, jobs, queue, now = 
   let running;
   async function sweep() {
     const summary = { checked: 0, queued: 0, converted: 0, published: 0, failed: 0, skipped: 0, orphansRemoved: 0, errors: [] };
+    const cleanup = await createStorageCleanup({ database, storageRoot }).runOnce();
+    if (cleanup.errors) summary.errors.push({ code: 'STORAGE_CLEANUP_PENDING' });
     let cursor = '00000000-0000-0000-0000-000000000000';
     // Paginación por UUID: un lote de pendientes no oculta filas posteriores.
     for (;;) {

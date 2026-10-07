@@ -1,5 +1,8 @@
 import { open, unlink } from 'node:fs/promises';
-import { AppError, notImplemented } from '../../lib/app-error.js';
+import { randomUUID } from 'node:crypto';
+import { AppError } from '../../lib/app-error.js';
+import { createQuotasRepository } from '../quotas/quotas.repository.js';
+import { createStorageCleanup } from './storage.cleanup.js';
 import { createStorageRepository } from './storage.repository.js';
 import { inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
 import { cursorFor, parsePagination, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
@@ -24,6 +27,8 @@ function percentage(saved, original) {
 
 export function createStorageService({ database, storageRoot }) {
   const repository = createStorageRepository(database);
+  const quotas = createQuotasRepository(database);
+  const cleanup = createStorageCleanup({ database, storageRoot });
 
   async function cleanUncommittedObject(hash, filename) {
     // Puede ejecutarse después de un COMMIT cuya respuesta se perdió. Volver
@@ -52,7 +57,8 @@ export function createStorageService({ database, storageRoot }) {
         const originalName = safeOriginalName(file.originalname);
         return await repository.withUploadTransaction(ownerId, prepared.hash, async (connection) => {
           await repository.assertFolderOwner(connection, ownerId, folderId);
-          await repository.assertUploadQuota(connection, ownerId, prepared.originalSizeBytes);
+          const reservationKey = randomUUID();
+          await quotas.reserve(connection, { userId: ownerId, reservationKey, bytes: prepared.originalSizeBytes });
           let object = await repository.findObject(connection, prepared.hash);
           if (object) {
             if (object.status !== 'ready') {
@@ -77,6 +83,7 @@ export function createStorageService({ database, storageRoot }) {
           }
           const stored = await inspectStoredFile(storageRoot, object);
           const image = await repository.insertImage(connection, { ownerId, hash: prepared.hash, originalName, folderId });
+          await quotas.confirm(connection, reservationKey, ownerId, image.id);
           return { image: imageDto(image, stored.size) };
         });
       } catch (error) {
@@ -156,8 +163,25 @@ export function createStorageService({ database, storageRoot }) {
         objectCount: String(objects.length),
       };
     },
-    async deleteFile() {
-      return notImplemented('STORAGE_DELETE_NOT_IMPLEMENTED', 'El borrado de imágenes todavía no está implementado.');
+    async deleteFile(ownerId, imageId) {
+      validateImageId(imageId);
+      let object;
+      const result = await repository.withImageTransaction(ownerId, imageId, async (connection, image) => {
+        object = image;
+        await connection.query('DELETE FROM images WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
+        const remaining = await connection.query('SELECT id FROM images WHERE object_hash=$1 LIMIT 1', [image.hash_sha256]);
+        if (!remaining.rows.length) {
+          await connection.query('DELETE FROM stored_objects WHERE hash_sha256=$1', [image.hash_sha256]);
+          await connection.query(`INSERT INTO storage_cleanup_tasks(hash_sha256,storage_key)
+            VALUES ($1,$2) ON CONFLICT (hash_sha256) DO NOTHING`, [image.hash_sha256, image.storage_key]);
+        }
+        return { deleted: true, imageId };
+      });
+      // Releer después de COMMIT bajo bloqueo evita borrar un objeto adoptado
+      // por una subida concurrente; el historial de cuota conserva la reserva.
+      try { await cleanup.remove(object.hash_sha256); }
+      catch { console.error('Borrado confirmado; limpieza física pendiente de recuperación.'); }
+      return result;
     },
   };
 }

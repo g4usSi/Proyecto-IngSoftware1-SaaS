@@ -32,7 +32,7 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
     if (!job.quota_managed || job.quota_settled_at || !lifecycle || !['converted', 'failed'].includes(job.status)) return job;
     await transaction(client, async () => {
       const payload = { jobId: job.id, userId: job.user_id, originalHash: job.original_hash,
-        originalSizeBytes: String(job.original_size_bytes), originalName: job.original_name };
+        originalSizeBytes: String(job.original_size_bytes), originalName: job.original_name, folderId: job.folder_id };
       if (job.status === 'converted') {
         // Publicación y confirmación de cuota comparten ESTA transacción.
         // El adaptador debe copiar, nunca mover/borrar la entrada antes del COMMIT.
@@ -97,13 +97,23 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
 
   return {
     // Interno: S3-11 conecta HTTP cuando exista un lifecycle de cuotas real.
-    async stage({ ownerId, file }) {
+    async stage({ ownerId, file, folderId = null, jobId }) {
       if (!file?.path) throw new AppError(400, 'UPLOAD_REQUIRED', 'Selecciona una imagen.');
       const info = await lstat(file.path);
       if (!info.isFile() || !info.size) throw new AppError(400, 'EMPTY_FILE', 'La imagen está vacía o no es un archivo regular.');
       if (info.size > MAX_UPLOAD_BYTES) throw new AppError(413, 'FILE_TOO_LARGE', 'La imagen supera el máximo de 25 MB.');
-      const id = randomUUID();
+      const id = jobId === undefined ? randomUUID() : normalizeJobId(jobId);
       return withJobLock(database, id, async (client) => {
+        const existing = await load(client, id);
+        if (existing) {
+          if (existing.user_id !== ownerId) throw new AppError(404, 'JOB_NOT_FOUND', 'El trabajo no existe o no pertenece a esta cuenta.');
+          const incoming = await fingerprint(file.path, MAX_UPLOAD_BYTES);
+          if (existing.original_hash !== incoming.hash || String(existing.original_size_bytes) !== String(incoming.size) ||
+              existing.original_name !== safeOriginalName(file.originalname) || existing.folder_id !== folderId) {
+            throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'La clave de la solicitud ya se usó con otra imagen o carpeta.');
+          }
+          return { id, status: existing.status };
+        }
         const files = jobPaths(storageRoot, id);
         await checkJobDirectory(storageRoot, id, { create: true });
         let committing = false;
@@ -111,13 +121,15 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
           await copyFile(file.path, files.original);
           const { size, hash } = await fingerprint(files.original, MAX_UPLOAD_BYTES);
           await client.query('BEGIN');
-          const { rows } = await client.query(`INSERT INTO image_processing_jobs
-            (id, user_id, original_name, original_size_bytes, original_hash, quota_managed)
-            SELECT $1, id, $3, $4, $5, $6 FROM users WHERE id = $2 AND active = TRUE RETURNING id`,
-          [id, ownerId, safeOriginalName(file.originalname), size, hash, !!lifecycle]);
-          if (!rows.length) throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
+          // Bloquear usuario antes de insertar evita ascensos de bloqueo
+          // incompatibles con claves foráneas de otros productores.
           if (lifecycle) await lifecycle.reserve(client, { jobId: id, userId: ownerId, originalHash: hash,
-            originalSizeBytes: String(size), originalName: safeOriginalName(file.originalname) });
+            originalSizeBytes: String(size), originalName: safeOriginalName(file.originalname), folderId });
+          const { rows } = await client.query(`INSERT INTO image_processing_jobs
+            (id, user_id, original_name, original_size_bytes, original_hash, quota_managed, folder_id)
+            SELECT $1, id, $3, $4, $5, $6, $7 FROM users WHERE id = $2 AND active = TRUE RETURNING id`,
+          [id, ownerId, safeOriginalName(file.originalname), size, hash, !!lifecycle, folderId]);
+          if (!rows.length) throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
           committing = true;
           await client.query('COMMIT');
           return { id, status: 'queued' };
