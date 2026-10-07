@@ -30,6 +30,15 @@ export function createStorageController(service) {
     async remove(req, res) {
       res.json({ data: await service.deleteFile(req.user.id, req.params.fileId) });
     },
+    async move(req, res) {
+      res.json({ data: await service.moveFile(req.user.id, req.params.fileId, req.body) });
+    },
+    async trash(req, res) {
+      res.json({ data: await service.trashFile(req.user.id, req.params.fileId) });
+    },
+    async restore(req, res) {
+      res.json({ data: await service.restoreFile(req.user.id, req.params.fileId) });
+    },
     async stats(_req, res) {
       res.json({ data: await service.stats() });
     },

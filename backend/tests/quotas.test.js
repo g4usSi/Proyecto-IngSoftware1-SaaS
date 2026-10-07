@@ -60,7 +60,7 @@ async function fixture(t, { legacy = false } = {}) {
     .sort();
 
   for (const name of migrationNames) {
-    if (legacy && name.startsWith('006_')) continue;
+    if (legacy && name >= '006_') continue;
     const sql = await readFile(path.join(migrationsDirectory, name), "utf8");
 
     await database.query(sql);
@@ -385,7 +385,7 @@ test('S3-08/S3-11: migración conserva historial, traslada imágenes y no duplic
   await f.database.query(`INSERT INTO quota_daily_usage(user_id,usage_date,upload_count,uploaded_bytes)
     VALUES ($1,(CURRENT_TIMESTAMP AT TIME ZONE 'America/Guatemala')::date,2,150)`, [f.user.id]);
   await f.database.query('CREATE TABLE schema_migrations(name TEXT PRIMARY KEY,checksum TEXT NOT NULL,applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
-  for (const name of (await readdir(migrationsDirectory)).filter((n) => /^\d+[-_].*\.sql$/.test(n) && !n.startsWith('006_'))) {
+  for (const name of (await readdir(migrationsDirectory)).filter((n) => /^\d+[-_].*\.sql$/.test(n) && n < '006_')) {
     const sql = (await readFile(path.join(migrationsDirectory, name), 'utf8')).replace(/\r\n/g, '\n');
     await f.database.query('INSERT INTO schema_migrations(name,checksum) VALUES ($1,$2)', [name, createHash('sha256').update(sql).digest('hex')]);
   }

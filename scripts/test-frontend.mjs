@@ -33,6 +33,11 @@ try {
   let expired = false;
   let details = 0;
   let pollsFail = true;
+  let quotaFails = false;
+  let quotaRequests = 0;
+  let lostLookups = 0;
+  const submissions = [];
+  const admitted = new Map();
   let verifications = 0;
   const resends = [];
   const job = { id: '22222222-2222-4222-8222-222222222222', originalName: 'proceso.png', status: 'queued',
@@ -53,20 +58,49 @@ try {
     if (url.pathname.endsWith('/forgot-password')) return ok({ message: 'Si el correo está registrado, recibirás instrucciones.' });
     if (url.pathname.endsWith('/reset-password')) return ok({ reset: true });
     if (url.pathname.endsWith('/download')) return route.fulfill({ status: 200, contentType: 'image/webp', body: webp });
-    if (url.pathname === '/api/files' && request.method() === 'POST') {
-      uploads++;
-      const image = { id: `upload-${uploads}`, originalName: `imagen-${uploads}.png`, createdAt: date,
-        originalSizeBytes: String(png.length), optimizedSizeBytes: String(webp.length), status: 'ready' };
-      files.unshift(image);
-      return ok({ image }, 201);
-    }
+    if (url.pathname === '/api/files' && request.method() === 'POST') throw new Error('La interfaz debe admitir subidas mediante POST /jobs.');
     if (url.pathname === '/api/files') return expired ? fail('TOKEN_EXPIRED', 401) : ok({ items: files, unavailableItems: [missing], nextCursor: null });
-    if (url.pathname === '/api/jobs') return ok({ items: [job], nextCursor: null });
+    if (url.pathname === '/api/quotas/me') {
+      quotaRequests++;
+      if (quotaFails) return fail('TEMPORARY_ERROR', 503, 'No se pudo consultar la cuota.');
+      const pending = [...admitted.values()].filter((item) => item.status !== 'published').length;
+      return ok({ plan: { code: 'free', name: 'Free' }, capacityBytes: '2000000000', usedBytes: '850000000',
+        reservedBytes: String(pending * png.length), availableBytes: String(1150000000 - pending * png.length),
+        daily: { date: '2026-10-07', uploadLimit: 10, uploadsUsed: String(uploads - pending), uploadsReserved: String(pending),
+          bytesLimit: '200000000', bytesUsed: String((uploads - pending) * png.length), bytesReserved: String(pending * png.length) } });
+    }
+    if (url.pathname === '/api/jobs' && request.method() === 'POST') {
+      const id = request.headers()['idempotency-key'];
+      assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      const originalName = /filename="([^"]+)"/.exec(request.postData() ?? '')?.[1] ?? 'imagen.png';
+      submissions.push({ id, originalName });
+      if (!admitted.has(id)) {
+        uploads++;
+        admitted.set(id, { ...job, id, originalName, status: 'queued', available: false, imageId: null, nextPollAfterMs: 1000, ticks: 0 });
+        if (originalName === 'perdida.png') return route.abort('connectionreset');
+      }
+      return ok(admitted.get(id), 202);
+    }
+    if (url.pathname === '/api/jobs') return ok({ items: [...admitted.values(), job], nextCursor: null });
     if (url.pathname.startsWith('/api/jobs/')) {
+      const stored = admitted.get(url.pathname.split('/').pop());
+      if (stored) {
+        if (stored.originalName === 'perdida.png' && ++lostLookups <= 2) return fail('JOB_NOT_FOUND', 404);
+        stored.ticks++;
+        if (stored.ticks === 1) stored.status = 'processing';
+        else if (stored.ticks === 2) stored.status = 'converted';
+        else if (stored.status !== 'published') {
+          Object.assign(stored, { status: 'published', available: true, imageId: `image-${stored.id}`, nextPollAfterMs: null });
+          files.unshift({ id: stored.imageId, originalName: stored.originalName, createdAt: date,
+            originalSizeBytes: String(png.length), optimizedSizeBytes: String(webp.length), status: 'ready' });
+        }
+        return ok(stored);
+      }
       details++;
       if (pollsFail && details === 2) return fail('TEMPORARY_ERROR', 503);
-      return ok(details < 3 ? job : details === 3 ? { ...job, status: 'converted' }
-        : { ...job, status: 'published', available: true, imageId: 'ready-image', nextPollAfterMs: null });
+      Object.assign(job, details < 3 ? {} : details === 3 ? { status: 'converted' }
+        : { status: 'published', available: true, imageId: 'ready-image', nextPollAfterMs: null });
+      return ok(job);
     }
     return ok({ status: 'ok' });
   });
@@ -167,16 +201,39 @@ try {
     loginError = null;
     await page.setViewportSize({ width: 1440, height: 900 });
   });
-  await step('Soltar en layout y zona de subida: una petición por archivo y overlay cerrado', async () => {
+  await step('Soltar cinco archivos: admisión asíncrona, cola sin bloqueo y overlay cerrado', async () => {
     await login();
     await drop('main');
     await page.getByRole('heading', { name: 'Subidas de esta sesión' }).waitFor();
     assert.equal(uploads, 1);
-    await drop('.dropzone', 2);
-    await page.waitForFunction(() => document.querySelectorAll('.upload-item.is-done').length === 3);
-    assert.equal(uploads, 3);
-    assert.equal(await page.locator('.upload-item.is-done').count(), 3);
+    await drop('.dropzone', 5);
+    await page.waitForFunction(() => document.querySelectorAll('.upload-item.is-done').length === 6);
+    assert.equal(uploads, 6);
+    assert.equal(submissions.length, 6);
+    assert.equal(await page.locator('.upload-item.is-done').count(), 6);
     await screenshot('upload.png', true);
+  });
+  await step('Cuota global del servidor y recuperación de una consulta fallida', async () => {
+    assert.match(await page.locator('.usage-text').innerText(), /850 MB/);
+    assert.match(await page.locator('.quota-summary').innerText(), /850 MB/);
+    quotaFails = true;
+    await page.getByRole('button', { name: 'Actualizar cuota', exact: true }).click();
+    await page.locator('.quota-summary [role="alert"]').waitFor();
+    quotaFails = false;
+    await page.getByRole('button', { name: 'Actualizar cuota', exact: true }).click();
+    await page.locator('.quota-summary [role="alert"]').waitFor({ state: 'hidden' });
+    assert.ok(quotaRequests >= 3);
+  });
+  await step('Respuesta de admisión perdida: consulta y reenvío conservan el mismo UUID', async () => {
+    await page.locator('input[type="file"]').setInputFiles({ name: 'perdida.png', mimeType: 'image/png', buffer: png });
+    const row = page.locator('.upload-item').filter({ hasText: 'perdida.png' });
+    await row.getByRole('button', { name: 'Consultar / reintentar' }).click();
+    await page.waitForFunction(() => [...document.querySelectorAll('.upload-item.is-done')].some((item) => item.textContent.includes('perdida.png')));
+    const attempts = submissions.filter((item) => item.originalName === 'perdida.png');
+    assert.equal(attempts.length, 2);
+    assert.equal(attempts[0].id, attempts[1].id);
+    assert.equal(uploads, 7);
+    assert.equal(files.length, 7);
   });
   await step('Escape cancela el aviso de arrastre sin subir archivos', async () => {
     const transfer = await page.evaluateHandle(() => {
@@ -186,33 +243,34 @@ try {
     await page.locator('.page-drop.is-active').waitFor();
     await page.keyboard.press('Escape');
     await page.locator('.page-drop.is-active').waitFor({ state: 'hidden' });
-    assert.equal(uploads, 3);
+    assert.equal(uploads, 7);
     await transfer.dispose();
   });
   await step('Galería muestra archivos sanos y enumera los no disponibles', async () => {
     await page.getByRole('link', { name: /^Mis imágenes/ }).click();
     await page.getByText('ausente.png', { exact: true }).waitFor();
-    assert.equal(await page.locator('.img-card:not(.is-skeleton)').count(), 3);
+    assert.equal(await page.locator('.img-card:not(.is-skeleton)').count(), 7);
     await screenshot('gallery.png', true);
   });
   await step('Procesos siguen tras estado sin cambios y error temporal, y paran al publicar', async () => {
     await page.getByRole('link', { name: 'Procesos', exact: true }).click();
-    await page.getByRole('button', { name: 'Descargar WebP' }).waitFor({ timeout: 16000 });
+    await page.locator('.job-card').filter({ hasText: 'proceso.png' }).getByRole('button', { name: 'Descargar WebP' }).waitFor({ timeout: 16000 });
     assert.equal(details, 4);
     await page.waitForTimeout(1500);
     assert.equal(details, 4);
     await screenshot('jobs.png');
     pollsFail = false;
   });
-  await step('Salir de Procesos cancela las consultas programadas', async () => {
+  await step('Salir de Procesos conserva el seguimiento durante la sesión', async () => {
     await page.getByRole('link', { name: 'Resumen', exact: true }).click();
     details = 0;
+    Object.assign(job, { id: '33333333-3333-4333-8333-333333333333', status: 'queued', available: false, imageId: null, nextPollAfterMs: 1000 });
     await page.getByRole('link', { name: 'Procesos', exact: true }).click();
     await page.getByText('proceso.png', { exact: true }).waitFor();
     await page.getByRole('link', { name: 'Resumen', exact: true }).click();
     const before = details;
     await page.waitForTimeout(1500);
-    assert.equal(details, before);
+    assert.ok(details > before);
   });
   await step('Una respuesta 401 retira el panel y vuelve al inicio', async () => {
     expired = true;
@@ -220,9 +278,12 @@ try {
     await page.getByRole('button', { name: 'Actualizar', exact: true }).click();
     await page.getByRole('heading', { name: 'Página no disponible' }).waitFor();
     await page.waitForURL(`${base}/`, { timeout: 6000 });
+    const before = details;
+    await page.waitForTimeout(1500);
+    assert.equal(details, before, 'Cerrar sesión cancela las consultas de procesos.');
   });
   assert.deepEqual(errors, [], 'El navegador no debe reportar errores de JavaScript');
-  console.log('12 comprobaciones de frontend correctas. Capturas: output/playwright/frontend-regression');
+  console.log('Comprobaciones de frontend correctas. Capturas: output/playwright/frontend-regression');
 } finally {
   await browser?.close();
   await web.close();

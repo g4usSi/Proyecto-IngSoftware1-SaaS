@@ -1,0 +1,10 @@
+.quota-summary { display: grid; gap: 14px; }
+.quota-summary .panel-head { margin-bottom: 0; }
+.quota-meter { height: 7px; border-radius: 8px; overflow: hidden; background: var(--app-surface-3); }
+.quota-meter > span { display: block; height: 100%; background: var(--app-accent); transition: width .25s ease; }
+.quota-values { display: flex; gap: 14px 30px; flex-wrap: wrap; }
+.quota-values p { margin: 0; font-size: 14px; }
+.quota-values small { display: block; margin-top: 4px; color: var(--app-muted); }
+.quota-error { margin: 0; font-size: 13px; color: var(--app-danger); }
+.upload-item { flex-wrap: wrap; }
+.upload-info { min-width: min(180px, 65%); }

@@ -24,7 +24,13 @@ export function createImageLifecycle({ database, storageRoot }) {
         throw new AppError(409, 'RESERVATION_CONFLICT', 'La reserva no coincide con el trabajo.');
       }
       await storage.lockObject(client, payload.originalHash);
-      await storage.assertFolderOwner(client, payload.userId, payload.folderId);
+      // El álbum pudo eliminarse después de leer el trabajo y antes del bloqueo
+      // de usuario. Releer el destino mutable bajo ese bloqueo evita una FK
+      // obsoleta y permite que el trabajo se publique sin álbum.
+      const { rows: [currentJob] } = await client.query(
+        'SELECT folder_id FROM image_processing_jobs WHERE id=$1 AND user_id=$2', [payload.jobId, payload.userId]);
+      const folderId = currentJob ? currentJob.folder_id : payload.folderId;
+      await storage.assertFolderOwner(client, payload.userId, folderId);
       let object = await storage.findObject(client, payload.originalHash);
       if (object && (object.status !== 'ready' || object.original_size_bytes !== payload.originalSizeBytes)) {
         throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'Los metadatos del objeto son inconsistentes.');
@@ -43,7 +49,7 @@ export function createImageLifecycle({ database, storageRoot }) {
       }
       await inspectStoredFile(storageRoot, object);
       const image = await storage.insertImage(client, { ownerId: payload.userId, hash: payload.originalHash,
-        originalName: payload.originalName, folderId: payload.folderId });
+        originalName: payload.originalName, folderId });
       await quotas.confirm(client, payload.jobId, payload.userId, image.id);
       return { imageId: image.id };
     },

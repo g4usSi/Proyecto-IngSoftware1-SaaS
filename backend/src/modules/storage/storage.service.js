@@ -5,13 +5,15 @@ import { createQuotasRepository } from '../quotas/quotas.repository.js';
 import { createStorageCleanup } from './storage.cleanup.js';
 import { createStorageRepository } from './storage.repository.js';
 import { inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
-import { cursorFor, parsePagination, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
+import { cursorFor, parseImageMove, parseLibraryQuery, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
 
 function imageDto(row, optimizedBytes) {
   return {
     id: row.id,
     originalName: row.original_name,
     createdAt: new Date(row.created_at).toISOString(),
+    folderId: row.folder_id ?? null,
+    deletedAt: row.deleted_at ? new Date(row.deleted_at).toISOString() : null,
     status: 'ready',
     originalSizeBytes: String(row.original_size_bytes),
     optimizedSizeBytes: optimizedBytes.toString(),
@@ -95,7 +97,7 @@ export function createStorageService({ database, storageRoot }) {
       }
     },
     async listFiles(ownerId, query) {
-      const pagination = parsePagination(query);
+      const pagination = parseLibraryQuery(query);
       const rows = await repository.listImages(ownerId, pagination);
       const more = rows.length > pagination.limit;
       const page = rows.slice(0, pagination.limit);
@@ -111,12 +113,39 @@ export function createStorageService({ database, storageRoot }) {
           unavailableItems.push({
             id: row.id, originalName: row.original_name,
             createdAt: new Date(row.created_at).toISOString(),
+            folderId: row.folder_id ?? null,
+            deletedAt: row.deleted_at ? new Date(row.deleted_at).toISOString() : null,
             originalSizeBytes: String(row.original_size_bytes),
             status: 'unavailable', errorCode: 'STORAGE_INTEGRITY_ERROR',
           });
         }
       }
       return { items, unavailableItems, nextCursor: more ? cursorFor(page.at(-1)) : null };
+    },
+    async moveFile(ownerId, imageId, body) {
+      validateImageId(imageId);
+      const { folderId } = parseImageMove(body);
+      return repository.withImageTransaction(ownerId, imageId, async (connection, image) => {
+        if (image.deleted_at) throw new AppError(409, 'FILE_IN_TRASH', 'Restaura la imagen antes de cambiar su álbum.');
+        await repository.assertFolderOwner(connection, ownerId, folderId);
+        await connection.query('UPDATE images SET folder_id=$3 WHERE id=$1 AND user_id=$2', [imageId, ownerId, folderId]);
+        return { imageId, folderId };
+      });
+    },
+    async trashFile(ownerId, imageId) {
+      validateImageId(imageId);
+      return repository.withImageTransaction(ownerId, imageId, async (connection) => {
+        const { rows: [image] } = await connection.query(`UPDATE images SET deleted_at=COALESCE(deleted_at,now())
+          WHERE id=$1 AND user_id=$2 RETURNING deleted_at`, [imageId, ownerId]);
+        return { trashed: true, imageId, deletedAt: new Date(image.deleted_at).toISOString() };
+      });
+    },
+    async restoreFile(ownerId, imageId) {
+      validateImageId(imageId);
+      return repository.withImageTransaction(ownerId, imageId, async (connection) => {
+        await connection.query('UPDATE images SET deleted_at=NULL WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
+        return { restored: true, imageId };
+      });
     },
     async downloadFile(ownerId, imageId) {
       validateImageId(imageId);

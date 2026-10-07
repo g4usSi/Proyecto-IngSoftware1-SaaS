@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronsUpDown, CircleHelp, House, LogIn, LogOut, Rocket } from 'lucide-react';
+import { ChevronsUpDown, CircleHelp, House, KeyRound, LogIn, LogOut, Rocket } from 'lucide-react';
 import { useSession } from '../features/auth/session.jsx';
 
 export function initials(name = '') {
@@ -53,6 +53,7 @@ export function AccountMenu() {
         )}
 
         <nav className="account-links">
+          {session && <Link to="/app/security" role="menuitem" onClick={close}><KeyRound strokeWidth={1.9} aria-hidden="true" />Cambiar contraseña</Link>}
           <Link to="/" role="menuitem" onClick={close}><House strokeWidth={1.9} aria-hidden="true" />Página de inicio</Link>
           <Link to="/#preguntas" role="menuitem" onClick={close}><CircleHelp strokeWidth={1.9} aria-hidden="true" />Ayuda y preguntas</Link>
           {session

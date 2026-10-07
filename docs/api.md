@@ -1,5 +1,7 @@
 # Contratos de API
 
+Álbumes, movimiento y papelera: [contratos de organización](organizacion-frontend.md#api-de-organización). La migración 007 añade `folderId`/`deletedAt` a los DTO y oculta de la biblioteca/descarga las imágenes en papelera. `DELETE /files/:id` conserva el borrado definitivo por compatibilidad.
+
 Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code": "CODIGO", "message": "Mensaje" } }`. No se devuelven trazas internas ni hashes de contraseña.
 
 ## Operaciones disponibles

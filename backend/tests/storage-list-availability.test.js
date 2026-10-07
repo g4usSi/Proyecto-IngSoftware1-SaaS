@@ -34,6 +34,7 @@ test('una referencia sin archivo no bloquea imágenes disponibles ni expone ruta
   assert.equal(result.items[0].optimizedSizeBytes, '14');
   assert.deepEqual(result.unavailableItems, [{
     id: missing.id, originalName: 'ausente.png', createdAt: missing.created_at.toISOString(),
+    folderId: null, deletedAt: null,
     originalSizeBytes: '120', status: 'unavailable', errorCode: 'STORAGE_INTEGRITY_ERROR',
   }]);
   assert.equal(result.nextCursor, null);

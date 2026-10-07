@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Clock3, CloudUpload, Cog, Download, FileCheck2, Info, LoaderCircle, LockKeyhole, RefreshCw, Workflow } from 'lucide-react';
-import { useToast } from '../../components/Toaster.jsx';
 import { useSession } from '../auth/session.jsx';
 import { formatFullDate, formatRelative } from './format.js';
-import { getImageJob, JOB_STATUS_LABELS, listImageJobs } from './jobs.api.js';
+import { ACTIVE_JOB_STATUSES as ACTIVE, isJobReady as isReady, jobFailureMessage as failureMessage, jobStatusLabel } from './jobs.api.js';
 import { useLibrary } from './library.jsx';
-import { storageErrorMessage } from './storage.api.js';
 
 const steps = [
   { status: 'queued', label: 'En cola', icon: Clock3 },
@@ -14,19 +12,13 @@ const steps = [
   { status: 'converted', label: 'Convertida', icon: FileCheck2 },
   { status: 'published', label: 'Disponible', icon: CheckCircle2 },
 ];
-const ACTIVE = new Set(['queued', 'processing', 'converted']);
 const filters = {
   all: { label: 'Todos', test: () => true },
   active: { label: 'En curso', test: (job) => ACTIVE.has(job.status) },
-  ready: { label: 'Disponibles', test: (job) => job.status === 'published' },
+  ready: { label: 'Disponibles', test: isReady },
+  unavailable: { label: 'No disponibles', test: (job) => job.status === 'published' && !isReady(job) },
   failed: { label: 'Con error', test: (job) => job.status === 'failed' },
 };
-// Mensajes seguros por errorCode: nunca se muestran detalles internos.
-const failureMessages = {
-  JOB_EXPIRED: 'El proceso venció antes de terminar. Sube la imagen de nuevo.',
-};
-const failureMessage = (job) => failureMessages[job.errorCode] ?? 'No pudimos procesar esta imagen. Vuelve a subirla más tarde.';
-const isReady = (job) => job.status === 'published' && job.available && job.imageId;
 
 /** Procesos de imagen: estados reales de GET /api/jobs con consultas periódicas cancelables. */
 export function JobsPage() {
@@ -40,7 +32,7 @@ export function JobsPage() {
           <p>Sigue el estado de las imágenes que se procesan en segundo plano.</p>
         </div>
       </header>
-      {session ? <JobsList token={session.token} /> : (
+      {session ? <JobsList /> : (
         <div className="panel panel-empty">
           <LockKeyhole strokeWidth={1.6} aria-hidden="true" className="panel-empty-icon" />
           <p>Inicia sesión para consultar tus procesos.</p>
@@ -51,74 +43,11 @@ export function JobsPage() {
   );
 }
 
-function JobsList({ token }) {
-  const { refresh, download, downloadingId } = useLibrary();
-  const { toast } = useToast();
-  const [state, setState] = useState({ items: [], nextCursor: null, loading: true, error: null, loaded: false });
+function JobsList() {
+  const { jobs: state, refreshJobs: load, download, downloadingId } = useLibrary();
   const [filter, setFilter] = useState('all');
-  const listController = useRef(null);
-
-  const load = useCallback(async (cursor = null) => {
-    listController.current?.abort();
-    const controller = new AbortController();
-    listController.current = controller;
-    setState((current) => ({ ...current, loading: true, error: null }));
-    try {
-      const data = await listImageJobs({ token, cursor, signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setState((current) => ({
-        items: cursor ? [...current.items, ...data.items.filter((job) => !current.items.some((item) => item.id === job.id))] : data.items ?? [],
-        nextCursor: data.nextCursor ?? null,
-        loading: false,
-        error: null,
-        loaded: true,
-      }));
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setState((current) => ({ ...current, loading: false, loaded: true, error: storageErrorMessage(error) }));
-    }
-  }, [token]);
-
-  useEffect(() => {
-    load();
-    return () => listController.current?.abort();
-  }, [load]);
-
-  // Consulta solo los trabajos activos, cuando el servidor lo indique (nextPollAfterMs).
-  const active = state.items.filter((job) => ACTIVE.has(job.status) && job.nextPollAfterMs != null);
-  const pollKey = JSON.stringify(active.map(({ id, nextPollAfterMs }) => ({ id, nextPollAfterMs })));
-  useEffect(() => {
-    const jobs = JSON.parse(pollKey);
-    if (!jobs.length) return undefined;
-    const controller = new AbortController();
-    const delay = Math.max(1000, Math.min(...jobs.map((job) => job.nextPollAfterMs)));
-    let timer;
-    async function poll() {
-      const request = new AbortController();
-      const timeout = setTimeout(() => request.abort(), 15_000);
-      const cancel = () => request.abort();
-      controller.signal.addEventListener('abort', cancel, { once: true });
-      const results = await Promise.allSettled(jobs.map((job) => getImageJob(job.id, { token, signal: request.signal })));
-      clearTimeout(timeout);
-      controller.signal.removeEventListener('abort', cancel);
-      if (controller.signal.aborted) return;
-      const updated = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
-      const failed = results.some((result) => result.status === 'rejected');
-      const newlyReady = updated.filter((job) => isReady(job));
-      setState((current) => ({ ...current,
-        error: failed ? 'No se pudo actualizar algún proceso. Volveremos a intentarlo automáticamente.' : null,
-        items: current.items.map((item) => updated.find((job) => job.id === item.id) ?? item),
-      }));
-      if (newlyReady.length) {
-        refresh();
-        toast({ type: 'success', title: newlyReady.length === 1 ? 'Imagen disponible' : `${newlyReady.length} imágenes disponibles`, message: newlyReady.map((job) => job.originalName).join(', ') });
-      }
-      // Repetir también si el servidor devuelve el mismo estado o falla temporalmente.
-      timer = setTimeout(poll, failed ? Math.max(delay, 5000) : delay);
-    }
-    timer = setTimeout(poll, delay);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [pollKey, token, refresh, toast]);
+  useEffect(() => { load(); }, [load]);
+  const active = state.items.filter((job) => ACTIVE.has(job.status));
 
   const counts = useMemo(() => Object.fromEntries(Object.entries(filters).map(([key, { test }]) => [key, state.items.filter(test).length])), [state.items]);
   const visible = state.items.filter(filters[filter].test);
@@ -151,7 +80,7 @@ function JobsList({ token }) {
         <div className="panel panel-empty">
           <Workflow strokeWidth={1.6} aria-hidden="true" className="panel-empty-icon" />
           <h2>No tienes procesos en segundo plano</h2>
-          <p>Por ahora las subidas se convierten al momento y aparecen directo en tu biblioteca. Cuando se active el procesamiento en segundo plano, verás aquí su avance.</p>
+          <p>Al subir una imagen verás aquí su conversión y publicación. Puedes seguir usando la aplicación mientras se procesa.</p>
           <Link className="btn btn-secondary" to="/app/upload"><CloudUpload strokeWidth={2} aria-hidden="true" />Subir imágenes</Link>
         </div>
       )}
@@ -191,7 +120,7 @@ function JobCard({ job, index, downloading, onDownload }) {
             {ACTIVE.has(job.status) && job.status !== 'converted' && <LoaderCircle className="spin" strokeWidth={2.2} aria-hidden="true" />}
             {failed && <AlertCircle strokeWidth={2.2} aria-hidden="true" />}
             {ready && <CheckCircle2 strokeWidth={2.2} aria-hidden="true" />}
-            {JOB_STATUS_LABELS[job.status] ?? job.status}
+            {jobStatusLabel(job)}
           </span>
         </div>
         <p className="job-meta">
@@ -204,10 +133,10 @@ function JobCard({ job, index, downloading, onDownload }) {
       {failed ? (
         <p className="job-error"><AlertCircle strokeWidth={2} aria-hidden="true" />{failureMessage(job)}</p>
       ) : (
-        <ol className="job-steps" aria-label={`Progreso: ${JOB_STATUS_LABELS[job.status] ?? job.status}`}>
+        <ol className="job-steps" aria-label={`Progreso: ${jobStatusLabel(job)}`}>
           {steps.map(({ status, label, icon: StepIcon }, stepIndex) => (
             <li key={status} className={stepIndex < current ? 'is-done' : stepIndex === current ? 'is-current' : undefined}>
-              <span><StepIcon strokeWidth={2} aria-hidden="true" /></span>{label}
+              <span><StepIcon strokeWidth={2} aria-hidden="true" /></span>{status === 'published' && job.status === 'published' && !ready ? 'Publicada' : label}
             </li>
           ))}
         </ol>
@@ -220,7 +149,10 @@ function JobCard({ job, index, downloading, onDownload }) {
           </button>
         ) : job.status === 'converted' ? (
           <span className="job-hint">La imagen está convertida y se está publicando; aún no está en tu biblioteca.</span>
+        ) : job.status === 'published' ? (
+          <span className="job-hint">La publicación terminó, pero esta imagen ya no está disponible en la biblioteca.</span>
         ) : null}
+        {job.pollError && <span className="job-hint" role="status">{job.pollError}</span>}
       </div>
     </li>
   );
