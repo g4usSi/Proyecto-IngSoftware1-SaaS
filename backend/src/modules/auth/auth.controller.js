@@ -25,5 +25,8 @@ export function createAuthController(service) {
     async resetPassword(req, res) {
       res.json({ data: await service.resetPassword(req.body) });
     },
+    async changePassword(req, res) {
+      res.json({ data: await service.changePassword(req.user, req.body) });
+    },
   };
 }
