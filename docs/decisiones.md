@@ -1,5 +1,9 @@
 # Decisiones de SmartStorage
 
+## Organización incorporada el 07/10/2026
+
+El trabajo local sobre `tema-y-flujo-git` añade una papelera manual como protección frente a borrados accidentales, a partir de la solicitud del usuario. Conserva la referencia y el espacio consumido hasta su eliminación definitiva; no reembolsa el consumo diario. Restaurar no crea una nueva subida. Eliminar un álbum conserva sus imágenes y deja sin álbum sus trabajos pendientes. No hay caducidad ni vaciado automático. Ver [contratos y traspaso](organizacion-frontend.md).
+
 Este archivo registra las aclaraciones directas del equipo del 21 y 23 de septiembre de 2026. Prevalecen sobre el contexto heredado de otra IA y los ejemplos del mockup. Los PDF originales no se han modificado.
 
 ## Base y alcance de esta entrega

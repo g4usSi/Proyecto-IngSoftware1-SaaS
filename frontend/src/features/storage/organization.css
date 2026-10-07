@@ -1,0 +1,19 @@
+.organization-toolbar { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; padding: 1.25rem; margin-bottom: 1.5rem; }
+.organization-field { display: grid; gap: .5rem; flex: 1; min-width: 0; font-size: .9rem; font-weight: 600; }
+.organization-field :is(input, select) { width: 100%; min-width: 0; padding: .7rem .85rem; border: 1px solid var(--app-border); border-radius: .6rem; color: var(--app-text); background: var(--app-surface); font: inherit; }
+.organization-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.file-organization-actions { display: flex; justify-content: flex-end; gap: .25rem; padding: 0 .7rem .5rem; }
+.action-dialog { width: min(30rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; margin: auto; border: 1px solid var(--app-border); border-radius: 1rem; padding: 1.5rem; color: var(--app-text); background: var(--app-surface); box-shadow: 0 1.5rem 5rem #0004; }
+.action-dialog::backdrop { background: #101a2a99; }
+.action-dialog h2 { font-size: 1.3rem; margin: 0 0 1rem; }
+.action-dialog p { margin-bottom: 1rem; line-height: 1.6; }
+.action-filename { overflow-wrap: anywhere; font-weight: 600; }
+.action-dialog-buttons { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .65rem; margin-top: 1.5rem; }
+.action-error { color: var(--app-danger); }
+.trash-list { display: grid; gap: .8rem; list-style: none; padding: 0; }
+.trash-item { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1.1rem; }
+.trash-file-icon { width: 2rem; flex-shrink: 0; }
+.trash-file-info { flex: 1; min-width: 10rem; overflow-wrap: anywhere; }
+.trash-file-info p { font-size: .8rem; color: var(--app-muted); margin: .3rem 0 0; }
+.list-view .list-actions { flex-wrap: wrap; }
+@media (max-width: 600px) { .trash-item .organization-buttons { width: 100%; } .organization-buttons .btn { flex: 1; } .organization-toolbar > .organization-field { flex-basis: 100%; } }

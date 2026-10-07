@@ -43,3 +43,9 @@ export function forgotPassword(email) {
 export function resetPassword({ token, password }) {
   return apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
 }
+
+export function changePassword({ currentPassword, newPassword }, { token, signal }) {
+  return apiRequest('/auth/change-password', {
+    method: 'POST', token, signal, body: { currentPassword, newPassword },
+  });
+}

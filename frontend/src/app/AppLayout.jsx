@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartNoAxesColumn, CloudUpload, HardDrive, History, House, Images, Menu, Moon, Sun, Workflow, X } from 'lucide-react';
+import { ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, Menu, Moon, Sun, Trash2, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
@@ -8,7 +8,6 @@ import { useSession } from '../features/auth/session.jsx';
 import { LibraryProvider, useLibrary } from '../features/storage/library.jsx';
 import { formatBytes } from '../features/storage/format.js';
 import { SessionRequired } from '../features/auth/SessionRequired.jsx';
-import { FREE_CAPACITY_BYTES } from '../features/subscriptions/plans.data.js';
 import { AccountMenu } from './AccountMenu.jsx';
 import { useTheme } from './theme.jsx';
 
@@ -18,15 +17,17 @@ export const navGroups = [
     items: [
       { to: '/app', end: true, label: 'Resumen', icon: House },
       { to: '/app/storage', label: 'Mis imágenes', icon: Images, count: true },
+      { to: '/app/albums', label: 'Álbumes', icon: FolderOpen },
       { to: '/app/upload', label: 'Subir', icon: CloudUpload, activity: true },
       { to: '/app/history', label: 'Historial', icon: History },
       { to: '/app/jobs', label: 'Procesos', icon: Workflow },
+      { to: '/app/trash', label: 'Papelera', icon: Trash2 },
     ],
   },
   { label: 'Análisis', items: [{ to: '/app/insights', label: 'Ahorro', icon: ChartNoAxesColumn }] },
 ];
 // Planes no va en la barra lateral: se abre desde "Mejorar plan" en el menú de la cuenta.
-const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))), '/app/plans': 'Mejorar plan' };
+const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))), '/app/plans': 'Mejorar plan', '/app/security': 'Cambiar contraseña' };
 
 export function AppLayout() {
   const { session } = useSession();
@@ -47,7 +48,7 @@ function Shell() {
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
   const { enabled, addFiles, error, items, unavailableItems, refresh } = useLibrary();
-  const showLibraryNotice = !['/app/storage', '/app/plans', '/app/jobs', '/app/upload'].includes(pathname);
+  const showLibraryNotice = ['/app', '/app/history', '/app/insights'].includes(pathname);
   const [drawer, setDrawer] = useState(false);
   const [pageDrag, setPageDrag] = useState(false);
 
@@ -152,7 +153,7 @@ function Shell() {
 
 function SidebarNav() {
   const { enabled, loaded, items, nextCursor, queue } = useLibrary();
-  const uploading = queue.filter((item) => item.status === 'queued' || item.status === 'uploading').length;
+  const uploading = queue.filter((item) => ['waiting', 'uploading', 'unknown', 'queued', 'processing', 'converted'].includes(item.status)).length;
 
   return (
     <nav className="app-nav" aria-label="Secciones">
@@ -176,11 +177,15 @@ function SidebarNav() {
 /** Solo informa el uso; la mejora de plan está en el menú de la cuenta. */
 function UsageCard() {
   const { session } = useSession();
-  const { enabled, stats } = useLibrary();
+  const { enabled, quota, refreshQuota } = useLibrary();
   if (!session || !enabled) return null;
   // La capacidad del plan se mide con el tamaño original de cada subida.
-  const ratio = Math.min(1, stats.quotaBytes / FREE_CAPACITY_BYTES);
-  const known = stats.loaded;
+  const data = quota?.data;
+  const known = Boolean(data) && !quota.error;
+  const used = Number(data?.usedBytes ?? 0);
+  const reserved = Number(data?.reservedBytes ?? 0);
+  const capacity = Number(data?.capacityBytes ?? 0);
+  const ratio = capacity > 0 ? Math.min(1, (used + reserved) / capacity) : 0;
 
   return (
     <div className="usage-card">
@@ -192,8 +197,9 @@ function UsageCard() {
         <i style={{ transform: `scaleX(${known ? Math.max(ratio, 0.012) : 0})` }} />
       </div>
       <p className="usage-text">
-        {known ? <><strong>{stats.complete ? '' : 'Al menos '}{formatBytes(stats.quotaBytes)}</strong> de 2 GB · Plan Free</> : 'Calculando…'}
+        {known ? <><strong>{formatBytes(used)}</strong> de {formatBytes(capacity)} · {data.plan.name}{reserved > 0 && <><br />{formatBytes(reserved)} reservados</>}</> : quota?.error ? 'Cuota no disponible' : 'Consultando cuota…'}
       </p>
+      {quota?.error && <button type="button" className="link-button" onClick={refreshQuota}>Reintentar cuota</button>}
     </div>
   );
 }

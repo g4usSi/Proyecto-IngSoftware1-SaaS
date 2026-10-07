@@ -1,117 +1,110 @@
-# Alegría: contratos nuevos y trabajo pendiente del frontend
+# Alegría: contratos actuales y tareas pendientes
 
-Actualizado el **07/10/2026** para `tema-y-flujo-git`. Esta entrega modifica backend, pruebas y documentación. El producto frontend se conserva.
+Actualizado el **07/10/2026** para la rama `tema-y-flujo-git`. Esta guía reemplaza la lista anterior: la integración funcional de subidas, cuotas, álbumes, papelera y contraseña ya está implementada. Alegría continúa el acabado visual y la revisión de la interfaz, sin rehacer esos flujos. No se modifican responsables, fechas ni estados de Trello/Excel con este documento.
 
-Se retiraron las tareas ya entregadas de registro/login, verificación/reenvío, recuperación, protección de rutas, recepción global de archivos, galería y consulta de procesos. El trabajo pendiente es conectar **admisión asíncrona, cuotas reales y borrado**.
+## Preparar el proyecto
 
-## Preparación
+Seguir el [arranque del README](../README.md#arranque-rápido): instalar desde la raíz, configurar `backend/.env`, levantar PostgreSQL/Redis y ejecutar `npm run db:migrate` con API/worker detenidos. Debe estar aplicada `007_albums_and_trash.sql`.
 
-Traer `tema-y-flujo-git` a la rama de frontend. Desde la raíz:
+Mantener **dos terminales** desde la raíz: `npm run dev` y `npm run worker:images`. Comparten `backend/.env`, PostgreSQL y `STORAGE_ROOT`. `npm run dev` por sí solo no procesa las subidas. La verificación de correo es obligatoria para el login; sin SMTP en desarrollo, el enlace se imprime en la terminal de la API.
 
-```powershell
-npm ci
-docker compose --profile worker up -d postgres redis
-npm run db:migrate
-npm run dev
-# Otra terminal, mismo backend/.env y STORAGE_ROOT:
-npm run worker:images
-```
+## Base ya implementada
 
-Las migraciones se aplican con API/workers detenidos, antes de arrancar la nueva versión. Las dependencias siguen instalándose con `npm ci`. Credenciales SMTP, PostgreSQL y JWT permanecen sólo en backend/.env.
-
-## 1. Cambiar la admisión de subidas a trabajos
-
-| Contrato | Detalle |
+| Flujo | Archivos principales en `frontend/src/` |
 | --- | --- |
-| `POST /api/jobs` | Bearer JWT; `multipart/form-data`, un archivo `file`, `folderId` opcional. |
-| `Idempotency-Key` | Cabecera opcional con UUID. Crear una clave por intento lógico y conservarla al repetir una petición cuyo resultado se perdió. Mismos archivo/nombre/carpeta y clave devuelven el mismo trabajo; otros datos: `409 IDEMPOTENCY_CONFLICT`. |
-| Respuesta | `202`, `{ data: job }`; `Location: /api/jobs/:jobId`. El formato de job coincide con GET. |
-| `GET /api/jobs/:jobId` | Consultar el UUID recibido, respetando `nextPollAfterMs`. |
-| `GET /api/jobs` | Recuperar procesos al volver a la vista; paginación existente. |
+| Registro, login, verificación/reenvío, recuperación, rutas protegidas y logout | `features/auth/`, `app/App.jsx` |
+| Subidas asíncronas, reintentos con UUID estable y seguimiento durante la sesión | `features/storage/library.jsx`, `jobs.api.js`, `UploadDropzone.jsx`, `JobsPage.jsx` |
+| Cuota global, reservas y límites diarios reales | `features/storage/QuotaSummary.jsx`, `quota.css`, `app/AppLayout.jsx` |
+| Crear/renombrar/eliminar álbumes y mover imágenes | `features/storage/AlbumsPage.jsx`, `FileActions.jsx`, `Gallery.jsx`, `storage.api.js` |
+| Enviar a papelera, restaurar y eliminar definitivamente con confirmación | `features/storage/TrashPage.jsx`, `FileActions.jsx`, `components/ActionDialog.jsx` |
+| Cambiar contraseña dentro de la sesión | `features/auth/ChangePasswordPage.jsx`, `security.css`, `app/AccountMenu.jsx` |
 
-`202` acredita admisión y reserva. El archivo estará disponible cuando el estado sea `published`, `available=true` e `imageId` esté presente. Un envío perdido a Redis también conserva el trabajo admitido; el worker lo recupera. Evitar repetir la carga con una clave distinta por un fallo de red.
+Las correcciones de Andy `96f743e` y `69c7486` están incorporadas mediante el merge `f31d233`. Los componentes nuevos tienen estilos básicos compatibles con el tema actual, preparados para que Alegría los ajuste.
 
-Ejemplo de cliente a agregar en jobs.api.js, reutilizando apiRequest:
+## Tareas pendientes de Alegría
 
-```js
-export async function submitImageJob(file, { token, idempotencyKey, folderId, signal }) {
-  const body = new FormData();
-  body.set('file', file, file.name);
-  if (folderId) body.set('folderId', folderId);
-  return apiRequest('/jobs', {
-    method: 'POST', token, body, signal,
-    headers: { 'Idempotency-Key': idempotencyKey },
-  });
-}
-```
+| Trabajo por implementar o revisar | Resultado esperado |
+| --- | --- |
+| **Acabado visual de álbumes y papelera** | Ajustar tarjetas, distribución, espaciado, iconos y jerarquía de acciones en `organization.css`, `AlbumsPage.jsx`, `TrashPage.jsx` y `FileActions.jsx`; conservar las operaciones reales y distinguir borrar álbum de borrar imagen. |
+| **Acabado visual de subidas, procesos y cuotas** | Unificar etiquetas de estado, carga, errores y reservas con su diseño. Mantener visible cuándo una imagen sigue en proceso, cuándo puede descargarse y cuándo la admisión no pudo confirmarse. |
+| **Integración visual de seguridad y confirmaciones** | Revisar el formulario de cambio de contraseña y los diálogos con el resto de la cuenta: foco, teclado, mensajes, botones y tema claro/oscuro. La confirmación del borrado definitivo debe permanecer. |
+| **Revisión final tras sus ajustes** | Recorrer escritorio/móvil, nombres largos, estados vacíos y errores; comprobar navegación por teclado, contraste y ausencia de desbordamientos. Ejecutar las comprobaciones de abajo y registrar la revisión del compañero para S3-11. |
 
-Cambios pendientes en la cola de library.jsx:
+La base funcional de S3-09/S3-10 ya está conectada. Estas tareas corresponden a la presentación y revisión que quedaron a cargo de Alegría; no significan que falten los endpoints o sus clientes. La evidencia automatizada existente no sustituye su revisión del diseño ni la entrega académica.
 
-- Registrar el jobId de la respuesta y representar en cola/procesando/publicando sin agregar una imagen ficticia a la galería.
-- Mantener la clave de idempotencia y el UUID al consultar o repetir la misma petición.
-- Reutilizar el polling cancelable ya entregado en JobsPage; detenerlo en `published`/`failed`.
-- Al publicarse, refrescar galería y cuotas. Descargar mediante `/api/files/:imageId/download` con JWT.
-- Actualizar el texto de galería vacía de JobsPage que todavía indica que el procesamiento en segundo plano no está activo.
-- Un reintento voluntario de un trabajo `failed` crea una clave nueva y una admisión nueva. El backend ya agotó sus reintentos automáticos.
+## Contratos que debe conservar
 
-El endpoint síncrono `POST /api/files` sigue disponible para compatibilidad y comparte todas las cuotas. La UI debe usar un solo endpoint por entrada de la cola.
+Base `/api`. Rutas privadas con `Authorization: Bearer <token>`. Éxito JSON `{ data: ... }`; error `{ error: { code, message } }`. `apiRequest()` ya devuelve el contenido de `data`: reutilizar `services/api.js`, `storage.api.js`, `jobs.api.js` y `auth.api.js`.
 
-Errores inmediatos: `401` sesión inválida; `403 ACCOUNT_DISABLED`, `NO_ACTIVE_SUBSCRIPTION` o `CAPACITY_EXCEEDED`; `429 DAILY_UPLOAD_LIMIT_EXCEEDED` o `DAILY_BYTES_LIMIT_EXCEEDED`; `400` multipart/UUID/tamaño vacío inválidos; `413 FILE_TOO_LARGE`; `409 IDEMPOTENCY_CONFLICT`. El contenido de imagen lo valida el worker: puede terminar `failed` con `INVALID_IMAGE`, `UNSUPPORTED_IMAGE`, `ANIMATED_IMAGE_NOT_SUPPORTED`, `IMAGE_DIMENSIONS_EXCEEDED`, `JOB_EXPIRED` u otros códigos seguros. Un `errorCode` en estado `queued` puede ser transitorio.
+### Subida y procesos
 
-## 2. Mostrar cuotas del servidor
+| Ruta | Entrada / respuesta |
+| --- | --- |
+| `POST /api/jobs` | `multipart/form-data`: un archivo `file`, `folderId` opcional. Cabecera `Idempotency-Key: UUID`. Responde `202 { data: job }` y `Location: /api/jobs/:id`. |
+| `GET /api/jobs/:id` | Estado de un trabajo propio, con `id`, `status`, `available`, `imageId`, `downloadUrl`, `errorCode`, `nextPollAfterMs`, intentos y fechas. |
+| `GET /api/jobs?limit=20&cursor=...` | `{ items: job[], nextCursor }`; omitir cursor en la primera página. |
+| `GET /api/files/:id/download` | WebP privado; usar el ID de imagen, no el ID del trabajo. |
 
-Nuevo **`GET /api/quotas/me`**, JWT obligatorio:
+Estados: `queued → processing → converted → published`, o `failed`. **`202` sólo confirma admisión/reserva; `converted` todavía no habilita la descarga.** Mostrar una imagen disponible únicamente con `status === 'published' && available && imageId`.
 
-```json
-{
-  "data": {
-    "plan": { "code": "free", "name": "Free" },
-    "capacityBytes": "2000000000",
-    "usedBytes": "100000",
-    "reservedBytes": "200000",
-    "availableBytes": "1999700000",
-    "daily": {
-      "date": "2026-10-07",
-      "uploadLimit": 10,
-      "uploadsUsed": "1",
-      "uploadsReserved": "1",
-      "bytesLimit": "200000000",
-      "bytesUsed": "100000",
-      "bytesReserved": "200000"
-    }
-  }
-}
-```
+La cola del frontend ya admite hasta tres envíos simultáneos y consulta los estados en `LibraryProvider`; `JobsPage` consume ese estado compartido. Conservar `nextPollAfterMs`, reintentos ante fallos temporales y cancelación al cerrar sesión. Cambiar de sección no debe interrumpir los procesos de la sesión. Tras recargar hay que iniciar sesión otra vez; los trabajos admitidos se consultan en el servidor.
 
-Bytes y contadores consumidos viajan como strings decimales; límites diarios pueden ser `null` para ilimitado. `usedBytes` incluye todas las referencias propias, también aquellas cuyo archivo físico falta. `reservedBytes` incluye trabajos pendientes de todos los días. Los contadores diarios usan el día de **admisión en America/Guatemala**; confirmar después de medianoche conserva ese día.
+Si se pierde la respuesta de admisión, consultar el mismo UUID y conservarlo al repetir el envío. Mismos archivo/nombre/álbum y clave recuperan el mismo trabajo; otros datos responden `409 IDEMPOTENCY_CONFLICT`. Un trabajo definitivamente fallido puede volver a subirse voluntariamente con una clave nueva. `POST /api/files` síncrono queda para compatibilidad; la cola web usa únicamente `/api/jobs`.
 
-Agregar una función de consulta autorizada y usarla en la tarjeta de almacenamiento, indicadores y límite de subidas. La galería paginada sirve para ahorro de los archivos cargados; su subtotal no representa la cuota completa. Refrescar cuotas al admitir, publicar, fallar/liberar o borrar; cancelar las consultas al cerrar sesión.
+### Cuotas
 
-## 3. Agregar borrado de imagen propia
+`GET /api/quotas/me` devuelve:
 
-**`DELETE /api/files/:fileId`**, JWT. Respuesta `200`:
+| Campo | Significado |
+| --- | --- |
+| `plan.code`, `plan.name`, `capacityBytes` | Plan activo y capacidad. |
+| `usedBytes`, `reservedBytes`, `availableBytes` | Espacio utilizado, reservado para procesos y disponible. |
+| `daily.date`, `daily.uploadLimit`, `daily.bytesLimit` | Día de Guatemala y límites diarios; los límites pueden ser `null` (ilimitado). |
+| `daily.uploadsUsed`, `daily.uploadsReserved`, `daily.bytesUsed`, `daily.bytesReserved` | Consumo confirmado y pendiente del día de admisión. |
 
-```json
-{ "data": { "deleted": true, "imageId": "UUID" } }
-```
+Los bytes y contadores de consumo viajan como strings decimales. La cuota se consulta al servidor y no se calcula con la página de la galería. Refrescar al admitir, publicar, fallar, restaurar o borrar. La papelera conserva capacidad; eliminar definitivamente libera espacio **sin devolver consumo diario**. Si falla la consulta, mostrar el error o indicar que se conservan los últimos valores conocidos; no aparentar cuota cero.
 
-- Agregar la función autorizada y el control con confirmación antes de borrar.
-- Tras éxito, retirar la referencia de galería/caché de miniaturas y refrescar cuotas.
-- Recurso ajeno, inexistente o borrado anteriormente: `404 FILE_NOT_FOUND`.
-- Borrar libera capacidad; el consumo diario queda registrado. El servidor conserva el archivo mientras otras referencias lo utilicen.
-- Un proceso publicado cuya imagen se borró conserva `status: published`, pero devuelve `available=false`, `imageId=null` y `downloadUrl=null`; ocultar su descarga.
+### Álbumes, movimiento y papelera
 
-## Comprobación incremental de la UI
+| Ruta | Entrada / respuesta dentro de `data` |
+| --- | --- |
+| `GET /api/albums` | `{ items: [{ id, name, createdAt, imageCount }] }`; contador de imágenes activas como string. |
+| `POST /api/albums` | `{ name }` → `201 { album }`. |
+| `PATCH /api/albums/:id` | `{ name }` → `{ album }`. |
+| `DELETE /api/albums/:id` | `{ deleted: true, albumId }`; conserva imágenes y deja sin álbum los procesos pendientes. |
+| `PATCH /api/files/:id` | `{ folderId: UUID o null }` → `{ imageId, folderId }`; `null` significa sin álbum. |
+| `GET /api/files` | `{ items, unavailableItems, nextCursor }`; admite `limit`, `cursor`, `folderId=UUID` o `folderId=none`, y `trash=true` o `false`. Por defecto sólo imágenes activas. |
+| `POST /api/files/:id/trash` | `{ trashed: true, imageId, deletedAt }`. |
+| `POST /api/files/:id/restore` | `{ restored: true, imageId }`. |
+| `DELETE /api/files/:id` | `{ deleted: true, imageId }`; borrado definitivo. La UI lo ofrece desde Papelera con confirmación. |
 
-1. Subir dos imágenes y observar los UUID reales hasta publicación y descarga.
-2. Repetir una petición con la misma clave: un trabajo y un consumo. Cambiar el contenido con esa clave: 409.
-3. Consumir el último cupo; otra admisión se rechaza y el indicador incluye pendientes.
-4. Borrar una imagen: baja la capacidad utilizada y se conserva el contador diario.
-5. Cerrar sesión durante polling: cancelar solicitudes y aplicar el acceso protegido existente.
-6. Probar fallos de worker/Redis, recarga de vista y archivo inválido sin duplicar admisiones.
+Los DTO de imagen incluyen `folderId` y `deletedAt`. En álbumes, nombres de 1–120 caracteres tras recortar espacios; duplicados responden `409 ALBUM_NAME_CONFLICT`. Mover a un álbum ajeno/inexistente responde `404 FOLDER_NOT_FOUND`; actuar sobre un álbum ajeno/inexistente, `404 ALBUM_NOT_FOUND`. Filtrar por uno de esos álbumes devuelve una colección vacía sin revelar su existencia.
 
-## Alcance restante
+Conservar estas reglas al cambiar el diseño:
 
-Álbumes/mover imágenes, pagos y `GET /api/subscriptions/me` siguen pendientes; este último conserva `501`. La consulta de cuotas ya entrega el plan activo. Las correcciones posteriores de Andy en su rama de cuentas no se incorporan por esta integración de cuotas: evaluar ese pull por separado. No exponer operaciones internas reserve/confirm/release al navegador.
+- Retirar imágenes y caché sólo tras una operación exitosa; ante fallo conservarlas y mostrar el error.
+- En papelera no se puede descargar ni mover (`409 FILE_IN_TRASH` al mover); restaurar recupera el álbum si aún existe. No hay caducidad ni vaciado automático.
+- El proceso de una imagen en papelera conserva `published` e `imageId`, pero tiene `available=false` y `downloadUrl=null`. Después del borrado definitivo, también queda `imageId=null`. Ocultar la descarga en ambos casos.
+- Eliminar un álbum conserva sus imágenes, incluidas las de papelera. Eliminar una imagen no afecta las referencias de otras cuentas al mismo objeto físico.
 
-Referencias: [API](api.md), [OpenAPI de trabajos](contracts/jobs.openapi.json), [cuotas](cuotas-asincronas.md), [operación del worker](worker-cuotas.md).
+### Cambio de contraseña y errores comunes
+
+`POST /api/auth/change-password`, JWT y JSON `{ currentPassword, newPassword }` → `200 { data: { changed: true } }`. La confirmación sólo se valida en la interfaz. Contraseña actual incorrecta: **`400 INVALID_CURRENT_PASSWORD`**, conservando la sesión. Tras éxito limpiar los campos; las sesiones existentes continúan abiertas según el contrato de Andy. Detalle en [autenticación](auth-frontend.md).
+
+Mantener el manejo común de `401` (limpiar sesión), `403` (cuenta/plan/capacidad), `429` (límite diario o intentos), `413 FILE_TOO_LARGE` y `404` (recurso no disponible). No confundir `failed` del worker con un fallo temporal al consultar su estado ni mostrar detalles internos del servidor.
+
+## Comprobar antes de entregar sus ajustes
+
+1. Registro/verificación → login → subida → proceso → galería y descarga. Repetir una admisión incierta con el mismo UUID, sin duplicarla.
+2. Crear/renombrar álbum → mover imagen → enviar a papelera → restaurar → borrar álbum conservando su contenido → purgar con confirmación.
+3. Verificar cuotas antes/después, rechazo por límite, recursos ajenos y persistencia de imágenes de la segunda cuenta.
+4. Cambiar contraseña; probar errores y confirmación. Cerrar sesión durante consultas y volver a entrar tras recarga.
+5. Repetir los controles principales en móvil y tema oscuro; ejecutar `npm run check`, `npm run test:frontend` y `npm run test:organization-browser`. Para backend completo, seguir [las pruebas con Redis del README](../README.md#comandos-del-equipo).
+
+Evidencia de la implementación previa: **123/123 backend con PostgreSQL/Redis, frontend aprobado y 11/11 recorridos Edge**; no se reejecutó por esta actualización documental. Ver [resultado y alcance de la verificación](organizacion-frontend.md#verificación-realizada).
+
+## Fuera de esta entrega
+
+Pagos y `GET /api/subscriptions/me` continúan pendientes (este último responde `501`). El plan activo ya está disponible en `/api/quotas/me`. No habilitar contratación ni presentar un backend inexistente como operativo. Retención automática, vaciado masivo de papelera y otras ampliaciones requieren acordar alcance; no son tareas pendientes de esta tarjeta.
+
+Referencias: [API](api.md), [OpenAPI de trabajos/cuotas](contracts/jobs.openapi.json), [cuotas](cuotas-asincronas.md), [worker](worker-cuotas.md) y [organización/verificaciones](organizacion-frontend.md).
