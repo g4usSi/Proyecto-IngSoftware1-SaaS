@@ -272,7 +272,7 @@ try {
     assert.equal((await moved).status(), 200);
     await pageA.getByRole('dialog').waitFor({ state: 'hidden' });
     await navigate(pageA, /^Álbumes$/);
-    await pageA.getByLabel('Álbum', { exact: true }).selectOption(albumId);
+    await pageA.getByRole('button', { name: 'Abrir Vacaciones', exact: true }).click();
     await pageA.getByRole('heading', { name: 'Vacaciones', exact: true }).waitFor();
     await pageA.getByRole('button', { name: `Ver ${shared.name}`, exact: true }).waitFor();
     assert.equal((await apiData(`/files?folderId=${albumId}`, sessionA.token)).items[0].id, imageA.id);
@@ -316,7 +316,7 @@ try {
 
   await step('Eliminar álbum conserva las imágenes y las deja sin álbum', async () => {
     await navigate(pageA, /^Álbumes$/);
-    await pageA.getByLabel('Álbum', { exact: true }).selectOption(albumId);
+    await pageA.getByRole('button', { name: 'Abrir Viajes', exact: true }).click();
     await pageA.getByRole('button', { name: 'Eliminar álbum', exact: true }).click();
     const removed = responseFor(pageA, `/albums/${albumId}`, 'DELETE');
     await pageA.getByRole('dialog').getByRole('button', { name: 'Eliminar álbum', exact: true }).click();

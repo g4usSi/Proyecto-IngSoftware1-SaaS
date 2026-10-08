@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Eye, ImageOff, LayoutGrid, List, LoaderCircle, RefreshCw, Search, SearchX } from 'lucide-react';
+import { Download, Eye, FolderInput, ImageOff, LayoutGrid, List, LoaderCircle, RefreshCw, Search, SearchX, Trash2 } from 'lucide-react';
 import { formatBytes, formatFullDate, formatPercent, formatRelative, savingRatio } from './format.js';
 import { useLibrary } from './library.jsx';
 import { ImagePreview } from './ImagePreview.jsx';
 import { FileActions } from './FileActions.jsx';
+import { ContextMenu, dragImage } from './ContextMenu.jsx';
+import './organization.css';
 
 const sorters = {
   recent: { label: 'Más recientes', fn: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
@@ -61,6 +63,13 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
   const [sort, setSort] = useState('recent');
   const [view, setView] = useState('grid');
   const [previewId, setPreviewId] = useState(null);
+  const [menu, setMenu] = useState(null);
+  const [fileAction, setFileAction] = useState(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  function context(event, file) {
+    event.preventDefault(); event.stopPropagation();
+    setMenu({ file, position: { x: event.clientX, y: event.clientY } });
+  }
 
   const visible = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('es');
@@ -118,6 +127,7 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
           <p>No encontramos estas imágenes guardadas. Solicita su restauración para volver a verlas y descargarlas. El ahorro mostrado corresponde solo a los archivos disponibles.</p>
           <ul>{unavailableItems.map((file) => <li key={file.id}>{file.originalName}<FileActions file={file} onChanged={changed} /></li>)}</ul>
           <button type="button" className="btn btn-secondary" onClick={refresh} disabled={loading}>Comprobar de nuevo</button>
+          <button type="button" className="link-button" onClick={() => navigate('/app/jobs?filter=unavailable')}>Revisar en Procesos</button>
         </div>
       )}
 
@@ -141,7 +151,7 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
       {visible.length > 0 && view === 'grid' && (
         <ul className="grid-view">
           {visible.map((file, index) => (
-            <li className="img-card" key={file.id} style={{ '--i': Math.min(index, 12) }}>
+            <li className="img-card" key={file.id} style={{ '--i': Math.min(index, 12) }} draggable onDragStart={(event) => dragImage(event, file)} onContextMenu={(event) => context(event, file)}>
               <button type="button" className="img-card-media" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`}>
                 <Thumb file={file} className="is-card" />
                 <SavingBadge file={file} />
@@ -168,7 +178,7 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
             <span role="columnheader">Imagen</span><span role="columnheader">Original</span><span role="columnheader">WebP</span><span role="columnheader">Ahorro</span><span role="columnheader"><span className="sr-only">Acciones</span></span>
           </div>
           {visible.map((file, index) => (
-            <div className="list-row" role="row" key={file.id} style={{ '--i': Math.min(index, 12) }}>
+            <div className="list-row" role="row" key={file.id} style={{ '--i': Math.min(index, 12) }} draggable onDragStart={(event) => dragImage(event, file)} onContextMenu={(event) => context(event, file)}>
               <span role="cell" className="list-name">
                 <button type="button" className="list-thumb" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`}><Thumb file={file} className="is-small" /></button>
                 <span><strong title={file.originalName}>{file.originalName}</strong><time dateTime={file.createdAt}>{formatFullDate(file.createdAt)}</time></span>
@@ -196,6 +206,12 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
         </div>
       )}
 
+      {menu && <ContextMenu position={menu.position} onClose={closeMenu} items={[
+        { label: 'Ver imagen', icon: Eye, run: () => setPreviewId(menu.file.id) },
+        { label: 'Mover a un álbum', icon: FolderInput, run: () => setFileAction({ file: menu.file, action: 'move' }) },
+        { label: 'Enviar a la papelera', icon: Trash2, danger: true, run: () => setFileAction({ file: menu.file, action: 'trash' }) },
+      ]} />}
+      {fileAction && <FileActions file={fileAction.file} initialAction={fileAction.action} onChanged={changed} onDismiss={() => setFileAction(null)} />}
       {previewIndex >= 0 && (
         <ImagePreview
           file={visible[previewIndex]}
