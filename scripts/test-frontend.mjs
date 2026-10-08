@@ -16,7 +16,7 @@ let browser;
 try {
   await web.listen();
   const base = `http://127.0.0.1:${web.httpServer.address().port}`;
-  browser = await chromium.launch({ headless: true,
+  browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ['--hide-scrollbars'],
     channel: process.env.E2E_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined) });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(10_000);
@@ -29,6 +29,9 @@ try {
   const missing = { id: 'missing-file', originalName: 'ausente.png', originalSizeBytes: '500', createdAt: date, status: 'unavailable' };
   let uploads = 0;
   let files = [];
+  const albums = [];
+  let moveFails = false;
+  let auditFiles = false;
   let loginError;
   let expired = false;
   let details = 0;
@@ -59,7 +62,22 @@ try {
     if (url.pathname.endsWith('/reset-password')) return ok({ reset: true });
     if (url.pathname.endsWith('/download')) return route.fulfill({ status: 200, contentType: 'image/webp', body: webp });
     if (url.pathname === '/api/files' && request.method() === 'POST') throw new Error('La interfaz debe admitir subidas mediante POST /jobs.');
-    if (url.pathname === '/api/files') return expired ? fail('TOKEN_EXPIRED', 401) : ok({ items: files, unavailableItems: [missing], nextCursor: null });
+    if (url.pathname === '/api/albums') {
+      if (request.method() === 'POST') { const album = { id: `album-${albums.length}`, name: request.postDataJSON().name, imageCount: '0' }; albums.push(album); return ok({ album }, 201); }
+      return ok({ items: albums.map((album) => ({ ...album, imageCount: String(files.filter((file) => file.folderId === album.id).length) })) });
+    }
+    if (url.pathname.startsWith('/api/files/') && request.method() === 'PATCH') {
+      if (moveFails) return fail('TEMPORARY_ERROR', 503, 'No se pudo mover la imagen.');
+      const file = files.find((file) => url.pathname.endsWith(`/${file.id}`));
+      file.folderId = request.postDataJSON().folderId;
+      return ok({ imageId: file.id, folderId: file.folderId });
+    }
+    if (url.pathname === '/api/files') {
+      if (expired) return fail('TOKEN_EXPIRED', 401);
+      const folder = url.searchParams.get('folderId');
+      if (auditFiles && url.searchParams.has('cursor')) return ok({ items: [], unavailableItems: [{ ...missing, id: 'older-missing', originalName: 'antigua-ausente.png' }], nextCursor: null });
+      return ok({ items: folder ? files.filter((file) => (file.folderId ?? 'none') === folder) : files, unavailableItems: folder ? [] : [missing], nextCursor: auditFiles && !folder ? 'older' : null });
+    }
     if (url.pathname === '/api/quotas/me') {
       quotaRequests++;
       if (quotaFails) return fail('TEMPORARY_ERROR', 503, 'No se pudo consultar la cuota.');
@@ -81,7 +99,10 @@ try {
       }
       return ok(admitted.get(id), 202);
     }
-    if (url.pathname === '/api/jobs') return ok({ items: [...admitted.values(), job], nextCursor: null });
+    if (url.pathname === '/api/jobs') return ok({ items: [...admitted.values(), job, ...(auditFiles ? [
+      { ...job, id: 'failed-job', originalName: 'invalida.png', status: 'failed', errorCode: 'INVALID_IMAGE', available: false, imageId: null, nextPollAfterMs: null },
+      { ...job, id: 'missing-job', originalName: missing.originalName, status: 'published', available: true, imageId: missing.id, nextPollAfterMs: null },
+    ] : [])], nextCursor: null });
     if (url.pathname.startsWith('/api/jobs/')) {
       const stored = admitted.get(url.pathname.split('/').pop());
       if (stored) {
@@ -104,7 +125,10 @@ try {
     }
     return ok({ status: 'ok' });
   });
-  async function step(name, run) { await run(); console.log(`OK: ${name}`); }
+  async function step(name, run) {
+    try { await run(); console.log(`OK: ${name}`); }
+    catch (error) { await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true }); throw error; }
+  }
   async function screenshot(name, fullPage = false) {
     await page.screenshot({ path: path.join(output, name), fullPage, animations: 'disabled' });
   }
@@ -271,6 +295,72 @@ try {
     const before = details;
     await page.waitForTimeout(1500);
     assert.ok(details > before);
+  });
+  await step('Procesos reúne archivos ausentes paginados, evita duplicados y distingue fallos', async () => {
+    auditFiles = true;
+    await page.getByRole('link', { name: 'Procesos', exact: true }).click();
+    await page.getByRole('button', { name: /No disponibles/ }).click();
+    await page.waitForURL('**/app/jobs?filter=unavailable');
+    await page.locator('.segmented button[aria-pressed="true"]').filter({ hasText: 'No disponibles' }).waitFor();
+    await page.getByText('antigua-ausente.png', { exact: true }).waitFor();
+    assert.equal(await page.locator('.job-card').count(), 2);
+    assert.equal(await page.locator('.job-card').filter({ hasText: 'ausente.png' }).count(), 2);
+    assert.equal(await page.getByRole('button', { name: 'Descargar WebP', exact: true }).count(), 0);
+    await screenshot('process-unavailable.png', true);
+    await page.getByRole('button', { name: /Con error/ }).click();
+    await page.waitForURL('**/app/jobs?filter=failed');
+    await page.getByText('El contenido del archivo no es una imagen válida.', { exact: true }).waitFor();
+    assert.equal(await page.locator('.job-card').count(), 1);
+    await page.setViewportSize({ width: 375, height: 812 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await screenshot('process-mobile.png', true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    auditFiles = false;
+  });
+  await step('Álbumes: crear con clic derecho, mover con menú y arrastrar sin duplicar', async () => {
+    await page.getByRole('link', { name: 'Álbumes', exact: true }).click();
+    await page.locator('.album-section-head').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Crear álbum' }).click();
+    await page.getByLabel('Nombre del álbum').fill('Viajes');
+    await page.getByRole('button', { name: 'Guardar álbum' }).click();
+    await page.getByRole('button', { name: 'Abrir Viajes' }).waitFor();
+    await page.getByRole('button', { name: 'Abrir Sin álbum' }).click();
+    const name = files[0].originalName;
+    const card = page.locator('.img-card').filter({ has: page.getByRole('heading', { name, exact: true }) });
+    await card.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Mover a un álbum' }).click();
+    await page.getByLabel('Álbum de destino').selectOption(albums[0].id);
+    moveFails = true;
+    await page.getByRole('button', { name: 'Mover', exact: true }).click();
+    await page.getByRole('dialog').getByRole('alert').waitFor();
+    assert.equal(files[0].folderId ?? null, null);
+    assert.equal(await card.count(), 1);
+    moveFails = false;
+    await page.getByRole('button', { name: 'Mover', exact: true }).click();
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await card.waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: 'Abrir Viajes' }).click();
+    await card.waitFor();
+    await card.dragTo(page.getByRole('button', { name: 'Abrir Sin álbum' }));
+    await card.waitFor({ state: 'hidden' });
+    assert.equal(files[0].folderId, null);
+    assert.equal(files.length, 7);
+    await page.getByRole('button', { name: 'Abrir Sin álbum' }).click();
+    await card.waitFor();
+    await page.getByRole('button', { name: 'Acciones de Viajes' }).click();
+    await page.keyboard.press('End');
+    assert.equal(await page.getByRole('menuitem', { name: 'Eliminar álbum' }).evaluate((node) => node === document.activeElement), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.getByRole('menu').count(), 0);
+    await screenshot('albums-desktop.png', true);
+    await page.getByRole('button', { name: /Cambiar a tema/ }).click();
+    await screenshot('albums-alternate-theme.png', true);
+    await page.setViewportSize({ width: 1440, height: 500 });
+    await screenshot('sidebar-scrollbar.png');
+    await page.setViewportSize({ width: 375, height: 812 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await screenshot('albums-mobile.png', true);
+    await page.setViewportSize({ width: 1440, height: 900 });
   });
   await step('Una respuesta 401 retira el panel y vuelve al inicio', async () => {
     expired = true;

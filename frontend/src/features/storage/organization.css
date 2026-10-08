@@ -16,4 +16,40 @@
 .trash-file-info { flex: 1; min-width: 10rem; overflow-wrap: anywhere; }
 .trash-file-info p { font-size: .8rem; color: var(--app-muted); margin: .3rem 0 0; }
 .list-view .list-actions { flex-wrap: wrap; }
+.album-browser { margin-bottom: 1.5rem; }
+.album-section-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.album-section-head h2 { font-size: 1rem; }
+.album-section-head > span, .album-help { font-size: .8rem; color: var(--app-muted); }
+.album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 225px), 1fr)); gap: .8rem; }
+.album-folder { position: relative; display: flex; align-items: center; min-width: 0; border: 1px solid var(--app-border); border-radius: 16px; background: var(--app-surface); transition: background .18s, border-color .18s, box-shadow .18s; }
+.album-folder:hover { background: var(--app-surface-2); border-color: var(--app-border-strong); }
+.album-folder.is-selected { background: var(--app-accent-soft); border-color: var(--app-accent); }
+.album-folder.is-drop-target { border-color: var(--app-accent); outline: 2px dashed var(--app-accent); outline-offset: 3px; background: var(--app-accent-soft); }
+.album-folder-open { display: flex; align-items: center; gap: .9rem; min-width: 0; flex: 1; padding: 1.2rem 3rem 1.2rem 1rem; text-align: left; border: 0; border-radius: inherit; color: var(--app-text); background: transparent; cursor: pointer; }
+.album-folder-icon { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; background: var(--app-accent-soft); color: var(--app-accent-text); }
+.album-folder-icon svg { width: 27px; height: 27px; stroke-width: 1.6; }
+.album-folder-info { display: grid; min-width: 0; gap: .3rem; }
+.album-folder-info strong { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.album-folder-info small { font-size: .75rem; color: var(--app-muted); }
+.album-folder-menu { position: absolute; right: .5rem; border-color: transparent; background: transparent; width: 30px; height: 30px; }
+.album-help { margin-top: 1rem; line-height: 1.6; }
+.album-current { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--app-border); padding: 1.3rem 0; }
+.album-current > div:first-child { display: flex; align-items: center; gap: .6rem; min-width: 0; font-size: .85rem; color: var(--app-muted); }
+.album-current strong { color: var(--app-text); overflow-wrap: anywhere; }
+.album-current svg { width: 16px; flex-shrink: 0; }
+.library-context-menu { position: fixed; z-index: 90; min-width: 220px; max-width: calc(100vw - 16px); padding: 6px; border: 1px solid var(--app-border-strong); border-radius: 14px; background: var(--app-surface); color: var(--app-text); box-shadow: var(--app-shadow-lg); }
+.library-context-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.library-context-menu button:hover, .library-context-menu button:focus-visible { background: var(--app-surface-2); outline: 2px solid var(--app-accent); outline-offset: -2px; }
+.library-context-menu button.is-danger { color: var(--app-danger); }
+.library-context-menu svg { width: 17px; height: 17px; }
+.process-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; padding: 1rem 0; }
+.process-guide p { display: flex; align-items: flex-start; gap: .7rem; font-size: .8rem; line-height: 1.6; color: var(--app-muted); }
+.process-guide svg { width: 19px; height: 19px; flex-shrink: 0; margin-top: 2px; color: var(--app-accent-text); }
+.process-guide strong { display: block; font-size: .85rem; color: var(--app-text); }
+.job-card.is-unavailable { border-left: 3px solid var(--app-accent); }
+.job-card.is-unavailable .job-hint { max-width: none; text-align: left; }
+.job-card.is-unavailable .job-actions { flex-wrap: wrap; gap: .4rem; }
+.job-card.is-unavailable .job-title strong { overflow-wrap: anywhere; }
+.gallery-unavailable > .link-button { margin-left: 1rem; }
+@media (max-width: 700px) { .process-guide { grid-template-columns: 1fr; gap: .7rem; } .album-current .organization-buttons { width: 100%; } }
 @media (max-width: 600px) { .trash-item .organization-buttons { width: 100%; } .organization-buttons .btn { flex: 1; } .organization-toolbar > .organization-field { flex-basis: 100%; } }
