@@ -116,6 +116,10 @@ export function AuthPage({ mode }) {
 
 /** Botón de reenvío con estado propio. La respuesta del servidor es neutral. */
 export function ResendButton({ email }) {
+  return <ResendForEmail key={email.trim().toLowerCase()} email={email} />;
+}
+
+function ResendForEmail({ email }) {
   const [state, setState] = useState('idle');
   const [message, setMessage] = useState(null);
 

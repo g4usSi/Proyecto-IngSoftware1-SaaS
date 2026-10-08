@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Check, Clock3, Minus } from 'lucide-react';
 import { useSession } from '../auth/session.jsx';
-import { useDemoAccount } from '../../app/AppLayout.jsx';
 import { plans } from './plans.data.js';
 
 const comparison = [
@@ -22,7 +21,6 @@ function Cell({ value }) {
 
 export function PlansPage() {
   const { session } = useSession();
-  const { demoAccount } = useDemoAccount();
 
   return (
     <div className="page">
@@ -36,7 +34,7 @@ export function PlansPage() {
 
       <div className="app-plans">
         {plans.map((plan, index) => {
-          const current = (session || demoAccount) && plan.code === 'free';
+          const current = session && plan.code === 'free';
           return (
             <article className={`app-plan${plan.featured ? ' is-featured' : ''}${current ? ' is-current' : ''}`} key={plan.code} style={{ '--i': index }}>
               <div className="app-plan-head">

@@ -1,5 +1,9 @@
 # Decisiones de SmartStorage
 
+## Organización incorporada el 07/10/2026
+
+El trabajo local sobre `tema-y-flujo-git` añade una papelera manual como protección frente a borrados accidentales, a partir de la solicitud del usuario. Conserva la referencia y el espacio consumido hasta su eliminación definitiva; no reembolsa el consumo diario. Restaurar no crea una nueva subida. Eliminar un álbum conserva sus imágenes y deja sin álbum sus trabajos pendientes. No hay caducidad ni vaciado automático. Ver [contratos y traspaso](organizacion-frontend.md).
+
 Este archivo registra las aclaraciones directas del equipo del 21 y 23 de septiembre de 2026. Prevalecen sobre el contexto heredado de otra IA y los ejemplos del mockup. Los PDF originales no se han modificado.
 
 ## Base y alcance de esta entrega
@@ -49,8 +53,8 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 - Contrato de autenticación previsto: Bearer JWT; `requireAuth` verificará firma, expiración y estado de la cuenta antes de asignar `req.user = { id, email, role }`. La revocación/cierre de sesión se implementará antes de considerar completo el módulo.
 - La deduplicación no concede autorización. Las descargas y borrados se resuelven por el ID de imagen y su propietario autenticado, aunque físicamente el objeto sea compartido.
 - Referencias derivadas de `images`, sin contador redundante. La eliminación del último enlace y la creación concurrente deben serializarse bloqueando el objeto en una transacción; la FK sola no coordina operaciones en disco.
-- Capacidad del plan: contabilizar bytes originales por referencia lógica. Storage valida capacidad, número de subidas y bytes diarios dentro de la transacción, serializando por usuario. El día se calcula en `America/Guatemala`. Estos valores se derivan de `images`; no son nuevas métricas persistidas.
-- No se implementa borrado todavía. Antes de añadirlo, Elden y Geovanny deberán acordar un historial de consumo u otro mecanismo que impida recuperar cuota diaria eliminando imágenes.
+- Capacidad del plan: contabilizar bytes originales por referencia lógica y sumar reservas pendientes. Storage y worker validan capacidad, número de subidas y bytes diarios con la misma conexión y bloqueo por usuario. El día de admisión se calcula en `America/Guatemala`; el consumo se conserva en reservas confirmadas y su agregado diario.
+- Actualización del 07/10/2026: el borrado libera capacidad y conserva el consumo diario. Sólo elimina físicamente el último objeto sin referencias, mediante una tarea durable y bloqueo por hash. El lifecycle del worker confirma imagen, reserva y consumo en un único COMMIT.
 - Los planes usan bytes decimales: 1 GB = 1,000,000,000 bytes. El plan Free aplica ambos límites diarios, 10 subidas y 200 MB.
 - Solo se precarga Free. Los precios pagados se decidirán antes de cargar Estándar, Pro y Enterprise.
 
@@ -59,7 +63,7 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 - Cambiar RF-03 de Storage de deduplicación por cuenta a global.
 - Cambiar RF-04 y RF-08: no conservar ni descargar el original.
 - Ajustar mockups y requisitos de métricas: ahorro calculado para administrador; retirar métricas persistidas o promesas de descarga original.
-- Actualizar modelo relacional y diagramas al esquema incremental implementado. Tokens, pagos, trabajos y consumo diario resistente al borrado aún requieren sus propias migraciones.
+- Actualizar modelo relacional y diagramas al esquema incremental implementado: tokens, trabajos, reservas, consumo diario y limpieza durable ya tienen migraciones. Pagos siguen pendientes.
 
 ## Referencias técnicas verificadas
 

@@ -216,7 +216,7 @@ test('S3-05: endpoints JWT, aislamiento, paginación y estado para el frontend',
     assert.equal((await fetch(`${base}/invalid`, { headers })).status, 400);
     const other = { Authorization: `Bearer ${tokens.issue(f.users[1]).token}` };
     assert.equal((await fetch(`${base}/${first.id}`, { headers: other })).status, 404);
-    assert.equal((await fetch(base, { method: 'POST', headers })).status, 503);
+    assert.equal((await fetch(base, { method: 'POST', headers })).status, 400);
     await f.jobs.process(first.id);
     const { data: converted } = await (await fetch(`${base}/${first.id}`, { headers })).json();
     assert.equal(converted.status, 'converted');

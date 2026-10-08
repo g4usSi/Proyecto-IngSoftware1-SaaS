@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "SmartStorage — Trabajos S3-05",
-    "version": "2026-10-04",
-    "description": "Consulta y recuperación propias. converted es temporal. POST asíncrono aún responde 503; cuotas y publicación reales se acoplan en S3-11."
+    "title": "SmartStorage — Trabajos, cuotas y borrado",
+    "version": "2026-10-07",
+    "description": "Admisión asíncrona, publicación privada, cuotas compartidas y borrado. converted es temporal; 202 no significa disponible."
   },
   "servers": [
     {
@@ -119,11 +119,85 @@
         }
       },
       "post": {
-        "operationId": "asyncUploadUnavailable",
-        "description": "No recibe multipart ni guarda archivos. Continuar usando POST /files; el contrato de admisión se fijará en S3-11.",
+        "operationId": "submitImageJob",
+        "description": "Confirma admisión y reserva en PostgreSQL. La pérdida de entrega a Redis mantiene 202 y recuperación por UUID. Mismos propietario, clave, bytes, nombre y carpeta reutilizan el trabajo; un fallo terminal requiere clave nueva.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Conservar una clave por entrada al reintentar una petición incierta."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Imagen estática JPG, PNG o WebP, hasta 25,000,000 bytes. El worker valida contenido y dimensiones."
+                  },
+                  "folderId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Carpeta del propietario; opcional."
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
+          "202": {
+            "description": "Trabajo admitido o recuperado por idempotencia; consultar hasta published/failed.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "/api/jobs/:jobId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImageJob"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Multipart, UUID, archivo ausente o vacío inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
-            "description": "JWT ausente o inválido",
+            "description": "JWT ausente, expirado o revocado",
             "content": {
               "application/json": {
                 "schema": {
@@ -133,7 +207,47 @@
             }
           },
           "403": {
-            "description": "Cuenta desactivada",
+            "description": "Cuenta desactivada, NO_ACTIVE_SUBSCRIPTION o CAPACITY_EXCEEDED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FOLDER_NOT_FOUND o clave de trabajo ajena",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_CONFLICT: clave utilizada con otros datos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "FILE_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "DAILY_UPLOAD_LIMIT_EXCEEDED o DAILY_BYTES_LIMIT_EXCEEDED",
             "content": {
               "application/json": {
                 "schema": {
@@ -143,7 +257,7 @@
             }
           },
           "503": {
-            "description": "ASYNC_UPLOAD_NOT_READY",
+            "description": "PostgreSQL no disponible; no acredita admisión",
             "content": {
               "application/json": {
                 "schema": {
@@ -220,6 +334,163 @@
           },
           "404": {
             "description": "Trabajo inexistente o ajeno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quotas/me": {
+      "get": {
+        "operationId": "getOwnQuotaUsage",
+        "description": "Plan vigente, capacidad y consumo/reservas diarios. Borrar una referencia no resta consumo diario.",
+        "responses": {
+          "200": {
+            "description": "Cuotas privadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/QuotaUsage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT ausente, expirado o revocado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cuenta desactivada o NO_ACTIVE_SUBSCRIPTION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PostgreSQL no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{fileId}": {
+      "delete": {
+        "operationId": "deleteOwnImage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Borra la referencia propia y libera capacidad; conserva consumo diario y objetos aún compartidos. Limpieza física durable para el último enlace.",
+        "responses": {
+          "200": {
+            "description": "Referencia eliminada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "deleted",
+                        "imageId"
+                      ],
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "imageId": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT ausente, expirado o revocado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cuenta desactivada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FILE_NOT_FOUND: ajena, inexistente o ya borrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PostgreSQL no disponible",
             "content": {
               "application/json": {
                 "schema": {
@@ -437,6 +708,106 @@
               },
               "message": {
                 "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "QuotaUsage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "plan",
+          "capacityBytes",
+          "usedBytes",
+          "reservedBytes",
+          "availableBytes",
+          "daily"
+        ],
+        "properties": {
+          "plan": {
+            "type": "object",
+            "required": [
+              "code",
+              "name"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "capacityBytes": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "usedBytes": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Referencias propias, incluso si falta el archivo físico."
+          },
+          "reservedBytes": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Reservas pendientes de todas las fechas."
+          },
+          "availableBytes": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Capacidad menos usadas y reservadas, mínimo cero."
+          },
+          "daily": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "uploadLimit",
+              "uploadsUsed",
+              "uploadsReserved",
+              "bytesLimit",
+              "bytesUsed",
+              "bytesReserved"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "Día actual en America/Guatemala; el consumo se imputa al día de admisión."
+              },
+              "uploadLimit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "description": "null = ilimitado"
+              },
+              "uploadsUsed": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "uploadsReserved": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "bytesLimit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9]+$",
+                "description": "null = ilimitado"
+              },
+              "bytesUsed": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "bytesReserved": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
               }
             }
           }

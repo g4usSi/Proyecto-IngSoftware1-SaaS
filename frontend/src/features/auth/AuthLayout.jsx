@@ -26,7 +26,7 @@ export function AuthShell({ badge, title, intro, children }) {
 
 /** Contenedor que se abre y cierra con animación de altura. */
 export function Collapse({ open, children }) {
-  return <div className={`auth-collapse${open ? ' is-open' : ''}`} aria-hidden={!open}><div>{children}</div></div>;
+  return <div className={`auth-collapse${open ? ' is-open' : ''}`} aria-hidden={!open} inert={!open}><div>{children}</div></div>;
 }
 
 /** Ícono grande de estado (correo enviado, verificado, error…). */
@@ -55,7 +55,7 @@ export function Field({ label, name, type = 'text', icon: FieldIcon, errors, ...
  * Contraseña con botón de mostrar/ocultar. Con `isNew`, los errores pueden ser ids de
  * `passwordRules` y se listan todos los requisitos que faltan a la vez.
  */
-export function PasswordField({ isNew = false, label = 'Contraseña', value, onChange, onBlur, errors, placeholder }) {
+export function PasswordField({ isNew = false, name = 'password', autoComplete, label = 'Contraseña', value, onChange, onBlur, errors, placeholder }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
   const missing = isNew && errors?.length && errors.every((item) => passwordRules.some((rule) => rule.id === item)) ? errors : null;
@@ -68,8 +68,8 @@ export function PasswordField({ isNew = false, label = 'Contraseña', value, onC
       <div className="auth-input">
         <LockKeyhole strokeWidth={1.8} aria-hidden="true" />
         <input
-          id={id} name="password" type={visible ? 'text' : 'password'} value={value} onChange={onChange} onBlur={onBlur}
-          autoComplete={isNew ? 'new-password' : 'current-password'} placeholder={placeholder ?? (isNew ? 'Crea una contraseña segura' : 'Tu contraseña')}
+          id={id} name={name} type={visible ? 'text' : 'password'} value={value} onChange={onChange} onBlur={onBlur}
+          autoComplete={autoComplete ?? (isNew ? 'new-password' : 'current-password')} placeholder={placeholder ?? (isNew ? 'Crea una contraseña segura' : 'Tu contraseña')}
           maxLength={128} aria-invalid={invalid} aria-describedby={invalid ? `${id}-error` : undefined}
         />
         <button type="button" className="auth-eye" onClick={() => setVisible((current) => !current)} aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={visible}>
@@ -106,7 +106,7 @@ export function PasswordField({ isNew = false, label = 'Contraseña', value, onC
 /** Botón principal de los formularios de cuenta. */
 export function SubmitButton({ busy, busyLabel, children, icon: TrailingIcon }) {
   return (
-    <button className="auth-submit" type="submit">
+    <button className="auth-submit" type="submit" disabled={busy} aria-busy={busy}>
       <span>{busy ? busyLabel : children}</span>
       {busy ? <span className="auth-spinner" aria-hidden="true" /> : TrailingIcon && <TrailingIcon strokeWidth={2} aria-hidden="true" />}
     </button>

@@ -9,6 +9,9 @@ import { UploadPage } from '../features/storage/UploadPage.jsx';
 import { HistoryPage } from '../features/storage/HistoryPage.jsx';
 import { InsightsPage } from '../features/storage/InsightsPage.jsx';
 import { JobsPage } from '../features/storage/JobsPage.jsx';
+import { AlbumsPage } from '../features/storage/AlbumsPage.jsx';
+import { TrashPage } from '../features/storage/TrashPage.jsx';
+import { ChangePasswordPage } from '../features/auth/ChangePasswordPage.jsx';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from '../features/auth/RecoveryPages.jsx';
 import { PlansPage } from '../features/subscriptions/PlansPage.jsx';
 import { Brand } from '../components/Brand.jsx';
@@ -23,6 +26,9 @@ const titles = {
   '/app/history': 'Historial',
   '/app/insights': 'Ahorro',
   '/app/jobs': 'Procesos',
+  '/app/albums': 'Álbumes',
+  '/app/trash': 'Papelera',
+  '/app/security': 'Cambiar contraseña',
   '/verify-email': 'Verificar correo',
   '/forgot-password': 'Recuperar contraseña',
   '/reset-password': 'Nueva contraseña',
@@ -42,8 +48,8 @@ export function App() {
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<AuthPage mode="login" />} />
-        <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/login" element={<AuthPage key="login" mode="login" />} />
+        <Route path="/register" element={<AuthPage key="register" mode="register" />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -54,6 +60,9 @@ export function App() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="jobs" element={<JobsPage />} />
+          <Route path="albums" element={<AlbumsPage />} />
+          <Route path="trash" element={<TrashPage />} />
+          <Route path="security" element={<ChangePasswordPage />} />
           <Route path="plans" element={<PlansPage />} />
         </Route>
         <Route path="*" element={

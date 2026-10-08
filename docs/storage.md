@@ -1,5 +1,7 @@
 # Storage: entrega inicial de Geovanny
 
+El alcance inicial siguiente se conserva como contexto. Desde el 07/10/2026 también están implementados el borrado privado, la admisión asíncrona y las cuotas compartidas: ver [contratos actuales](api.md) y [worker](worker-cuotas.md).
+
 ## Alcance implementado
 
 Subida individual → validación de imagen estática → SHA-256 del original → WebP calidad 80 → referencia privada en PostgreSQL → listado y descarga. La conversión termina antes del `201`; no se anuncia una cola ni progreso porcentual ficticio.
@@ -49,7 +51,7 @@ npm run db:migrate
 npm run dev:demo
 ```
 
-Abrir `http://127.0.0.1:5173/` y usar **Probar demo local sin crear cuenta**; el enlace solo aparece si `dev:demo` está activo. Seleccionar explícitamente Demo Storage A en Mi biblioteca. Cargar una imagen, comprobar sus dos tamaños y descargar el WebP. Cambiar a Demo Storage B desde la franja superior o el menú de cuenta: no debe mostrar imágenes de A. Subir el mismo archivo y comprobar que hay un solo WebP físico. Volver a A conserva su registro. El resumen, historial, ahorro y plan Free muestran la cuenta seleccionada; ninguna cuenta demo constituye una sesión JWT.
+La interfaz actual exige una sesión real y no ofrece modo demo. `dev:demo` conserva únicamente la herramienta local de pruebas de Storage por API: consultar `/api/dev/storage-demo`, elegir explícitamente una identidad reservada y enviar `X-Storage-Demo-User` en las rutas de archivos. No habilita trabajos asíncronos, cuotas por HTTP ni Auth. Para probar la interfaz, registrar y verificar una cuenta e iniciar sesión.
 
 `dev:demo` prepara las cuentas de forma idempotente; no borra archivos ni reinicia cuotas. Las cuentas tienen plan Free y no tienen contraseña de login. La variable `STORAGE_DEMO_ENABLED=true` solo se pasa al proceso hijo; no se escribe en `.env`. Al volver a `npm run dev`, la demo está desactivada por defecto. Detener antes cualquier `npm run dev` anterior, ya que ambos comandos usan los mismos puertos; el script avisa si están ocupados.
 
@@ -65,9 +67,9 @@ Storage consulta la suscripción activa y vigente, y exige usuario y plan activo
 
 Cada subida bloquea primero el usuario y después el hash del objeto dentro de una transacción. Así dos solicitudes simultáneas no pueden saltarse una cuota ni crear dos objetos físicos para el mismo original. El WebP se publica completo y la referencia se confirma junto con sus metadatos. Los temporales se limpian también en los errores controlados.
 
-Las cuotas se derivan de las imágenes actuales porque el borrado todavía responde `501`. Antes de implementarlo, coordinar con Elden un registro de consumo que sobreviva al borrado; de lo contrario se podría reiniciar el límite diario eliminando imágenes.
+La capacidad usada deriva de las referencias actuales; se suman las reservas pendientes de ambas rutas. El consumo diario usa `quota_reservations` y `quota_daily_usage`, imputados al día de admisión en Guatemala. `DELETE /api/files/:fileId` libera capacidad, mantiene ese historial y conserva el WebP compartido. `006_shared_quota_lifecycle.sql` traslada imágenes existentes sin duplicar reservas ya confirmadas.
 
-Un proceso terminado abruptamente o una pérdida de conexión en el instante del `COMMIT` requiere reconciliar disco y PostgreSQL. No borrar automáticamente un WebP cuyo resultado transaccional es incierto: puede estar referenciado. La recuperación completa y limpieza de huérfanos tras un cierre forzado pertenecen al siguiente hito. La limpieza de temporales no garantiza borrado físico seguro del medio.
+El worker conserva el WebP temporal hasta confirmar SQL y reconcilia los trabajos tras una caída. Una publicación revertida puede adoptar su archivo definitivo durante el reintento; al fallar/expirar se libera la reserva y se retira sólo si no tiene objeto compartido. El borrado registra una tarea durable para completar la limpieza tras reiniciar. Ver [recuperación y orden de bloqueos](worker-cuotas.md). La limpieza de temporales no garantiza borrado físico seguro del medio.
 
 ## Ahorro administrativo
 
@@ -92,7 +94,7 @@ npm test
 Remove-Item Env:TEST_DATABASE_URL
 ```
 
-Incluye autenticación real con PostgreSQL, asignación Free, subida con JWT, conversión, EXIF, permisos entre cuentas, deduplicación concurrente, cuotas, paginación, formatos inválidos, rollback y persistencia al reiniciar la aplicación. No equivale a probar recuperación tras una caída del equipo.
+Incluye autenticación real con PostgreSQL, asignación Free, subida con JWT, conversión, EXIF, permisos entre cuentas, deduplicación concurrente, cuotas, paginación, formatos inválidos, rollback y persistencia al reiniciar la aplicación. Para la regresión de la cola y caída del proceso antes/después de COMMIT, añadir `TEST_REDIS_URL=redis://127.0.0.1:6379/0` y levantar Redis. Estas pruebas no acreditan una caída eléctrica del equipo ni entrega SMTP real.
 
 ## Edición e integración
 
