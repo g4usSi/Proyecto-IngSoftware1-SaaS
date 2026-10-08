@@ -257,8 +257,9 @@ test('Storage: WebP real, orientación y privacidad; persiste al reiniciar la ap
   assert.equal(listing.items[0].originalName, originalName);
   assert.equal(listing.nextCursor, null);
   assert.deepEqual(Buffer.from(await (await f.request(`/api/files/${image.id}/download`)).arrayBuffer()), stored);
-  assert.equal((await f.request(`/api/files/${image.id}`, { method: 'DELETE' })).status, 501);
-  await assertClean(f, 1, 1);
+  await json(await f.request(`/api/files/${image.id}`, { method: 'DELETE' }));
+  assert.equal((await f.request(`/api/files/${image.id}/download`)).status, 404);
+  await assertClean(f, 0, 0);
 });
 
 test('Storage: subidas idénticas concurrentes entre cuentas comparten un solo objeto físico', integrationOptions, async (t) => {
@@ -303,6 +304,8 @@ test('Storage: el límite diario resiste subidas concurrentes de contenido disti
   }
   await assertClean(f, 1, 1);
   await f.database.query("UPDATE images SET created_at = now() - INTERVAL '2 days'");
+  await f.database.query("UPDATE quota_reservations SET usage_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Guatemala')::date - 2");
+  await f.database.query("UPDATE quota_daily_usage SET usage_date = usage_date - 2");
   await json(await f.upload(acceptedOriginal), 201);
   await assertClean(f, 1, 2);
 });

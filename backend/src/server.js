@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { database } from './config/database.js';
+import { closeImageAdmission } from './workers/image-admission.js';
 
 const server = createApp().listen(env.port, env.host, () => {
   console.log(`SmartStorage API: http://${env.host}:${env.port}`);
@@ -32,6 +33,7 @@ function shutdown() {
   timer.unref();
   server.close(async () => {
     try {
+      await closeImageAdmission();
       await database.close();
     } catch {
       process.exitCode = 1;
