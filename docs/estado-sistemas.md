@@ -34,13 +34,23 @@ Revisión de compañero: el usuario informa el 01/10/2026 que Alegría revisa ca
 
 ## Cómo reportar un sistema listo
 
+El [acuerdo de cierre por módulo del 03/10/2026](criterios-cierre-modulos.md)
+separa la entrega individual del acoplamiento posterior de Alegría. Una tarjeta
+Hecha acredita la parte del responsable; la integración y la aceptación del
+recorrido completo se informan en sus propias tareas.
+
 1. Referenciar el ID del Excel/Trello, alcance y criterio de aceptación; conservar dueño y fecha del plan.
 2. Registrar commit o PR publicado, comando/escenario, fecha y resultado. Indicar pruebas omitidas y limitaciones.
-3. Registrar quién revisó y cómo: review de GitHub o declaración del equipo con fecha. Una declaración no se convierte en aprobación formal.
-4. Con alcance completo, pruebas y revisión, marcar `Hecha` en Excel y mover la tarjeta a `Hecho`, con evidencia en el bloque de sincronización. La integración en `main` se informa por separado y no condiciona el cierre de desarrollo.
+3. Registrar el contrato que consumen los demás módulos y los resultados de pruebas propias. La revisión de compañero se registra al realizar la revisión conjunta o la integración, indicando quién y cómo; una declaración no se convierte en aprobación formal.
+4. Con la parte del responsable completa, pruebas propias aprobadas y contrato compatible, marcar `Hecha` en Excel y mover la tarjeta a `Hecho`, con evidencia y límites en el bloque de sincronización. No esperar frontend, revisión/acoplamiento de Alegría ni integración en `main`. Defectos que incumplen el criterio propio sí impiden el cierre. S3-09/S3-10 acreditan acoplamiento y S3-11 revisión/regresión conjunta.
 5. Para tareas parciales, mantener `Parcial` / `En progreso` y enumerar qué falta. Para entregas académicas, exigir constancia de entrega antes del cierre.
 
 Formato de evidencia: `SmartStorage:S2-09 | Hecha | alcance: deduplicación global privada | pruebas: PostgreSQL y navegador, fecha/resultados | revisión: Alegría, reportada por usuario 01/10 | publicación: PR/commit | límites: sin worker asíncrono`.
+
+Ejemplo de módulo cerrado sin frontend: `SmartStorage:S3-01 | Hecha como backend
+de Andy | publicación: feature/usuarios-login, a8dd16b | pruebas: 8/8 con
+BD/correo simulados, 03/10 | contrato: docs/auth-frontend.md | límites: SMTP
+real/PostgreSQL no verificados por el asistente | acoplamiento: S3-09 pendiente`.
 
 El archivo canónico de Drive y Trello se concilian con [Sincroniza SmartStorage](sincronizacion-smartstorage.md). El Gantt guardado en Git es histórico; no sustituye al Excel canónico. Se conserva también el Gantt original de `main` del 23/09 para evitar perder esa versión al integrar.
 

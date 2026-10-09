@@ -1,5 +1,10 @@
 # Trabajo en equipo con Git
 
+El cierre de las tarjetas individuales sigue el [acuerdo de cierre por módulo](criterios-cierre-modulos.md)
+del 03/10/2026. Cada autor entrega un módulo probado y con contrato compatible;
+Alegría lo acopla después. La revisión para integrar un PR se conserva, pero no
+bloquea el cierre individual mientras otra persona termina su parte.
+
 Una rama contiene el repositorio completo. La división por módulos se refleja en las carpetas y en el alcance de cada tarea; las capas (rutas, controladores, servicios y repositorios) trabajan juntas dentro de esa tarea.
 
 ## Ramas y responsables
