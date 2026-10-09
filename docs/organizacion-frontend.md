@@ -50,3 +50,17 @@ La sesión sigue en memoria: tras recargar hay que iniciar sesión otra vez. Los
 - `npm run test:organization-browser`: **11/11**, Edge con API/PostgreSQL/Sharp reales; dos cuentas, cuotas, deduplicación, álbumes, papelera/restauración/borrado, contraseña, móvil y logout/recarga. [Resultado y hashes del código probado](evidencias/2026-10-07-organizacion/resultado.json). La entrega al procesador y el correo están controlados en este recorrido; Redis queda comprobado por la suite backend y no se acredita envío SMTP externo.
 
 Las bases temporales fueron eliminadas. Las capturas de escritorio/móvil están en `output/playwright/organization/2026-10-07T22-29-13-829Z-f55270/`. La integración de Andy está registrada en `f31d233`. La implementación y esta guía se entregan en `tema-y-flujo-git` para revisión; la integración en `main` y la entrega académica se acreditan por separado.
+
+## Integración de UI y persistencia de álbumes — 08/10/2026
+
+Se integró `349f581` de `feature/ui-tema` conservando la promoción de plan, las carpetas con arrastre y las correcciones de autenticación ya presentes en `tema-y-flujo-git`. El panel de cuotas distingue consumo confirmado y reservas, advierte sobre límites y muestra el plan de la cuenta en resumen y catálogo.
+
+En el incidente reportado, los dos álbumes originales seguían presentes en PostgreSQL. No se reprodujo una eliminación al cerrar la aplicación, ni se modificaron los datos de la cuenta. Se corrigió una debilidad independiente del listado: podía quedar esperando indefinidamente. Ahora tiene un plazo de 15 segundos, actualización manual, recuperación al volver a la pestaña o recuperar conexión, identificación de la cuenta y mensajes distintos para error, carga y lista vacía. Una consulta fallida conserva la última lista confirmada.
+
+Validación de esta integración:
+
+- `npm run check`: sintaxis y compilación aprobadas.
+- `npm run test:frontend`: **18 recorridos** aprobados con API simulada, incluidos consulta de álbumes fallida, tiempo de espera y reconexión.
+- `npm run test:organization-browser`: **12 recorridos** aprobados con PostgreSQL real. El nuevo caso crea dos álbumes (uno vacío y otro con imagen), recarga, cierra el navegador, reinicia la instancia de API y sus conexiones, abre un navegador nuevo y confirma los mismos IDs, nombres, contenidos y descarga de miniatura. No reinicia el contenedor PostgreSQL ni acredita una prueba de corte eléctrico.
+
+[Resultado y hashes de la prueba](evidencias/2026-10-08-ui-albumes/resultado.json). Capturas en `output/playwright/organization/2026-10-09T04-33-01-242Z-ad9b84/` (nombre en UTC; ejecución del 8 de octubre en Guatemala). La base temporal se eliminó al terminar; Redis y SMTP externos no forman parte de este recorrido.

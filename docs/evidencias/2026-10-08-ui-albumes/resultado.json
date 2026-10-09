@@ -1,0 +1,69 @@
+{
+  "startedAt": "2026-10-09T04:33:01.245Z",
+  "browser": "msedge",
+  "scope": "UI real → HTTP real → PostgreSQL/Sharp/publicación real. Entrega al consumidor en memoria; esta suite no valida Redis ni SMTP real.",
+  "steps": [
+    {
+      "name": "Registro, verificación con token real y login de dos cuentas",
+      "result": "passed"
+    },
+    {
+      "name": "La UI admite un trabajo 202, conserva reserva y publica WebP con el worker real",
+      "result": "passed"
+    },
+    {
+      "name": "Privacidad entre cuentas y deduplicación física de la misma imagen",
+      "result": "passed"
+    },
+    {
+      "name": "Crear álbum y mover imagen desde la galería con aislamiento por propietario",
+      "result": "passed"
+    },
+    {
+      "name": "Renombrar álbum mantiene sus imágenes",
+      "result": "passed"
+    },
+    {
+      "name": "Papelera retiene capacidad y consumo; restaurar recupera el álbum y la descarga",
+      "result": "passed"
+    },
+    {
+      "name": "Eliminar álbum conserva las imágenes y las deja sin álbum",
+      "result": "passed"
+    },
+    {
+      "name": "Purga libera capacidad sin devolver consumo y conserva el objeto de otra cuenta",
+      "result": "passed"
+    },
+    {
+      "name": "Límite diario real rechaza la admisión y la UI conserva el error",
+      "result": "passed"
+    },
+    {
+      "name": "Cambiar contraseña valida confirmación y conserva sesión ante contraseña actual incorrecta",
+      "result": "passed"
+    },
+    {
+      "name": "Móvil sin desbordamiento, logout real y recarga con nuevo login",
+      "result": "passed"
+    },
+    {
+      "name": "Álbumes vacíos y con imágenes sobreviven recarga, cierre del navegador y reinicio de API/conexiones",
+      "result": "passed"
+    }
+  ],
+  "sourceSha256": {
+    "scripts/acceptance-organization.mjs": "c66165b23ed62323edc2010bcdc681f96bca76eee840370cbfe4360ae35ad6ab",
+    "scripts/test-storage.mjs": "6c2a76bea9485a8cdd80cf3afd03eb4a6d529efa71e56a59ac98e6f145732e3e",
+    "frontend/src/features/storage/library.jsx": "318fbc2e0e5f16743e55441034a3d5033e7470f3fb224eb5e226bc4a9c2c4971",
+    "frontend/src/features/storage/AlbumsPage.jsx": "1596abdf68efdd2ac4ddfeb49bf8cf04d041e6bec030552d75910d026a59b56d",
+    "frontend/src/features/storage/TrashPage.jsx": "76213f0665016970f6bb6696602aed71972002a95b7d1e2c40fccf346b0f494a",
+    "frontend/src/features/auth/ChangePasswordPage.jsx": "e609c222fe9354b866c1f70d7f6d3528aaaea1b9e797e711baef51cd04236eb6",
+    "backend/src/modules/storage/storage.service.js": "397cf10fe70047e66c0735937f5a8aa2258df6427730e195cb6a6c7247148faf",
+    "backend/src/workers/image-lifecycle.js": "458038edb60de3c56fd8a8607112f6dda0dffd3c1d501175c0b86eb8f2b84450"
+  },
+  "result": "passed",
+  "completedAt": "2026-10-09T04:33:51.378Z",
+  "pageErrors": [],
+  "workerErrors": []
+}

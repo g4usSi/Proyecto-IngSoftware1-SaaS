@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Check, Clock3, Minus } from 'lucide-react';
 import { useSession } from '../auth/session.jsx';
-import { plans } from './plans.data.js';
 import { useLibrary } from '../storage/library.jsx';
+import { QuotaSummary } from '../storage/QuotaSummary.jsx';
+import { plans } from './plans.data.js';
 
 const comparison = [
   { label: 'Almacenamiento lógico', values: ['2 GB', '25 GB', '100 GB', '500 GB o a medida'] },
@@ -22,7 +23,8 @@ function Cell({ value }) {
 
 export function PlansPage() {
   const { session } = useSession();
-  const { quota } = useLibrary();
+  // El plan activo lo informa GET /api/quotas/me (S3-08); no se supone Free.
+  const currentCode = useLibrary().quota.data?.plan.code ?? null;
 
   return (
     <div className="page">
@@ -30,13 +32,15 @@ export function PlansPage() {
         <div>
           <span className="kicker">Mejorar plan</span>
           <h1>Más espacio cuando lo necesites</h1>
-          <p>Todas las cuentas empiezan en Free. Los planes de pago estarán disponibles pronto.</p>
+          <p>Todas las cuentas empiezan en Free. Los planes de pago estarán disponibles pronto; mientras tanto, revisa aquí cuánto usas del tuyo.</p>
         </div>
       </header>
 
+      <QuotaSummary upgrade={false} />
+
       <div className="app-plans">
         {plans.map((plan, index) => {
-          const current = session && plan.code === quota.data?.plan.code;
+          const current = Boolean(session) && plan.code === currentCode;
           return (
             <article className={`app-plan${plan.featured ? ' is-featured' : ''}${current ? ' is-current' : ''}`} key={plan.code} style={{ '--i': index }}>
               <div className="app-plan-head">
@@ -62,7 +66,7 @@ export function PlansPage() {
         <div className="compare-scroll">
           <table className="compare-table">
             <thead>
-              <tr><th scope="col"><span className="sr-only">Característica</span></th>{plans.map((plan) => <th scope="col" key={plan.code} className={plan.featured ? 'is-featured' : undefined}>{plan.name}<small>{plan.price} / mes</small></th>)}</tr>
+              <tr><th scope="col"><span className="sr-only">Característica</span></th>{plans.map((plan) => <th scope="col" key={plan.code} className={plan.featured ? 'is-featured' : undefined}>{plan.name}{plan.code === currentCode && <span className="cmp-current">Tu plan</span>}<small>{plan.price} / mes</small></th>)}</tr>
             </thead>
             <tbody>
               {comparison.map((row) => (

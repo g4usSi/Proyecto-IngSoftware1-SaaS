@@ -1,6 +1,6 @@
 # Alegría: contratos actuales y tareas pendientes
 
-Actualizado el **07/10/2026** para la rama `tema-y-flujo-git`. Esta guía reemplaza la lista anterior: la integración funcional de subidas, cuotas, álbumes, papelera y contraseña ya está implementada. Alegría continúa el acabado visual y la revisión de la interfaz, sin rehacer esos flujos. No se modifican responsables, fechas ni estados de Trello/Excel con este documento.
+Actualizado el **08/10/2026** para la rama `tema-y-flujo-git`. Esta guía reemplaza la lista anterior: la integración funcional de subidas, cuotas, álbumes, papelera y contraseña ya está implementada. Alegría continúa el acabado visual y la revisión de la interfaz, sin rehacer esos flujos. No se modifican responsables, fechas ni estados de Trello/Excel con este documento.
 
 ## Preparar el proyecto
 
@@ -21,12 +21,14 @@ Mantener **dos terminales** desde la raíz: `npm run dev` y `npm run worker:imag
 
 Las correcciones de Andy `96f743e` y `69c7486` están incorporadas mediante el merge `f31d233`. Los componentes nuevos tienen estilos básicos compatibles con el tema actual, preparados para que Alegría los ajuste.
 
+Se incorporó `349f581` de `feature/ui-tema`: medidores de capacidad, subidas y bytes diarios, reservas diferenciadas, avisos de límite y plan activo obtenido del servidor. Se conservaron las mejoras posteriores de `tema-y-flujo-git` (promoción de plan, carpetas, arrastre y autenticación). En el resumen se mantiene un solo enlace principal de promoción; el panel de cuotas añade los datos del plan.
+
 ## Tareas pendientes de Alegría
 
 | Trabajo por implementar o revisar | Resultado esperado |
 | --- | --- |
 | **Acabado visual de álbumes y papelera** | Ajustar tarjetas, distribución, espaciado, iconos y jerarquía de acciones en `organization.css`, `AlbumsPage.jsx`, `TrashPage.jsx` y `FileActions.jsx`; conservar las operaciones reales y distinguir borrar álbum de borrar imagen. |
-| **Acabado visual de subidas, procesos y cuotas** | Unificar etiquetas de estado, carga, errores y reservas con su diseño. Mantener visible cuándo una imagen sigue en proceso, cuándo puede descargarse y cuándo la admisión no pudo confirmarse. |
+| **Revisión de subidas, procesos y cuotas** | El panel de cuotas de `349f581` ya está integrado. Revisar su coherencia con las etiquetas de procesos y errores; mantener visible cuándo una imagen sigue en proceso, cuándo puede descargarse y cuándo la admisión no pudo confirmarse. |
 | **Integración visual de seguridad y confirmaciones** | Revisar el formulario de cambio de contraseña y los diálogos con el resto de la cuenta: foco, teclado, mensajes, botones y tema claro/oscuro. La confirmación del borrado definitivo debe permanecer. |
 | **Revisión final tras sus ajustes** | Recorrer escritorio/móvil, nombres largos, estados vacíos y errores; comprobar navegación por teclado, contraste y ausencia de desbordamientos. Ejecutar las comprobaciones de abajo y registrar la revisión del compañero para S3-11. |
 
