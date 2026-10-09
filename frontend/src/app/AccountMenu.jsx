@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronsUpDown, CircleHelp, House, KeyRound, LogIn, LogOut, Rocket } from 'lucide-react';
 import { useSession } from '../features/auth/session.jsx';
+import { useLibrary } from '../features/storage/library.jsx';
 
 export function initials(name = '') {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -16,6 +17,8 @@ export function AccountMenu() {
   const rootRef = useRef(null);
   const menuId = useId();
   const user = session?.user;
+  // Plan activo según GET /api/quotas/me; mientras llega no se supone ninguno.
+  const planName = useLibrary().quota.data?.plan.name ?? '…';
 
   useEffect(() => {
     if (!open) return undefined;
@@ -47,7 +50,7 @@ export function AccountMenu() {
 
         {session && (
           <div className="account-plan">
-            <div><span className="account-plan-label">Tu plan</span><strong>Free</strong></div>
+            <div><span className="account-plan-label">Tu plan</span><strong>{planName}</strong></div>
             <Link to="/app/plans" className="account-upgrade" role="menuitem" onClick={close}><Rocket strokeWidth={2} aria-hidden="true" />Mejorar plan</Link>
           </div>
         )}
@@ -68,7 +71,7 @@ export function AccountMenu() {
         <span className="account-avatar" aria-hidden="true">{user ? initials(user.name) : '?'}</span>
         <span className="account-trigger-text">
           <strong>{user?.name ?? 'Invitado'}</strong>
-          <span>{user ? 'Plan Free' : 'Sin sesión'}</span>
+          <span>{user ? `Plan ${planName}` : 'Sin sesión'}</span>
         </span>
         <ChevronsUpDown className="account-chevron" strokeWidth={2} aria-hidden="true" />
       </button>

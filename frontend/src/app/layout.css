@@ -109,6 +109,9 @@
 .usage-bar { height: 6px; margin: 14px 0 8px; border-radius: 6px; background: color-mix(in srgb, white 12%, transparent); overflow: hidden; }
 .usage-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-orange), color-mix(in srgb, var(--brand-orange) 55%, white)); transform-origin: left; transition: transform 1s var(--app-ease); }
 .usage-text { font-size: 12px; }
+.usage-card.is-full .usage-bar i { background: var(--color-status-error); }
+.usage-card.is-full .usage-plan { background: color-mix(in srgb, var(--color-status-error) 30%, transparent); }
+.usage-card.is-warn .usage-plan { background: color-mix(in srgb, var(--brand-orange) 25%, transparent); }
 .usage-text strong { color: var(--color-white); font-weight: 600; }
 .usage-upgrade { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 12px; padding: 9px; border-radius: 10px; background: var(--brand-orange); color: var(--app-on-accent); font-size: 13px; font-weight: 700; transition: background-color .2s ease, transform .2s var(--app-ease); }
 .usage-upgrade svg { width: 15px; height: 15px; transition: transform .4s var(--app-spring); }
