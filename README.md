@@ -84,6 +84,8 @@ Mantener ambas abiertas. `npm run dev` no inicia el worker: sin él las subidas 
 
 Crear una cuenta, abrir su enlace de verificación y luego iniciar sesión. Sin SMTP configurado en desarrollo, copiar el enlace que imprime la terminal 1. La sesión vive en memoria: al recargar hay que iniciar sesión otra vez; los trabajos ya admitidos permanecen en el servidor.
 
+Los álbumes se guardan en PostgreSQL, incluidos los vacíos: cerrar el navegador, la API o el worker no los elimina. En Álbumes se muestra la cuenta actual; si falla la consulta, usar **Actualizar álbumes** o **Reintentar**. Una lista que no pudo cargarse se muestra como error, no como una cuenta sin álbumes.
+
 ### Uso diario y cierre
 
 En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y abrir las dos terminales del paso 3. Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.

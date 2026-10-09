@@ -67,3 +67,4 @@
 
 @media (max-width: 1180px) { .app-plans { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .app-plans { grid-template-columns: 1fr; } }
+.cmp-current { display: block; width: fit-content; margin: 4px auto 0; padding: 1px 8px; border-radius: 999px; background: var(--app-success-soft); color: var(--app-success); font-size: 11px; font-weight: 700; }

@@ -7,6 +7,7 @@ import { SavingBadge, Thumb } from './Gallery.jsx';
 import { useLibrary } from './library.jsx';
 import { StatCard } from './StatCard.jsx';
 import { PlanPromotion } from '../subscriptions/PlanPromotion.jsx';
+import { QuotaSummary } from './QuotaSummary.jsx';
 
 export function OverviewPage() {
   const { session } = useSession();
@@ -37,6 +38,8 @@ export function OverviewPage() {
         <StatCard icon={Scale} label="Peso en WebP" value={stats.webpBytes} format={formatBytes} ready={stats.loaded} index={2} />
         <StatCard icon={TrendingDown} label={grew ? 'Aumento de peso' : 'Ahorro'} value={Math.abs(stats.savedRatio * 100)} format={(v) => `${Math.round(v)} %`} ready={stats.loaded} accent={!grew} index={3} />
       </div>
+
+      <QuotaSummary upgrade={false} />
 
       <div className="overview-grid">
         <section className="panel" aria-labelledby="recent-title">

@@ -32,7 +32,7 @@
 .album-folder-info strong { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .album-folder-info small { font-size: .75rem; color: var(--app-muted); }
 .album-folder-menu { position: absolute; right: .5rem; border-color: transparent; background: transparent; width: 30px; height: 30px; }
-.album-help { margin-top: 1rem; line-height: 1.6; }
+.album-help { margin-top: 1rem; line-height: 1.6; overflow-wrap: anywhere; }
 .album-current { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--app-border); padding: 1.3rem 0; }
 .album-current > div:first-child { display: flex; align-items: center; gap: .6rem; min-width: 0; font-size: .85rem; color: var(--app-muted); }
 .album-current strong { color: var(--app-text); overflow-wrap: anywhere; }
