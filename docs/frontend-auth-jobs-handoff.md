@@ -1,6 +1,6 @@
-# Alegría: contratos actuales y tareas pendientes
+# Alegría: contratos actuales y mantenimiento
 
-Actualizado el **08/10/2026** para la rama `tema-y-flujo-git`. Esta guía reemplaza la lista anterior: la integración funcional de subidas, cuotas, álbumes, papelera y contraseña ya está implementada. Alegría continúa el acabado visual y la revisión de la interfaz, sin rehacer esos flujos. No se modifican responsables, fechas ni estados de Trello/Excel con este documento.
+Actualizado el **09/10/2026** para la segunda versión `v0.2.0`. La integración funcional de subidas, cuotas, álbumes, papelera y contraseña está implementada. El usuario confirmó que el equipo ejecutó la aplicación en la reunión y terminó las correcciones; S3-11 quedó cerrada en Excel/Trello. Las comprobaciones siguientes se conservan para mantenimiento y futuras regresiones, sin reabrir módulos terminados. La entrega académica S3-12 sigue pendiente. Se conservan responsables y fechas.
 
 ## Preparar el proyecto
 
@@ -23,7 +23,7 @@ Las correcciones de Andy `96f743e` y `69c7486` están incorporadas mediante el m
 
 Se incorporó `349f581` de `feature/ui-tema`: medidores de capacidad, subidas y bytes diarios, reservas diferenciadas, avisos de límite y plan activo obtenido del servidor. Se conservaron las mejoras posteriores de `tema-y-flujo-git` (promoción de plan, carpetas, arrastre y autenticación). En el resumen se mantiene un solo enlace principal de promoción; el panel de cuotas añade los datos del plan.
 
-## Tareas pendientes de Alegría
+## Comprobaciones para futuras modificaciones
 
 | Trabajo por implementar o revisar | Resultado esperado |
 | --- | --- |
