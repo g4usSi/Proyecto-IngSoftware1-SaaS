@@ -11,12 +11,14 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
   const [url, setUrl] = useState(null);
   const [dimensions, setDimensions] = useState(null);
   const closeRef = useRef(null);
+  const detailsRef = useRef(null);
   const restoreFocus = useRef(document.activeElement);
 
   useEffect(() => {
     let active = true;
     setUrl(null);
     setDimensions(null);
+    if (detailsRef.current) detailsRef.current.scrollTop = 0;
     getThumbnail(file).then((value) => { if (active) setUrl(value); });
     return () => { active = false; };
   }, [file, getThumbnail]);
@@ -53,7 +55,8 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
             <span className="preview-position">{position}</span>
             <button ref={closeRef} type="button" className="icon-button" onClick={onClose} aria-label="Cerrar vista previa"><X strokeWidth={2} /></button>
           </div>
-          <h2 id="preview-title">{file.originalName}</h2>
+          <div ref={detailsRef} className="preview-properties" tabIndex={0} aria-label="Detalles de la imagen">
+          <h2 id="preview-title" title={file.originalName}>{file.originalName}</h2>
           <p className="preview-date">{formatFullDate(file.createdAt)}</p>
 
           <div className="preview-saving">
@@ -69,14 +72,17 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
             <div><dt>Original</dt><dd>{formatBytes(file.originalSizeBytes)}</dd></div>
             <div><dt>WebP</dt><dd>{formatBytes(file.optimizedSizeBytes)}</dd></div>
             <div><dt>Dimensiones</dt><dd>{dimensions ? `${dimensions[0]} × ${dimensions[1]} px` : '—'}</dd></div>
-            <div><dt>Archivo</dt><dd title={webpFilename(file.originalName)}>{webpFilename(file.originalName)}</dd></div>
+            <div className="preview-filename"><dt>Archivo WebP</dt><dd title={webpFilename(file.originalName)}>{webpFilename(file.originalName)}</dd></div>
           </dl>
+          </div>
 
+          <div className="preview-footer">
           <button type="button" className="btn btn-primary preview-download" onClick={() => download(file)} disabled={Boolean(downloadingId)}>
             {downloadingId === file.id ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
             Descargar WebP
           </button>
           <p className="preview-note">Sin metadatos EXIF ni ubicación · misma resolución que el original</p>
+          </div>
         </aside>
       </div>
     </div>,

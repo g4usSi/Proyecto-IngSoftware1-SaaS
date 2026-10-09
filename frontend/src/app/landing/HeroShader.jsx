@@ -107,18 +107,6 @@ export function HeroShader() {
     gl.uniform3fv(uniform('uNavy'), hexToRgb(styles.getPropertyValue('--brand-navy'), [0.106, 0.188, 0.29]));
     gl.uniform3fv(uniform('uOrange'), hexToRgb(styles.getPropertyValue('--brand-orange'), [0.984, 0.478, 0.235]));
 
-    // El ruido es suave: se renderiza a media resolución y el navegador lo escala.
-    const resize = () => {
-      const scale = Math.min(window.devicePixelRatio || 1, 1.5) * 0.5;
-      canvas.width = Math.max(1, Math.round(canvas.clientWidth * scale));
-      canvas.height = Math.max(1, Math.round(canvas.clientHeight * scale));
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.uniform2f(uRes, canvas.width, canvas.height);
-    };
-    resize();
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(canvas);
-
     const mouse = { x: 0.62, y: 0.55, tx: 0.62, ty: 0.55 };
     const onPointerMove = (event) => {
       const rect = canvas.getBoundingClientRect();
@@ -131,15 +119,33 @@ export function HeroShader() {
     let frame = 0;
     let visible = true;
     const start = performance.now();
-    const draw = (now) => {
+    const render = (now) => {
       mouse.x += (mouse.tx - mouse.x) * 0.045;
       mouse.y += (mouse.ty - mouse.y) * 0.045;
       gl.uniform1f(uTime, reduced ? 12 : (now - start) / 1000);
       gl.uniform2f(uMouse, mouse.x, mouse.y);
       gl.uniform1f(uScroll, Math.min(1, window.scrollY / Math.max(1, canvas.clientHeight)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
+    const draw = (now) => {
+      render(now);
       if (!reduced && visible && !document.hidden) frame = requestAnimationFrame(draw);
     };
+    // Asignar width/height borra el búfer incluso si el valor no cambió.
+    // Repintar en el mismo callback evita un frame vacío y funciona sin el bucle animado.
+    const resize = () => {
+      const scale = Math.min(window.devicePixelRatio || 1, 1.5) * 0.5;
+      const width = Math.max(1, Math.round(canvas.clientWidth * scale));
+      const height = Math.max(1, Math.round(canvas.clientHeight * scale));
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      gl.viewport(0, 0, width, height);
+      gl.uniform2f(uRes, width, height);
+      render(performance.now());
+    };
+    resize();
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
     const resume = () => {
       cancelAnimationFrame(frame);
       if (visible && !document.hidden) frame = requestAnimationFrame(draw);
