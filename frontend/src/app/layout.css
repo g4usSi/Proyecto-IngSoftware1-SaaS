@@ -88,17 +88,7 @@
 .sidebar-close { display: none; width: 36px; height: 36px; border: 1px solid var(--app-sidebar-border); border-radius: 10px; background: var(--app-sidebar-2); color: var(--color-white); cursor: pointer; }
 .sidebar-close svg { width: 18px; height: 18px; }
 .sidebar-label { padding: 0 12px; margin-bottom: 6px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, white 45%, var(--brand-navy)); }
-.app-nav { display: grid; gap: 22px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff30 transparent; scrollbar-gutter: stable; padding-right: 4px; margin-bottom: 16px; }
-.app-nav:hover, .app-nav:focus-within { scrollbar-color: #ffffff60 transparent; }
-.app-nav::-webkit-scrollbar { width: 6px; }
-.app-nav::-webkit-scrollbar-track { background: transparent; }
-.app-nav::-webkit-scrollbar-thumb { background: #ffffff30; border-radius: 99px; }
-.app-nav::-webkit-scrollbar-thumb:hover { background: #ffffff60; }
-.app-nav::-webkit-scrollbar-button { display: none; }
-/* Chromium prioriza scrollbar-color sobre los pseudoelementos; usar aquí el control sin flechas. */
-@supports selector(::-webkit-scrollbar) {
-  .app-nav, .app-nav:hover, .app-nav:focus-within { scrollbar-width: auto; scrollbar-color: auto; }
-}
+.app-nav { display: grid; gap: 22px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; margin-bottom: 16px; }
 .sidebar-top, .usage-card, .account { flex-shrink: 0; }
 .nav-group { display: grid; gap: 3px; }
 .nav-count { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, white 9%, transparent); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }

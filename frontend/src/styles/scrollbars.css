@@ -1,0 +1,45 @@
+/* Scrollbars compartidos: documento, paneles, modales, tablas y campos multilínea.
+ * Editar estos tokens para cambiar todo el frontend. Un contenedor puede sobrescribirlos
+ * o usar data-scrollbar-tone="dark" cuando su superficie siempre sea oscura.
+ * El módulo solo define apariencia: overflow y scrollbar-gutter pertenecen a cada layout.
+ */
+:root {
+  --scrollbar-size: 6px;
+  --scrollbar-radius: 999px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in srgb, var(--brand-navy) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--brand-navy) 55%, transparent);
+}
+
+/* La portada sigue siendo clara; autenticación y sidebar siempre tienen fondo oscuro. */
+:root[data-theme="dark"]:not(:has(.landing)),
+:root:has(.auth-screen),
+.app-sidebar,
+[data-scrollbar-tone="dark"] {
+  --scrollbar-thumb: color-mix(in srgb, white 24%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, white 42%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Edge/Chrome/Safari: misma forma para scroll vertical y horizontal, sin flechas. */
+*::-webkit-scrollbar { width: var(--scrollbar-size); height: var(--scrollbar-size); }
+*::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+*::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: var(--scrollbar-radius); }
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+*::-webkit-scrollbar-corner { background: var(--scrollbar-track); }
+
+/* Chromium prioriza los estilos estándar sobre sus pseudoelementos. */
+@supports selector(::-webkit-scrollbar) {
+  * { scrollbar-width: auto; scrollbar-color: auto; }
+}
+
+@media (forced-colors: active) {
+  * { scrollbar-color: auto; }
+  *::-webkit-scrollbar-thumb { background: ButtonText; }
+  *::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: Canvas; }
+}
