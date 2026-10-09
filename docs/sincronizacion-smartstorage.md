@@ -91,9 +91,16 @@ contenido de macros, si existe, al actualizar los bytes del mismo ID.
 - GitHub acredita publicación, revisión e integración. Cambios locales
   acreditan solo avance local. Cambios publicados vinculados a un ID o PR
   borrador permiten `En progreso`; PR listo, `Revisión (PR)`.
-- `Hecho` requiere alcance completo, integración en `main`, revisión válida de
-  compañero y pruebas/aceptación del cambio. Una entrega académica requiere
-  constancia de presentación/entrega. No calcular 30%, 50% u 80% contando tarjetas.
+- `Hecho` requiere alcance completo, pruebas/aceptación del cambio y revisión de
+  compañero. Según la aclaración del usuario del 01/10/2026, el equipo desarrolla
+  en `tema-y-flujo-git` y publica un primer corte del 30% en `main` por solicitud del usuario; esa integración no es
+  requisito para cerrar una tarea de desarrollo. Registrar publicación en la
+  rama compartida y publicación en `main` como hechos separados. El usuario
+  reporta que Alegría revisa los módulos al integrar su frontend: registrar esa
+  revisión como reportada por el usuario, sin exigir un review formal de GitHub
+  ni extenderla a trabajo nuevo todavía no integrado por Alegría. Una entrega
+  académica requiere constancia de presentación/entrega. No calcular 30%, 50% u
+  80% contando tarjetas.
 - Excel distingue `Implementada` (código), `Verificada` (pruebas), `En revisión`,
   `Parcial`, `Pendiente` y finalización. No sustituir una calificación técnica
   precisa por el estado genérico de una lista de Trello.

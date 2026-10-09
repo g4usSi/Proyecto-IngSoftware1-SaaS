@@ -8,7 +8,9 @@ import { env } from '../backend/src/config/env.js';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const npmCli = process.env.npm_execpath || join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
 const browserTest = process.argv.includes('--browser');
-const command = browserTest ? [join(root, 'scripts/acceptance-browser.mjs')] : [npmCli, 'test'];
+const organizationBrowser = process.argv.includes('--organization-browser');
+const command = organizationBrowser ? [join(root, 'scripts/acceptance-organization.mjs')]
+  : browserTest ? [join(root, 'scripts/acceptance-browser.mjs')] : [npmCli, 'test'];
 if (!env.databaseUrl) throw new Error('Configura DATABASE_URL en backend/.env antes de ejecutar test:storage.');
 const currentUrl = new URL(env.databaseUrl);
 if (env.nodeEnv === 'production' || !['localhost', '127.0.0.1', '[::1]'].includes(currentUrl.hostname) || currentUrl.port !== '5433') {

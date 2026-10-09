@@ -1,19 +1,16 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartNoAxesColumn, CloudUpload, FlaskConical, HardDrive, History, House, Images, Menu, Moon, Sun, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowUpRight, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, Menu, Moon, Sparkles, Sun, Trash2, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
 import { useSession } from '../features/auth/session.jsx';
 import { LibraryProvider, useLibrary } from '../features/storage/library.jsx';
 import { formatBytes } from '../features/storage/format.js';
-import { NoIdentity } from '../features/storage/NoIdentity.jsx';
-import { FREE_CAPACITY_BYTES } from '../features/subscriptions/plans.data.js';
+import { SessionRequired } from '../features/auth/SessionRequired.jsx';
 import { AccountMenu } from './AccountMenu.jsx';
 import { useTheme } from './theme.jsx';
-
-const DemoContext = createContext({ demoAccount: null, setDemoAccount: () => {} });
-export const useDemoAccount = () => useContext(DemoContext);
+import { PlanPromotion } from '../features/subscriptions/PlanPromotion.jsx';
 
 export const navGroups = [
   {
@@ -21,34 +18,28 @@ export const navGroups = [
     items: [
       { to: '/app', end: true, label: 'Resumen', icon: House },
       { to: '/app/storage', label: 'Mis imágenes', icon: Images, count: true },
+      { to: '/app/albums', label: 'Álbumes', icon: FolderOpen },
       { to: '/app/upload', label: 'Subir', icon: CloudUpload, activity: true },
       { to: '/app/history', label: 'Historial', icon: History },
+      { to: '/app/jobs', label: 'Procesos', icon: Workflow },
+      { to: '/app/trash', label: 'Papelera', icon: Trash2 },
     ],
   },
   { label: 'Análisis', items: [{ to: '/app/insights', label: 'Ahorro', icon: ChartNoAxesColumn }] },
 ];
-// Planes no va en la barra lateral: se abre desde "Mejorar plan" en el menú de la cuenta.
-const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))), '/app/plans': 'Mejorar plan' };
+// La tarjeta de almacenamiento ofrece un único acceso visible a los planes en el sidebar.
+const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))), '/app/plans': 'Mejorar plan', '/app/security': 'Cambiar contraseña' };
 
 export function AppLayout() {
   const { session } = useSession();
-  const [demoAccount, setDemoAccount] = useState(null);
-  useEffect(() => { if (session) setDemoAccount(null); }, [session]);
-  // Con sesión se usa el JWT; sin sesión, solo la cuenta demo elegida explícitamente (modo dev:demo).
-  const authorization = useMemo(() => {
-    if (session) return { token: session.token };
-    if (demoAccount) return { headers: { 'X-Storage-Demo-User': demoAccount.id } };
-    return null;
-  }, [session, demoAccount]);
-  const identity = session ? `session:${session.user.id}` : demoAccount ? `demo:${demoAccount.id}` : 'none';
+  const authorization = useMemo(() => session ? { token: session.token } : null, [session]);
+  if (!session) return <SessionRequired />;
 
   return (
     <ToastProvider>
-      <DemoContext.Provider value={{ demoAccount, setDemoAccount }}>
-        <LibraryProvider key={identity} authorization={authorization}>
-          <Shell />
-        </LibraryProvider>
-      </DemoContext.Provider>
+      <LibraryProvider key={session.user.id} authorization={authorization}>
+        <Shell />
+      </LibraryProvider>
     </ToastProvider>
   );
 }
@@ -57,12 +48,10 @@ function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
-  const { session } = useSession();
-  const { demoAccount, setDemoAccount } = useDemoAccount();
-  const { enabled, addFiles } = useLibrary();
+  const { enabled, addFiles, error, items, unavailableItems, refresh } = useLibrary();
+  const showLibraryNotice = ['/app', '/app/history', '/app/insights'].includes(pathname);
   const [drawer, setDrawer] = useState(false);
   const [pageDrag, setPageDrag] = useState(false);
-  const needsLibrary = pathname !== '/app/plans';
 
   useEffect(() => { setDrawer(false); }, [pathname]);
   useEffect(() => {
@@ -78,25 +67,41 @@ function Shell() {
     let depth = 0;
     const hasFiles = (event) => [...(event.dataTransfer?.types ?? [])].includes('Files');
     const enter = (event) => { if (hasFiles(event)) { depth += 1; setPageDrag(true); } };
-    const leave = (event) => { if (hasFiles(event)) { depth = Math.max(0, depth - 1); if (!depth) setPageDrag(false); } };
-    const over = (event) => { if (hasFiles(event)) event.preventDefault(); };
+    const reset = () => { depth = 0; setPageDrag(false); };
+    const leave = (event) => {
+      if (!hasFiles(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth || event.clientX <= 0 || event.clientY <= 0 || event.clientX >= window.innerWidth || event.clientY >= window.innerHeight) reset();
+    };
+    const over = (event) => { if (hasFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } };
     const drop = (event) => {
+      reset();
       if (!hasFiles(event)) return;
       event.preventDefault();
-      depth = 0;
-      setPageDrag(false);
-      addFiles(event.dataTransfer.files);
+      event.stopPropagation();
+      // Copiar mientras el evento conserva acceso a DataTransfer.
+      const files = [...event.dataTransfer.files];
+      if (!files.length) return;
+      addFiles(files);
       navigate('/app/upload');
     };
+    const keydown = (event) => { if (event.key === 'Escape') reset(); };
     window.addEventListener('dragenter', enter);
     window.addEventListener('dragleave', leave);
     window.addEventListener('dragover', over);
-    window.addEventListener('drop', drop);
+    window.addEventListener('drop', drop, true);
+    window.addEventListener('dragend', reset);
+    window.addEventListener('blur', reset);
+    window.addEventListener('keydown', keydown);
     return () => {
       window.removeEventListener('dragenter', enter);
       window.removeEventListener('dragleave', leave);
       window.removeEventListener('dragover', over);
-      window.removeEventListener('drop', drop);
+      window.removeEventListener('drop', drop, true);
+      window.removeEventListener('dragend', reset);
+      window.removeEventListener('blur', reset);
+      window.removeEventListener('keydown', keydown);
+      reset();
     };
   }, [enabled, addFiles, navigate]);
 
@@ -109,7 +114,7 @@ function Shell() {
         </div>
         <SidebarNav />
         <UsageCard />
-        <AccountMenu demoAccount={!session ? demoAccount : null} onExitDemo={() => setDemoAccount(null)} />
+        <AccountMenu />
       </aside>
       <button type="button" className="drawer-scrim" aria-label="Cerrar menú" tabIndex={-1} onClick={() => setDrawer(false)} />
 
@@ -130,14 +135,14 @@ function Shell() {
           </div>
         </header>
         <main className="app-content" id="main-content" key={pathname}>
-          {demoAccount && !session && (
-            <div className="demo-banner" role="status">
-              <FlaskConical strokeWidth={2} aria-hidden="true" />
-              <span>Modo demo: estás usando <strong>{demoAccount.name}</strong>. No es un inicio de sesión real.</span>
-              <button type="button" className="link-button" onClick={() => setDemoAccount(null)}>Cambiar de cuenta</button>
-            </div>
+          {pathname !== '/app' && <PlanPromotion pathname={pathname} />}
+          {showLibraryNotice && error && (
+            <div className="gallery-error" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary" onClick={refresh}>Volver a intentar</button></div>
           )}
-          {needsLibrary && !enabled ? <NoIdentity /> : <Outlet />}
+          {showLibraryNotice && unavailableItems.length > 0 && (
+            <p className="gallery-unavailable" role="status">Hay {unavailableItems.length} archivos no disponibles. Los totales de ahorro solo incluyen archivos disponibles. <Link to="/app/storage">Revisar imágenes</Link></p>
+          )}
+          {!(showLibraryNotice && error && !items.length) && <Outlet />}
         </main>
       </div>
 
@@ -150,7 +155,7 @@ function Shell() {
 
 function SidebarNav() {
   const { enabled, loaded, items, nextCursor, queue } = useLibrary();
-  const uploading = queue.filter((item) => item.status === 'queued' || item.status === 'uploading').length;
+  const uploading = queue.filter((item) => ['waiting', 'uploading', 'unknown', 'queued', 'processing', 'converted'].includes(item.status)).length;
 
   return (
     <nav className="app-nav" aria-label="Secciones">
@@ -171,18 +176,22 @@ function SidebarNav() {
   );
 }
 
-/** Solo informa el uso; la mejora de plan está en el menú de la cuenta. */
+/** Cuota y único CTA de planes del sidebar; la etiqueta proviene del plan de la cuenta. */
 function UsageCard() {
   const { session } = useSession();
-  const { demoAccount } = useDemoAccount();
-  const { enabled, stats } = useLibrary();
-  if ((!session && !demoAccount) || !enabled) return null;
+  const { enabled, quota, refreshQuota } = useLibrary();
+  if (!session || !enabled) return null;
   // La capacidad del plan se mide con el tamaño original de cada subida.
-  const ratio = Math.min(1, stats.originalBytes / FREE_CAPACITY_BYTES);
-  const known = stats.loaded;
+  const data = quota?.data;
+  const known = Boolean(data) && !quota.error;
+  const used = Number(data?.usedBytes ?? 0);
+  const reserved = Number(data?.reservedBytes ?? 0);
+  const capacity = Number(data?.capacityBytes ?? 0);
+  const ratio = capacity > 0 ? Math.min(1, (used + reserved) / capacity) : 0;
 
   return (
     <div className="usage-card">
+      {data?.plan && <div className="usage-tier"><span>Tu plan</span><strong className={data.plan.code === 'free' ? 'is-free' : undefined}>{data.plan.name}</strong></div>}
       <div className="usage-head">
         <span><HardDrive strokeWidth={1.9} aria-hidden="true" />Almacenamiento</span>
         <span className="usage-plan">{known ? `${Math.round(ratio * 100)} %` : '…'}</span>
@@ -191,8 +200,11 @@ function UsageCard() {
         <i style={{ transform: `scaleX(${known ? Math.max(ratio, 0.012) : 0})` }} />
       </div>
       <p className="usage-text">
-        {known ? <><strong>{stats.complete ? '' : 'Al menos '}{formatBytes(stats.originalBytes)}</strong> de 2 GB · Plan Free</> : 'Calculando…'}
+        {known ? <><strong>{formatBytes(used)}</strong> de {formatBytes(capacity)}{reserved > 0 && <><br />{formatBytes(reserved)} reservados</>}</> : quota?.error ? 'Cuota no disponible' : 'Consultando cuota…'}
       </p>
+      {quota?.error && <button type="button" className="link-button" onClick={refreshQuota}>Reintentar cuota</button>}
+      {data?.plan.code === 'free' && <p className="usage-pro-hint">Dale más espacio a tus ideas.<br /><span>Pro: 100 GB · Próximamente</span></p>}
+      <Link to="/app/plans" className="usage-upgrade"><Sparkles strokeWidth={2} aria-hidden="true" />{data?.plan.code === 'free' ? 'Mejorar plan' : 'Ver planes'}<ArrowUpRight strokeWidth={2} aria-hidden="true" /></Link>
     </div>
   );
 }

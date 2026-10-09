@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { copyFile, lstat } from 'node:fs/promises';
 import { AppError } from '../lib/app-error.js';
 import { MAX_UPLOAD_BYTES, prepareImage, removeTemporary } from '../modules/storage/storage.files.js';
-import { cursorFor, parsePagination, safeOriginalName } from '../modules/storage/storage.validation.js';
+import { cursorFor, parsePagination, parseUploadFields, safeOriginalName } from '../modules/storage/storage.validation.js';
 import { checkJobDirectory, cleanJobFiles, fingerprint, jobPaths, normalizeJobId, recoverResult, saveResult, verifyConverted } from './image-job-files.js';
 import { transaction, withJobLock } from './job-lock.js';
 
@@ -12,10 +12,11 @@ export const JOB_TTL_MS = 24 * 60 * 60 * 1000;
 
 function publicJob(row) {
   const terminal = ['failed', 'published'].includes(row.status);
+  const available = row.status === 'published' && !!row.published_image_id && row.image_available === true;
   return { id: row.id, originalName: row.original_name, status: row.status, attempts: row.attempts,
     maxAttempts: MAX_JOB_ATTEMPTS, errorCode: row.error_code, imageId: row.published_image_id,
-    available: row.status === 'published' && !!row.published_image_id,
-    downloadUrl: row.status === 'published' && row.published_image_id ? `/api/files/${row.published_image_id}/download` : null,
+    available,
+    downloadUrl: available ? `/api/files/${row.published_image_id}/download` : null,
     quotaState: !row.quota_managed ? 'not_required' : row.quota_settled_at ? 'settled' : 'pending',
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(), expiresAt: row.expires_at.toISOString(),
     nextPollAfterMs: terminal ? null : 2000 };
@@ -32,7 +33,7 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
     if (!job.quota_managed || job.quota_settled_at || !lifecycle || !['converted', 'failed'].includes(job.status)) return job;
     await transaction(client, async () => {
       const payload = { jobId: job.id, userId: job.user_id, originalHash: job.original_hash,
-        originalSizeBytes: String(job.original_size_bytes), originalName: job.original_name };
+        originalSizeBytes: String(job.original_size_bytes), originalName: job.original_name, folderId: job.folder_id };
       if (job.status === 'converted') {
         // Publicación y confirmación de cuota comparten ESTA transacción.
         // El adaptador debe copiar, nunca mover/borrar la entrada antes del COMMIT.
@@ -97,13 +98,24 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
 
   return {
     // Interno: S3-11 conecta HTTP cuando exista un lifecycle de cuotas real.
-    async stage({ ownerId, file }) {
+    async stage({ ownerId, file, folderId = null, jobId }) {
+      folderId = parseUploadFields({ folderId: folderId ?? '' }).folderId;
       if (!file?.path) throw new AppError(400, 'UPLOAD_REQUIRED', 'Selecciona una imagen.');
       const info = await lstat(file.path);
       if (!info.isFile() || !info.size) throw new AppError(400, 'EMPTY_FILE', 'La imagen está vacía o no es un archivo regular.');
       if (info.size > MAX_UPLOAD_BYTES) throw new AppError(413, 'FILE_TOO_LARGE', 'La imagen supera el máximo de 25 MB.');
-      const id = randomUUID();
+      const id = jobId === undefined ? randomUUID() : normalizeJobId(jobId);
       return withJobLock(database, id, async (client) => {
+        const existing = await load(client, id);
+        if (existing) {
+          if (existing.user_id !== ownerId) throw new AppError(404, 'JOB_NOT_FOUND', 'El trabajo no existe o no pertenece a esta cuenta.');
+          const incoming = await fingerprint(file.path, MAX_UPLOAD_BYTES);
+          if (existing.original_hash !== incoming.hash || String(existing.original_size_bytes) !== String(incoming.size) ||
+              existing.original_name !== safeOriginalName(file.originalname) || existing.admitted_folder_id !== folderId) {
+            throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'La clave de la solicitud ya se usó con otra imagen o carpeta.');
+          }
+          return { id, status: existing.status };
+        }
         const files = jobPaths(storageRoot, id);
         await checkJobDirectory(storageRoot, id, { create: true });
         let committing = false;
@@ -111,13 +123,15 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
           await copyFile(file.path, files.original);
           const { size, hash } = await fingerprint(files.original, MAX_UPLOAD_BYTES);
           await client.query('BEGIN');
-          const { rows } = await client.query(`INSERT INTO image_processing_jobs
-            (id, user_id, original_name, original_size_bytes, original_hash, quota_managed)
-            SELECT $1, id, $3, $4, $5, $6 FROM users WHERE id = $2 AND active = TRUE RETURNING id`,
-          [id, ownerId, safeOriginalName(file.originalname), size, hash, !!lifecycle]);
-          if (!rows.length) throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
+          // Bloquear usuario antes de insertar evita ascensos de bloqueo
+          // incompatibles con claves foráneas de otros productores.
           if (lifecycle) await lifecycle.reserve(client, { jobId: id, userId: ownerId, originalHash: hash,
-            originalSizeBytes: String(size), originalName: safeOriginalName(file.originalname) });
+            originalSizeBytes: String(size), originalName: safeOriginalName(file.originalname), folderId });
+          const { rows } = await client.query(`INSERT INTO image_processing_jobs
+            (id, user_id, original_name, original_size_bytes, original_hash, quota_managed, folder_id, admitted_folder_id)
+            SELECT $1, id, $3, $4, $5, $6, $7, $7 FROM users WHERE id = $2 AND active = TRUE RETURNING id`,
+          [id, ownerId, safeOriginalName(file.originalname), size, hash, !!lifecycle, folderId]);
+          if (!rows.length) throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
           committing = true;
           await client.query('COMMIT');
           return { id, status: 'queued' };
@@ -132,17 +146,21 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
 
     async get(ownerId, id) {
       id = normalizeJobId(id);
-      const { rows: [row] } = await database.query('SELECT * FROM image_processing_jobs WHERE id = $1 AND user_id = $2', [id, ownerId]);
+      const { rows: [row] } = await database.query(`SELECT j.*, EXISTS (
+        SELECT 1 FROM images i WHERE i.id=j.published_image_id AND i.user_id=j.user_id AND i.deleted_at IS NULL
+      ) AS image_available FROM image_processing_jobs j WHERE j.id=$1 AND j.user_id=$2`, [id, ownerId]);
       if (!row) throw new AppError(404, 'JOB_NOT_FOUND', 'El trabajo no existe o no pertenece a esta cuenta.');
       return publicJob(row);
     },
 
     async list(ownerId, query = {}) {
       const { limit, cursor } = parsePagination(query);
-      const { rows } = await database.query(`SELECT *, to_char(created_at AT TIME ZONE 'UTC',
-        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at FROM image_processing_jobs
-        WHERE user_id = $1 AND ($2::timestamptz IS NULL OR (created_at, id) < ($2::timestamptz, $3::uuid))
-        ORDER BY created_at DESC, id DESC LIMIT $4`, [ownerId, cursor?.createdAt || null, cursor?.id || null, limit + 1]);
+      const { rows } = await database.query(`SELECT j.*, to_char(j.created_at AT TIME ZONE 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at, EXISTS (
+          SELECT 1 FROM images i WHERE i.id=j.published_image_id AND i.user_id=j.user_id AND i.deleted_at IS NULL
+        ) AS image_available FROM image_processing_jobs j
+        WHERE j.user_id = $1 AND ($2::timestamptz IS NULL OR (j.created_at, j.id) < ($2::timestamptz, $3::uuid))
+        ORDER BY j.created_at DESC, j.id DESC LIMIT $4`, [ownerId, cursor?.createdAt || null, cursor?.id || null, limit + 1]);
       const page = rows.slice(0, limit);
       return { items: page.map(publicJob), nextCursor: rows.length > limit ? cursorFor(page.at(-1)) : null };
     },

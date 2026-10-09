@@ -1,66 +1,64 @@
-# S3-04/S3-05: worker, recuperación y contrato de cuotas
+# Worker, recuperación y cuotas compartidas
 
-Actualizado el 04/10/2026. S3-04 conserva su núcleo terminado; S3-05 completa la recuperación propia. El acoplamiento real con S3-08 pertenece a S3-11, según [el criterio individual del equipo](https://github.com/g4usSi/Proyecto-IngSoftware1-SaaS/blob/ccb32aa/docs/criterios-cierre-modulos.md).
+Actualizado el 07/10/2026. Integra la base de Elden S3-08 y el acoplamiento backend S3-11. El frontend del producto mantiene su entrega anterior; sus nuevos contratos están en la [guía de Alegría](frontend-auth-jobs-handoff.md).
 
-## Entregado
-
-- BullMQ/Redis y Sharp con estados PostgreSQL `queued → processing → converted`, o `failed`. Con un adaptador de publicación/cuotas, `converted → published`.
-- Reconciliación al iniciar el worker y cada 30 segundos: repone trabajos admitidos en PostgreSQL cuyo envío a Redis se perdió. Reintenta entradas Redis terminadas cuando PostgreSQL aún tiene trabajo pendiente.
-- Límite persistente de tres intentos de conversión. Vaciar/perder Redis no reinicia ese límite. Los fallos transitorios conservan el original; el backoff pendiente de BullMQ no se adelanta.
-- Recuperación después de una interrupción: un recibo SHA-256 acompaña el WebP. Si ya existe un resultado verificado, confirma su estado sin convertirlo nuevamente. Si la interrupción ocurre durante una conversión incompleta, puede repetir ese intento; nunca publica dos resultados por esa entrega.
-- Expiración a las 24 horas desde admisión de trabajos aún no publicados. Terminan `failed / JOB_EXPIRED`; no queda una fila indefinidamente en `processing` después de reiniciar el consumidor.
-- Limpieza de originales y residuos por UUID. Un trabajo convertido conserva solo `result.webp` y `result.json` hasta publicación o expiración. Los fallidos/publicados eliminan su directorio completo. Los directorios sin fila se eliminan al superar 24 horas.
-- Bloqueo PostgreSQL compartido por admisión, conversión, recuperación, publicación y limpieza. El barrido omite trabajos bloqueados, conserva carpetas recientes y no sigue enlaces/junctions. No recorre ni borra objetos definitivos ni temporales de la ruta síncrona ajenos a este módulo.
-- Consulta HTTP por propietario y cliente JavaScript para Alegría: [guía de integración](s3-05-handoff.md).
-
-`converted` significa **WebP temporal verificado**, no imagen disponible. `published` requiere una referencia propia y confirmación de cuota en la misma transacción. La aplicación conserva `POST /api/files` síncrono; `POST /api/jobs` responde `503 ASYNC_UPLOAD_NOT_READY` y no admite archivos.
-
-## Arranque
-
-Requiere Node 24, PostgreSQL, Redis y el mismo disco privado accesible desde API/worker. Aplicar migraciones con los procesos detenidos antes de arrancar la nueva versión; no mezclar workers S3-04 antiguos con S3-05.
+## Operación
 
 ```powershell
 npm ci
 docker compose --profile worker up -d postgres redis
+# API y workers detenidos durante migraciones:
 npm run db:migrate
 npm run dev
-# En otra terminal:
+# Otra terminal:
 npm run worker:images
-# Alternativa operativa: un barrido único (no convierte):
+# Barrido único, sin consumidor:
 npm run worker:recover
 ```
 
-En `backend/.env`: `DATABASE_URL`, `STORAGE_ROOT`, `REDIS_URL=redis://127.0.0.1:6379/0` y `IMAGE_WORKER_CONCURRENCY=2`. Compose configura AOF y noeviction. La migración incremental `005_image_job_recovery.sql` conserva filas y añade vencimiento, limpieza y liquidación de cuotas. Las filas heredadas reciben 24 horas desde la migración.
+API, worker y recuperador comparten DATABASE_URL, STORAGE_ROOT y REDIS_URL en backend/.env. Compose publica Redis sólo en loopback, usa AOF y noeviction. IMAGE_WORKER_CONCURRENCY acepta 1–8, por defecto 2. No mezclar ejecutables antiguos con estas migraciones.
 
-El reconciliador pagina por UUID y continúa después de errores de una fila; registra códigos, nunca trazas SQL o credenciales. Las liberaciones pendientes permanecen registradas aunque se haya limpiado el original. El barrido se recupera en el siguiente ciclo. Si Redis conserva una entrada `active`, se respeta su bloqueo y BullMQ la devuelve a espera/fallo mediante su detección de trabajos interrumpidos; no se elimina una entrada activa a la fuerza. Referencias: [stalled jobs](https://docs.bullmq.io/guide/jobs/stalled), [reintentos](https://docs.bullmq.io/guide/retrying-failing-jobs) y [cierre ordenado](https://docs.bullmq.io/guide/workers/graceful-shutdown).
+## Recorrido disponible
 
-`SIGINT`/`SIGTERM` detienen el ciclo y esperan al trabajo activo antes de cerrar las conexiones. Una terminación forzada se recupera al reiniciar. Las pruebas acreditan caída de procesos; no simulan pérdida física del disco o del servidor PostgreSQL.
+1. `POST /api/jobs` recibe una imagen, reserva cuota e inserta el trabajo en la misma transacción. La identidad procede del JWT. `folderId` opcional se valida contra el propietario.
+2. Después de COMMIT, envía sólo el UUID a BullMQ y responde 202 con estado privado. Si Redis falla, conserva la admisión y el reconciliador repara la entrega. `Idempotency-Key` UUID opcional reutiliza el mismo trabajo cuando archivo/nombre/carpeta coinciden.
+3. El consumidor convierte con Sharp; guarda recibo del resultado y estado converted.
+4. El lifecycle bloquea usuario→objeto, publica o reutiliza el WebP, crea una referencia propia, confirma cuota y registra published dentro de una transacción PostgreSQL.
+5. Después de COMMIT, limpia originales y resultado temporal. Los fallos terminales y la expiración liberan la reserva una sola vez.
 
-## Contrato interno para Elden y S3-11
+GET de listado/detalle mantiene el contrato S3-05. La descarga usa imageId y JWT. POST /api/files conserva su recorrido síncrono y usa el mismo repositorio de cuotas y eventos de consumo.
 
-`createImageJobs({ database, storageRoot, lifecycle? })` expone `stage({ ownerId, file })`, `get(ownerId, id)`, `list(ownerId, query)`, `process(id)` y `recover(id, ensureQueued)`. El archivo inicial de `stage` pertenece al llamador, quien lo debe eliminar después de la admisión o su fallo.
+## Cuotas y migración
 
-Sin `lifecycle`, las admisiones son internas, sin reservas (`quota_managed=false`). **No conectar esta modalidad a HTTP.** No existe modo de cuotas falsas activable por configuración. Los dobles se inyectan solo en pruebas.
+`005_quota_reservations.sql` conserva el archivo publicado de Elden. `006_shared_quota_lifecycle.sql` añade usage_date, relación opcional con la imagen, carpeta del trabajo y tareas durables de limpieza física.
 
-El puerto de integración está implementado y probado con dobles, pero Elden aún debe entregar su implementación de cuotas y el equipo adaptar sus operaciones a este puerto:
+La capacidad usa tamaños originales de referencias actuales más todas las reservas pendientes. El consumo diario usa eventos confirmados independientes de images más reservas pendientes del día. El día se fija al admitir en America/Guatemala y se conserva al confirmar, aunque cambie la fecha.
 
-| Función del adaptador | Transacción y resultado |
+La migración vincula reservas de publicaciones anteriores, incorpora imágenes síncronas existentes una sola vez y reconstruye los agregados desde los eventos confirmados. Conserva reservas de imágenes ya borradas. El migrador registra nombre y checksum en una transacción y omite archivos aplicados; una segunda ejecución no vuelve a sumar consumo. No editar migraciones publicadas/aplicadas.
+
+## Contrato interno
+
+`createManagedImageJobs({ database, storageRoot })` instala el lifecycle real; es la fábrica usada por HTTP, worker y recuperador. `createImageJobs` sin lifecycle queda para pruebas del núcleo y trabajos históricos internos.
+
+| Operación | Comportamiento |
 | --- | --- |
-| `reserve(client, payload)` | Comparte el INSERT del trabajo. Bloquear usuario, validar plan y pendientes, reservar por UUID. Lanzar error si no hay cupo; se revierten reserva y trabajo. |
-| `confirm(client, payload)` | Orquestador de S3-11: publicar/reutilizar objeto, crear referencia propia y llamar a la confirmación de cuota de Elden usando este mismo cliente. Devuelve `{ imageId }`. El worker verifica propietario/hash/objeto ready y marca `published` en esa transacción. |
-| `release(client, payload)` | Liberar reserva idempotente por UUID en fallo/expiración; el worker registra liquidación en la misma transacción. Si falla, el siguiente barrido repite. |
+| `quotas.reserve(client, { reservationKey, userId, bytes })` | Client con transacción abierta; bloquea usuario con FOR NO KEY UPDATE, valida inicio/expiración del plan, capacidad, pendientes y límites. Repite UUID/datos sin duplicar. |
+| `quotas.confirm(client, key, userId, imageId?)` | Mismo client; transición pending→confirmed e incremento del día reservado. El lifecycle proporciona una imagen propia del tamaño correcto. |
+| `quotas.release(client, key, userId)` | Mismo client; pending→released, repetición sin efecto. Funciona aunque la cuenta se desactive tras admisión. |
+| `withUserTransaction(userId, callback)` | Conveniencia para consumidores independientes; abre su transacción. El lifecycle usa las operaciones con client recibido. |
 
-`payload` contiene `jobId`, `userId`, `originalHash`, `originalSizeBytes` (string) y `originalName`. Confirmación añade `resultPath` (solo servidor); liberación añade `reason` (código de error). El orquestador debe conservar el original de entrada de confirmación hasta COMMIT: copiar/publicar de forma idempotente, nunca mover ni borrar ese WebP temporal antes de confirmar. Debe coordinar y reparar también sus efectos físicos si revierte la transacción.
+No hay BEGIN/COMMIT internos en reserve/confirm/release. El bloqueo del usuario permanece hasta el COMMIT del llamador. Admisión reserva antes del INSERT del trabajo, evitando conflictos con KEY SHARE de claves foráneas. Orden de integración: trabajo→usuario→objeto. El limpiador de objetos toma sólo el bloqueo del objeto y no pide después un usuario.
 
-Todas las funciones reciben un cliente con transacción abierta: no abrir otro pool, no hacer COMMIT propio ni efectos externos irreversibles. Respetar orden bloqueo **trabajo → usuario → objeto**, idempotencia por UUID y validaciones del plan/reserva. Un COMMIT cuya respuesta se pierde se resuelve releyendo la fila, sin repetir un efecto confirmado.
+## Fallos y recuperación
 
-El adaptador de confirmación incluye publicación porque confirmar consumo solo por haber convertido dejaría cuotas inconsistentes si la publicación falla. La implementación de cuotas de Elden puede mantenerse separada y ser llamada por este orquestador.
-
-Al configurar cuotas reales, API, worker y recuperador deben recibir el mismo adaptador. Actualmente los ejecutables no lo instancian porque no existe implementación S3-08 en esta rama. Las filas con cuotas administradas y sin adaptador conservan su liquidación pendiente; jamás se marcan como liberadas/confirmadas ficticiamente.
+- PostgreSQL es la fuente de verdad. El reconciliador inicia con el worker y repite cada 30 segundos; conserva backoff/entradas Redis activas y repone entregas perdidas.
+- Máximo de tres intentos persistentes; perder Redis no reinicia el contador. Expiración a las 24 horas de la admisión.
+- El publicador copia el resultado y lo renombra atómicamente; conserva el resultado de entrada hasta COMMIT. Una caída antes de COMMIT puede dejar un objeto físico sin fila, que se reutiliza al recuperar o se retira al liberar. Conserva siempre objetos con fila/referencias de otras cargas.
+- Una caída después de COMMIT se resuelve leyendo published: no vuelve a crear imagen ni incrementar consumo. El recibo permite recuperar converted sin repetir Sharp.
+- DELETE de la última referencia confirma primero SQL y registra storage_cleanup_tasks. El borrado físico se realiza después bajo bloqueo del objeto; si se interrumpe o falla, el siguiente barrido lo completa. Una subida que adopta ese hash conserva su objeto.
+- Limpieza de temporales por UUID, sin seguir enlaces/junctions ni barrer temporales síncronos ajenos. SIGINT/SIGTERM esperan el cierre; una terminación forzada se recupera al reiniciar.
 
 ## Verificación
-
-El 01/10 se verificó el núcleo en `e590ae8`: 50/50; esa evidencia no cubría S3-05. El 04/10 se ejecutó la suite ampliada con PostgreSQL Docker y Redis real: ver [evidencia S3-05](evidencias/2026-10-04-s3-05/resultado.json).
 
 ```powershell
 $env:TEST_REDIS_URL = 'redis://127.0.0.1:6379/0'
@@ -69,6 +67,4 @@ npm run check
 Remove-Item Env:TEST_REDIS_URL
 ```
 
-`test:storage` requiere PostgreSQL local en 5433 y permiso para crear una **base temporal propia**, que elimina al finalizar. Cada prueba Redis usa una cola aleatoria y limpia solo esa cola. Nunca usa FLUSHDB/FLUSHALL. Sin las variables de servicios correspondientes, se informan omisiones explícitas.
-
-Cobertura propia: admisión sin envío, dos reconciliadores, pérdida de entradas Redis, caídas reales antes/después del resultado, máximo de intentos, expiración con conversión activa, huérfanos recientes/bloqueados/enlaces, original perdido, resultado corrupto, errores de confirmación/liberación y rollback con dobles SQL, endpoints JWT/propietario/paginación. S3-11 aún debe comprobar cuotas reales, publicación/deduplicación definitiva y recorrido completo de la interfaz.
+test:storage crea y elimina una base temporal local en 5433; cada prueba Redis usa una cola aleatoria que elimina al finalizar, sin FLUSHDB/FLUSHALL. Incluye límites/concurrencia compartidos, medianoche, suscripción futura, rollback, migración repetida, idempotencia HTTP, publicación privada, deduplicación, liberación/expiración, borrado y caídas reales antes/después de COMMIT. La verificación del frontend asíncrono continúa con Alegría.

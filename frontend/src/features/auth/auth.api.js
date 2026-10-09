@@ -25,3 +25,27 @@ export function authErrorMessage(error) {
   if (!(error instanceof ApiError)) return 'No se pudo conectar con el servicio. Vuelve a intentarlo.';
   return messages[error.code] ?? error.message;
 }
+
+// ── Verificación de correo y recuperación de contraseña ──
+// Respuestas neutrales: forgot/resend nunca revelan si la cuenta existe.
+export function verifyEmail(token) {
+  return apiRequest('/auth/verify-email', { method: 'POST', body: { token } });
+}
+
+export function resendVerification(email) {
+  return apiRequest('/auth/resend-verification', { method: 'POST', body: { email } });
+}
+
+export function forgotPassword(email) {
+  return apiRequest('/auth/forgot-password', { method: 'POST', body: { email } });
+}
+
+export function resetPassword({ token, password }) {
+  return apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
+}
+
+export function changePassword({ currentPassword, newPassword }, { token, signal }) {
+  return apiRequest('/auth/change-password', {
+    method: 'POST', token, signal, body: { currentPassword, newPassword },
+  });
+}
