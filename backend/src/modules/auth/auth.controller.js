@@ -16,11 +16,17 @@ export function createAuthController(service) {
     async verifyEmail(req, res) {
       res.json({ data: await service.verifyEmail(req.body) });
     },
+    async resendVerification(req, res) {
+      res.json({ data: await service.resendVerification(req.body) });
+    },
     async forgotPassword(req, res) {
       res.json({ data: await service.forgotPassword(req.body) });
     },
     async resetPassword(req, res) {
       res.json({ data: await service.resetPassword(req.body) });
+    },
+    async changePassword(req, res) {
+      res.json({ data: await service.changePassword(req.user, req.body) });
     },
   };
 }

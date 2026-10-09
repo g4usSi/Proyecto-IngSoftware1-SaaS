@@ -23,15 +23,26 @@ export async function getDemoConfiguration(options = {}) {
 }
 
 // Options carry either a verified session token or explicitly selected demo headers.
-export async function listFiles({ cursor, ...options } = {}) {
+export async function listFiles({ cursor, folderId, trash = false, ...options } = {}) {
   const query = new URLSearchParams({ limit: '20' });
   if (cursor) query.set('cursor', cursor);
+  if (folderId) query.set('folderId', folderId);
+  if (trash) query.set('trash', 'true');
   const data = await apiRequest(`/files?${query}`, options);
   if (!Array.isArray(data?.items) || (data.nextCursor !== null && typeof data.nextCursor !== 'string')) {
     throw new ApiError('El listado de imágenes tiene un formato inesperado.', 'INVALID_RESPONSE', 200);
   }
   return data;
 }
+
+export const listAlbums = (options = {}) => apiRequest('/albums', options);
+export const createAlbum = (name, options = {}) => apiRequest('/albums', { ...options, method: 'POST', body: { name } });
+export const renameAlbum = (id, name, options = {}) => apiRequest(`/albums/${encodeURIComponent(id)}`, { ...options, method: 'PATCH', body: { name } });
+export const deleteAlbum = (id, options = {}) => apiRequest(`/albums/${encodeURIComponent(id)}`, { ...options, method: 'DELETE' });
+export const moveFile = (id, folderId, options = {}) => apiRequest(`/files/${encodeURIComponent(id)}`, { ...options, method: 'PATCH', body: { folderId } });
+export const trashFile = (id, options = {}) => apiRequest(`/files/${encodeURIComponent(id)}/trash`, { ...options, method: 'POST' });
+export const restoreFile = (id, options = {}) => apiRequest(`/files/${encodeURIComponent(id)}/restore`, { ...options, method: 'POST' });
+export const deleteFile = (id, options = {}) => apiRequest(`/files/${encodeURIComponent(id)}`, { ...options, method: 'DELETE' });
 
 export async function uploadFile(file, options = {}) {
   const validation = validateImage(file);

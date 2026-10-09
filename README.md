@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: autenticación, Storage e interfaz integrados.** El registro asigna el plan Free y, tras iniciar sesión, un token JWT permite subir y descargar imágenes. La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
+**Segunda versión: v0.2.0 — avance funcional del 50% (09/10/2026).** Incluye cuentas verificadas, recuperación/cambio de contraseña, procesamiento asíncrono, cuotas, álbumes y papelera. Consulta el [alcance, aceptación y novedades](docs/avance-50.md). El registro asigna Free y la sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 
@@ -13,24 +13,66 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Subida de imágenes estáticas JPG/PNG/WebP de hasta 25 MB y conversión a WebP calidad 80.
 - Listado paginado, descarga del propietario, cuotas transaccionales y deduplicación entre cuentas.
 - Metadatos en PostgreSQL, archivos privados en `storage/` y ahorro calculado para administrador.
-- Demostración local opcional con dos cuentas y acceso visible desde la portada cuando está activa.
+- Herramienta de demostración local por API con dos cuentas reservadas; la interfaz requiere sesión real.
 - Registro, login, cierre de sesión y acceso privado mediante JWT; cada cuenta nueva recibe Free.
+- Verificación de correo, recuperación de contraseña y consulta privada de procesos.
+- Admisión asíncrona `POST /api/jobs`, worker Redis/BullMQ, publicación privada y recuperación.
+- Cuotas compartidas entre ambas rutas, consulta `GET /api/quotas/me` y borrado privado que conserva el consumo diario.
 
-Los pagos, el borrado y los workers **están pendientes**. La demostración sigue siendo una alternativa local para probar la biblioteca sin iniciar sesión.
+La interfaz incluye subida asíncrona y cuotas reales, álbumes, movimiento de imágenes, papelera/restauración y borrado definitivo confirmado. También incorpora el cambio de contraseña y las correcciones de recuperación de Andy. El usuario confirmó la revisión conjunta del equipo y las correcciones terminadas el 09/10; S3-11 está cerrada. La [guía del frontend](docs/frontend-auth-jobs-handoff.md) conserva sus contratos para mantenimiento. La publicación de esta release en `main` es distinta de la presentación académica S3-12, que sigue pendiente. Los pagos y el panel administrativo completo pertenecen al siguiente avance.
 
 ## Arranque rápido
 
-Requisitos: Node.js 24 y npm 11. PostgreSQL 17 o 18 se necesita para Storage, migraciones y catálogo, pero la interfaz y `/api/health` pueden arrancar sin base de datos.
+Requisitos: **Node.js 24, npm 11 o superior, PostgreSQL 17/18 y Redis**. Para los comandos siguientes, abrir Docker Desktop y usar PowerShell desde la raíz del repositorio. Docker ejecuta PostgreSQL/Redis; Node ejecuta la API, el frontend y el worker. La segunda versión se identifica con el tag `v0.2.0` en `main`; conservar cualquier cambio local antes de cambiar de rama. El desarrollo compartido continúa en `tema-y-flujo-git`.
 
-Desde la raíz:
+### 1. Preparar dependencias y configuración
+
+La primera vez, o después de recibir cambios en dependencias:
 
 ```powershell
 npm ci
 if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
+```
+
+Editar `backend/.env` antes de continuar:
+
+| Variable | Configuración local |
+| --- | --- |
+| `DATABASE_URL` | El ejemplo ya coincide con Compose: PostgreSQL en `localhost:5433`, base/usuario `smartstorage`. |
+| `JWT_SECRET` | Reemplazar el ejemplo por un secreto propio de al menos 32 caracteres; el ejemplo incluye un comando para generarlo. |
+| `REDIS_URL` | `redis://127.0.0.1:6379/0`. |
+| `STORAGE_ROOT` | `./storage`; API y worker deben compartir esta ubicación y la misma base de datos. |
+| `FRONTEND_URL` | `http://localhost:5173`, para los enlaces de verificación y recuperación. |
+| `SMTP_*` | Configurar las cinco variables para enviar correo. En desarrollo, si todas están vacías, los enlaces aparecen en la terminal de la API. |
+
+No sobrescribir un `.env` existente. `npm ci` instala ambos módulos; no hace falta instalar dentro de cada carpeta. Usar `npm.cmd` si PowerShell bloquea `npm.ps1`. En macOS/Linux, copiar el ejemplo con el comando equivalente sólo si el destino no existe.
+
+### 2. Levantar servicios y aplicar migraciones
+
+Con la API y el worker detenidos:
+
+```powershell
+docker compose --profile worker up -d --wait postgres redis
+npm run db:migrate
+```
+
+Compose espera a que los servicios estén listos. PostgreSQL se expone en **5433** y Redis en **6379**, sólo en localhost. La migración nueva es `007_albums_and_trash.sql`; el comando aplica todas las pendientes y conserva el historial. No modificar migraciones ya aplicadas.
+
+### 3. Ejecutar la aplicación en dos terminales
+
+**Terminal 1 — API y frontend**, desde la raíz:
+
+```powershell
 npm run dev
 ```
 
-En macOS/Linux, copiar el ejemplo solo si aún no existe `.env`. Usar `npm.cmd` si la política local de PowerShell impide ejecutar `npm.ps1`.
+**Terminal 2 — procesamiento de imágenes**, también desde la raíz:
+
+```powershell
+npm run worker:images
+```
+
+Mantener ambas abiertas. `npm run dev` no inicia el worker: sin él las subidas admitidas quedan pendientes de procesamiento. El frontend ya utiliza `POST /api/jobs`; aparecerán en la biblioteca cuando se publiquen.
 
 - Portada: <http://127.0.0.1:5173/>
 - Panel: <http://127.0.0.1:5173/app>
@@ -40,21 +82,21 @@ En macOS/Linux, copiar el ejemplo solo si aún no existe `.env`. Usar `npm.cmd` 
 
 `/api/health` confirma que la API funciona; `/api/ready` devuelve `503` hasta configurar una conexión PostgreSQL válida. Storage y el catálogo requieren además ejecutar migraciones.
 
-### Base de datos con Docker (opcional)
+Crear una cuenta, abrir su enlace de verificación y luego iniciar sesión. Sin SMTP configurado en desarrollo, copiar el enlace que imprime la terminal 1. La sesión vive en memoria: al recargar hay que iniciar sesión otra vez; los trabajos ya admitidos permanecen en el servidor.
+
+Los álbumes se guardan en PostgreSQL, incluidos los vacíos: cerrar el navegador, la API o el worker no los elimina. En Álbumes se muestra la cuenta actual; si falla la consulta, usar **Actualizar álbumes** o **Reintentar**. Una lista que no pudo cargarse se muestra como error, no como una cuenta sin álbumes.
+
+### Uso diario y cierre
+
+En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y abrir las dos terminales del paso 3. Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.
+
+Para detener la aplicación, pulsar **Ctrl+C en ambas terminales**. Para detener también PostgreSQL/Redis conservando sus datos:
 
 ```powershell
-docker compose up -d postgres
-npm run db:migrate
-npm run dev:demo
+docker compose --profile worker stop postgres redis
 ```
 
-La configuración de ejemplo coincide con `compose.yaml`: puerto **5433** en el equipo para evitar el 5432 de una instalación existente, base/usuario `smartstorage` y contraseña de desarrollo `smartstorage_local`. El servicio se expone solo en localhost; esas credenciales son exclusivamente locales. Docker Desktop debe estar instalado y en ejecución para este camino. No se requiere Docker para Node o React.
-
-`dev:demo` prepara dos cuentas locales y arranca API + frontend con la demostración habilitada **solo durante ese comando**. Abre <http://127.0.0.1:5173/>, pulsa **Probar demo local sin crear cuenta** y selecciona Demo Storage A o B en Mi biblioteca. El panel identifica la cuenta elegida, muestra su plan Free y permite cambiar de cuenta. Sube una imagen y descarga su WebP; repetir con la otra cuenta y el mismo archivo conserva una sola copia física. Las cuentas y sus imágenes persisten entre ejecuciones. `npm run dev` arranca con la demo desactivada por defecto. No hay contraseñas demo ni acceso al panel administrativo mediante esas cuentas. Cierra cualquier ejecución previa de `npm run dev` antes de iniciar `dev:demo`, pues ambos usan los puertos 3000 y 5173.
-
-Para usar el login real, configura un `JWT_SECRET` propio de al menos 32 caracteres en `backend/.env`. El ejemplo incluido debe reemplazarse antes de compartir o desplegar la aplicación. Sin ese valor, las rutas de autenticación protegidas devuelven `503`.
-
-Al iniciar o reiniciar la API en desarrollo, la terminal muestra las direcciones de la API, la portada y el panel. En modo demo también muestra el enlace directo a la biblioteca: <http://127.0.0.1:5173/app/storage>. Vite imprime su dirección cuando arranca.
+La demo es una herramienta separada: `npm run dev:demo` prepara dos identidades para pruebas de Storage por API y activa `X-Storage-Demo-User`. No crea sesiones JWT ni permite entrar al panel sin login. Ver [límites de la demo](docs/storage.md).
 
 ### Base de datos instalada localmente
 
@@ -64,7 +106,7 @@ Crear una base de desarrollo vacía, por ejemplo con la utilidad `createdb` de P
 createdb -h 127.0.0.1 -p 5432 -U postgres smartstorage
 ```
 
-Editar `DATABASE_URL` en `backend/.env` usando el usuario, contraseña y puerto de esa instalación. Codificar los caracteres especiales de la contraseña para URL. Después ejecutar `npm run db:migrate`. No apuntar las migraciones a una base ajena o de producción.
+Editar `DATABASE_URL` en `backend/.env` usando el usuario, contraseña y puerto de esa instalación. Codificar los caracteres especiales de la contraseña para URL. Ejecutar Redis localmente o mantener sólo ese servicio de Compose, y ajustar `REDIS_URL` si cambia su dirección. Después ejecutar `npm run db:migrate` y los comandos de las dos terminales. No apuntar las migraciones a una base ajena o de producción.
 
 La aplicación no crea ni modifica bases automáticamente al arrancar. Una segunda ejecución de migraciones omite las ya aplicadas. No editar una migración aplicada: añadir otra numerada.
 
@@ -75,18 +117,35 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run dev` | API y frontend juntos; Ctrl+C termina ambos |
 | `npm run dev:api` | Solo API |
 | `npm run dev:web` | Solo interfaz |
-| `npm run dev:demo` | Preparar dos cuentas y ejecutar la demostración local de Storage |
+| `npm run dev:demo` | Preparar cuentas para pruebas de la API demo; el panel web requiere sesión JWT |
 | `npm run check` | Sintaxis backend y compilación frontend |
 | `npm test` | Contratos/configuración/demo; añadir `TEST_DATABASE_URL` para incluir Storage con BD real |
 | `npm run test:storage` | Ejecutar todas las pruebas, incluida la integración de Auth y Storage, con PostgreSQL local en 5433; crea y elimina una base temporal propia |
-| `npm run test:browser` | Recorrido en navegador real, con PostgreSQL aislado y evidencia local; ver [instrucciones](docs/aceptacion-30.md) |
+| `npm run test:organization-browser` | Recorrido actual en Edge/Chromium: cuentas, subida asíncrona, cuotas, álbumes, papelera, contraseña y móvil, con API/PostgreSQL/Sharp reales y base temporal |
+| `npm run test:browser` | Recorrido histórico del 30%, anterior a verificación obligatoria y subidas asíncronas; para la interfaz actual usar `test:organization-browser` |
+| `npm run test:frontend` | Regresiones de sesión, formularios, arrastre y procesos con API simulada; usa Edge en Windows o `E2E_BROWSER_CHANNEL`, sin tocar la BD |
+| `npm run worker:images` | BullMQ/Sharp, publicación privada y recuperación automática; requiere Redis y todas las migraciones hasta 007; ver [cuotas](docs/worker-cuotas.md) |
+| `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
 | `npm run db:seed:demo` | Preparar las dos cuentas locales sin activar la demostración |
 
+Para verificar la versión actual, con PostgreSQL y Redis locales activos:
+
+```powershell
+npm run check
+$env:TEST_REDIS_URL = 'redis://127.0.0.1:6379/0'
+npm run test:storage
+Remove-Item Env:TEST_REDIS_URL
+npm run test:frontend
+npm run test:organization-browser
+```
+
+Los supervisores de Storage y navegador requieren PostgreSQL local en **5433** y un usuario que pueda crear bases temporales; no migran la base del equipo. Sin `TEST_REDIS_URL`, las pruebas de Redis se omiten. La prueba de frontend usa una API simulada; el recorrido de organización usa API/PostgreSQL/Sharp reales con entrega controlada al procesador y correo capturado, sin envío SMTP externo. En Windows usan Edge por defecto; en otros sistemas se necesita Chromium de Playwright (`npx playwright install chromium`).
+
 El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el puerto del backend, actualizar `API_PROXY_TARGET` en `frontend/.env` y reiniciar Vite. `frontend/dist` es solo la interfaz: el despliegue deberá proporcionar la API y configurar `/api` en el servidor frontal.
 
-Los contratos del backend están en [autenticación](docs/auth-frontend.md) y [API](docs/api.md). El [traspaso al frontend](docs/frontend-handoff.md) conserva los criterios de integración usados para esta versión.
+La [guía de Alegría](docs/frontend-auth-jobs-handoff.md) conserva los contratos de mantenimiento tras la revisión del equipo. El detalle adicional está en [autenticación](docs/auth-frontend.md), [API](docs/api.md), [OpenAPI de trabajos/cuotas/borrado](docs/contracts/jobs.openapi.json) y [evidencia de organización](docs/organizacion-frontend.md).
 
 ## Organización
 
@@ -101,8 +160,8 @@ backend/
   src/
     config/                Entorno y PostgreSQL
     middleware/            Autenticación y errores
-    modules/               auth, storage, subscriptions
-    workers/               Punto de extensión documentado
+    modules/               auth, storage, quotas, subscriptions
+    workers/               Conversión, reconciliación y limpieza de trabajos
   migrations/              Esquema y datos iniciales versionados
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
@@ -130,14 +189,16 @@ en Codex abierto en este proyecto. Consulta las reglas en
 [sincronización de SmartStorage](docs/sincronizacion-smartstorage.md).
 Es un comando del asistente a pedido; no programa ejecuciones automáticas.
 
-Andy continúa la verificación de correo y recuperación sobre el módulo de autenticación existente. Geovanny continúa Storage y workers; Elden, planes/suscripciones; Diego, frontend e integración. Cada trabajo nuevo parte de esta base compartida.
+Andy mantiene autenticación y sus correcciones ya están incorporadas. Geovanny mantiene Storage, álbumes y workers; Elden, cuotas/planes; Diego Alegría, presentación visual e integración del frontend. Continuar desde la base compartida de `tema-y-flujo-git` y acordar la revisión antes de integrar a `main`.
 
 Crear ramas por tarea, mantener las migraciones coordinadas y revisar al menos con un compañero antes de integrar a `main`. No subir `.env`, imágenes de usuarios, contraseñas o `node_modules`. El archivo `package-lock.json` se versiona para instalar las mismas dependencias con `npm ci`.
 
 Seguir la [guía de Git del equipo](docs/flujo-git.md) para abrir ramas, recibir cambios y preparar un pull request. Alegría puede modificar los colores en `frontend/src/styles/theme.css`; la [guía de estilos](docs/estilos.md) explica la separación entre tema, componentes y pantallas.
 
-Redis queda disponible mediante `docker compose --profile worker up -d`, pero todavía no hay worker ni colas implementadas.
+Redis está disponible mediante `docker compose --profile worker up -d postgres redis`. El [worker y las cuotas compartidas](docs/worker-cuotas.md) admiten `POST /api/jobs`, publican referencias privadas y recuperan interrupciones. Arranca el consumidor con `npm run worker:images`; la API y el worker deben compartir PostgreSQL y almacenamiento.
+
+Alegría puede continuar con la [lista vigente de tareas del frontend](docs/frontend-auth-jobs-handoff.md#tareas-pendientes-de-alegría). Subida asíncrona, cuotas, álbumes, papelera y cambio de contraseña ya están conectados; queda el acabado visual y la revisión de su integración.
 
 ## Primera versión funcional: v0.1.0 (30%)
 
-Este corte contiene el flujo síncrono verificado de registro, acceso, Free y Storage. Consultar [sistemas listos y cómo reportarlos](docs/estado-sistemas.md) y [aceptación reproducible](docs/aceptacion-30.md). Redis/BullMQ y el worker parcial permanecen en `tema-y-flujo-git` para el 50%. La versión identifica un avance funcional del equipo; la entrega académica se acredita por separado.
+El corte histórico v0.1.0 contiene registro, acceso, Free y Storage síncrono. Consultar [sistemas listos y cómo reportarlos](docs/estado-sistemas.md) y [aceptación reproducible](docs/aceptacion-30.md). Los cambios posteriores del worker y cuotas se desarrollan en `tema-y-flujo-git`. La entrega académica se acredita por separado.

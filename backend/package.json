@@ -1,6 +1,6 @@
 {
   "name": "@smartstorage/backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,17 +9,22 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
+    "worker:images": "node src/workers/image-worker.js",
+    "worker:recover": "node src/workers/recover-once.js",
     "check": "node scripts/check-syntax.js",
     "test": "node --test",
     "db:migrate": "node scripts/migrate.js",
     "db:seed:demo": "node scripts/seed-demo.js"
   },
   "dependencies": {
+    "bullmq": "6.3.11",
     "cors": "^2.8.6",
     "dotenv": "^18.0.2",
     "express": "^5.2.1",
+    "ioredis": "6.0.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.4.0",
+    "nodemailer": "^10.0.13",
     "pg": "^8.23.0",
     "sharp": "^0.35.4"
   }

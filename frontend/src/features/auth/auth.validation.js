@@ -32,13 +32,22 @@ export function validateRegistration({ name, email, password }) {
   const email_ = emailErrors(email);
   if (email_.length) errors.email = email_;
 
-  if (!password) errors.password = ['Escribe una contraseña.'];
-  else if (password.length > PASSWORD_MAX) errors.password = [`La contraseña no puede superar ${PASSWORD_MAX} caracteres.`];
-  else {
-    const missing = passwordRules.filter((rule) => !rule.test(password)).map((rule) => rule.id);
-    if (missing.length) errors.password = missing;
-  }
+  const password_ = newPasswordErrors(password);
+  if (password_.length) errors.password = password_;
   return errors;
+}
+
+/** Contraseña nueva (registro y restablecimiento): mensajes o ids de requisitos faltantes. */
+export function newPasswordErrors(password) {
+  if (!password) return ['Escribe una contraseña.'];
+  if (password.length > PASSWORD_MAX) return [`La contraseña no puede superar ${PASSWORD_MAX} caracteres.`];
+  return passwordRules.filter((rule) => !rule.test(password)).map((rule) => rule.id);
+}
+
+/** Solo el correo (recuperación y reenvío). */
+export function validateEmailOnly(email) {
+  const errors = emailErrors(email);
+  return errors.length ? { email: errors } : {};
 }
 
 export function validateLogin({ email, password }) {

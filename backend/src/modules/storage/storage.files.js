@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
+import { copyFile, lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { AppError } from '../../lib/app-error.js';
@@ -133,14 +133,20 @@ export async function prepareImage(file, storageRoot) {
   }
 }
 
-export async function publishImage(optimizedPath, storageRoot, hash) {
+export async function publishImage(optimizedPath, storageRoot, hash, { preserveSource = false } = {}) {
   const storageKey = storageKeyFor(hash);
   const filename = path.join(storageRoot, ...storageKey.split('/'));
+  const staged = preserveSource ? path.join(storageRoot, '.tmp', `${randomUUID()}.publish`) : optimizedPath;
   try {
     await mkdir(path.dirname(filename), { recursive: true });
+    if (preserveSource) {
+      await mkdir(path.dirname(staged), { recursive: true });
+      await copyFile(optimizedPath, staged);
+    }
     // Mismo filesystem y bloqueo de hash. Un destino sin fila es un huérfano.
-    await rename(optimizedPath, filename);
+    await rename(staged, filename);
   } catch {
+    if (preserveSource) await removeTemporary(staged);
     throw new AppError(503, 'STORAGE_UNAVAILABLE', 'No se pudo guardar la imagen en el almacenamiento local.');
   }
   return { filename, storageKey };
