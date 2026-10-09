@@ -41,3 +41,24 @@ revisión y pruebas del 08/10 y entrega del 09/10. No modificar pendientes del
 La implementación posterior de Andy debe evaluarse en su rama publicada,
 conservando SHA y resultados. No presentar pruebas con servicios simulados
 como entrega de correo real, prueba de PostgreSQL o revisión de compañero.
+
+## Aplicación a Elden y acoplamiento del 07/10/2026
+
+S3-08 cumple sus criterios propios en la versión integrada: conserva el día de
+admisión, valida started_at y límites independientes, serializa e identifica
+reservas con el client recibido, revierte con ROLLBACK y confirma/libera una vez.
+Base publicada de Elden: 5372a98, incluida en feature/pagos-planes @ 8911139.
+Geovanny solicitó las correcciones y el acoplamiento; esta sesión las implementó
+en la rama de integración. No se atribuyen esos cambios nuevos a la rama original
+de Elden ni se afirma que se hayan publicado allí.
+
+Revisión técnica del asistente el 07/10: PostgreSQL 17.11 y Redis 7.4.11 reales,
+102/102 pruebas, cero fallos y cero omisiones; sintaxis y compilación aprobadas.
+Incluye pruebas propias del módulo, migración repetida y regresión de integración.
+Es evidencia técnica automatizada, no aprobación formal de otro integrante.
+Ver [entrega](s3-11-handoff.md) y [resultado](evidencias/2026-10-07-s3-08-s3-11/resultado.json).
+
+S3-08 se cierra por su módulo. S3-11 tiene el recorrido backend implementado y
+verificado, pero conserva pendiente el acoplamiento de Alegría y su regresión de
+interfaz; no se declara terminado el producto completo ni la entrega del 09/10.
+=======

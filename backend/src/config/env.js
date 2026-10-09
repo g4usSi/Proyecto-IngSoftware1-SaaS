@@ -63,6 +63,12 @@ export function readEnv(source = process.env) {
   if (!/^[1-9]\d*[smhd]$/.test(jwtExpiresIn)) {
     throw new Error('JWT_EXPIRES_IN debe ser un número seguido de s, m, h o d (por ejemplo 1h).');
   }
+  const frontendUrl = (source.FRONTEND_URL || 'http://localhost:5173').trim();
+  try {
+    new URL(frontendUrl);
+  } catch {
+    throw new Error('FRONTEND_URL debe ser una URL válida.');
+  }
   const host = source.HOST || '127.0.0.1';
   const rawDemo = source.STORAGE_DEMO_ENABLED || 'false';
   if (!['true', 'false'].includes(rawDemo)) {
@@ -74,6 +80,10 @@ export function readEnv(source = process.env) {
       corsOrigins.some((origin) => !loopbackHosts.includes(new URL(origin).hostname)))) {
     throw new Error('La demostración Storage solo puede activarse localmente, fuera de producción y con orígenes loopback.');
   }
+  const smtp = readSmtp(source);
+  if (nodeEnv === 'production' && !smtp) {
+    throw new Error('Las variables SMTP_* son obligatorias en producción (envío de correos).');
+  }
 
   return Object.freeze({
     nodeEnv,
@@ -83,10 +93,29 @@ export function readEnv(source = process.env) {
     databaseUrl,
     jwtSecret,
     jwtExpiresIn,
+    frontendUrl,
+    smtp,
     // Las rutas relativas se resuelven desde la raíz del repositorio.
     storageRoot: path.resolve(projectRoot, source.STORAGE_ROOT || './storage'),
     storageDemo,
   });
+}
+
+// Devuelve null si no hay ninguna variable SMTP (en desarrollo se usa el mailer de consola).
+function readSmtp(source) {
+  const names = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+  const values = names.map((name) => source[name]?.trim() || '');
+  if (values.every((value) => value === '')) return null;
+  const missing = names.filter((_name, index) => values[index] === '');
+  if (missing.length > 0) {
+    throw new Error(`Faltan variables SMTP: ${missing.join(', ')}. Configura todas o ninguna.`);
+  }
+  const [host, rawPort, user, pass, from] = values;
+  const port = Number(rawPort);
+  if (!/^\d+$/.test(rawPort) || port < 1 || port > 65535) {
+    throw new Error('SMTP_PORT debe ser un entero entre 1 y 65535.');
+  }
+  return Object.freeze({ host, port, user, pass, from });
 }
 
 export const env = readEnv();

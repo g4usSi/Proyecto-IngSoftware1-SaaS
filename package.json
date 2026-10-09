@@ -1,6 +1,6 @@
 {
   "name": "smartstorage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Base de SmartStorage — Ingeniería de Software I",
   "workspaces": ["frontend", "backend"],
@@ -15,6 +15,10 @@
     "test": "npm run test --workspace=@smartstorage/backend",
     "test:storage": "node scripts/test-storage.mjs",
     "test:browser": "node scripts/test-storage.mjs --browser",
+    "test:organization-browser": "node scripts/test-storage.mjs --organization-browser",
+    "test:frontend": "node scripts/test-frontend.mjs",
+    "worker:images": "npm run worker:images --workspace=@smartstorage/backend",
+    "worker:recover": "npm run worker:recover --workspace=@smartstorage/backend",
     "db:migrate": "npm run db:migrate --workspace=@smartstorage/backend",
     "db:seed:demo": "npm run db:seed:demo --workspace=@smartstorage/backend"
   },

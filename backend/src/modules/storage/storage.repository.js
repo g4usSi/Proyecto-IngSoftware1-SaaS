@@ -1,7 +1,7 @@
 import { AppError } from '../../lib/app-error.js';
 
 const imageColumns = `
-  i.id, i.original_name, i.created_at,
+  i.id, i.original_name, i.created_at, i.folder_id, i.deleted_at,
   to_char(i.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
   o.hash_sha256, o.original_size_bytes, o.storage_key, o.status
 `;
@@ -59,14 +59,30 @@ export function createStorageRepository(database) {
     await query(connection, 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`smartstorage:object:${hash}`]);
   }
 
+  async function withUserTransaction(ownerId, operation) {
+    return transaction(async (connection) => {
+      // Altas, movimientos, papelera y álbumes usan el mismo bloqueo de usuario.
+      const user = await query(connection, 'SELECT id, active FROM users WHERE id=$1 FOR NO KEY UPDATE', [ownerId]);
+      if (!user.rows[0]?.active) throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
+      return operation(connection);
+    });
+  }
+
   return {
+    lockObject, withUserTransaction,
+    async withImageTransaction(ownerId, imageId, operation) {
+      return withUserTransaction(ownerId, async (connection) => {
+        const { rows: [image] } = await query(connection, `SELECT ${imageColumns}
+          FROM images i JOIN stored_objects o ON o.hash_sha256=i.object_hash
+          WHERE i.id=$1 AND i.user_id=$2`, [imageId, ownerId]);
+        if (!image) throw new AppError(404, 'FILE_NOT_FOUND', 'La imagen no existe o no está disponible para esta cuenta.');
+        await lockObject(connection, image.hash_sha256);
+        return operation(connection, image);
+      });
+    },
     async withUploadTransaction(ownerId, hash, operation) {
-      return transaction(async (connection) => {
+      return withUserTransaction(ownerId, async (connection) => {
         // Toda subida/borrado futuro mantiene este orden: usuario → objeto.
-        const user = await query(connection, 'SELECT id, active FROM users WHERE id = $1 FOR UPDATE', [ownerId]);
-        if (!user.rows[0]?.active) {
-          throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
-        }
         await lockObject(connection, hash);
         return operation(connection);
       });
@@ -83,47 +99,6 @@ export function createStorageRepository(database) {
         'SELECT id FROM folders WHERE id = $1 AND user_id = $2 FOR SHARE', [folderId, ownerId]);
       if (result.rows.length === 0) {
         throw new AppError(404, 'FOLDER_NOT_FOUND', 'La carpeta no existe o no está disponible para esta cuenta.');
-      }
-    },
-    async assertUploadQuota(connection, ownerId, incomingBytes) {
-      const plans = await query(connection, `
-        SELECT p.capacity_bytes, p.daily_upload_limit, p.daily_bytes_limit
-          FROM subscriptions s JOIN plans p ON p.id = s.plan_id
-         WHERE s.user_id = $1 AND s.status = 'active' AND p.active = TRUE
-           AND s.started_at <= CURRENT_TIMESTAMP
-           AND (s.expires_at IS NULL OR s.expires_at > CURRENT_TIMESTAMP)
-         FOR SHARE OF s, p
-      `, [ownerId]);
-      const plan = plans.rows[0];
-      if (!plan) {
-        throw new AppError(403, 'NO_ACTIVE_SUBSCRIPTION', 'La cuenta necesita una suscripción activa para subir imágenes.');
-      }
-      // Antes de implementar DELETE, sustituir este consumo diario derivado
-      // por un historial que no se borre al eliminar una imagen.
-      const usage = await query(connection, `
-        WITH day_start AS (
-          SELECT date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'America/Guatemala')
-                   AT TIME ZONE 'America/Guatemala' AS start_at
-        )
-        SELECT COALESCE(SUM(o.original_size_bytes), 0)::text AS used_bytes,
-               COUNT(*) FILTER (WHERE i.created_at >= d.start_at
-                 AND i.created_at < d.start_at + INTERVAL '1 day')::text AS daily_count,
-               COALESCE(SUM(o.original_size_bytes) FILTER (WHERE i.created_at >= d.start_at
-                 AND i.created_at < d.start_at + INTERVAL '1 day'), 0)::text AS daily_bytes
-          FROM images i JOIN stored_objects o ON o.hash_sha256 = i.object_hash
-          CROSS JOIN day_start d
-         WHERE i.user_id = $1
-      `, [ownerId]);
-      const totals = usage.rows[0];
-      const size = BigInt(incomingBytes);
-      if (BigInt(totals.used_bytes) + size > BigInt(plan.capacity_bytes)) {
-        throw new AppError(403, 'CAPACITY_EXCEEDED', 'La imagen supera la capacidad disponible del plan.');
-      }
-      if (plan.daily_upload_limit !== null && BigInt(totals.daily_count) + 1n > BigInt(plan.daily_upload_limit)) {
-        throw new AppError(429, 'DAILY_UPLOAD_LIMIT_EXCEEDED', 'Se alcanzó el número de subidas permitido para hoy.');
-      }
-      if (plan.daily_bytes_limit !== null && BigInt(totals.daily_bytes) + size > BigInt(plan.daily_bytes_limit)) {
-        throw new AppError(429, 'DAILY_BYTES_LIMIT_EXCEEDED', 'La imagen supera los bytes de subida permitidos para hoy.');
       }
     },
     async findObject(connection, hash) {
@@ -151,22 +126,24 @@ export function createStorageRepository(database) {
       `, [inserted.rows[0].id, ownerId]);
       return result.rows[0];
     },
-    async listImages(ownerId, { limit, cursor }) {
+    async listImages(ownerId, { limit, cursor, trash = false, folderId }) {
       const result = await query(database, `
         SELECT ${imageColumns}
           FROM images i JOIN stored_objects o ON o.hash_sha256 = i.object_hash
          WHERE i.user_id = $1 AND o.status = 'ready'
+           AND (i.deleted_at IS NOT NULL) = $5
+           AND ($6::boolean = FALSE OR i.folder_id IS NOT DISTINCT FROM $7::uuid)
            AND ($2::timestamptz IS NULL OR (i.created_at, i.id) < ($2::timestamptz, $3::uuid))
          ORDER BY i.created_at DESC, i.id DESC
          LIMIT $4
-      `, [ownerId, cursor?.createdAt || null, cursor?.id || null, limit + 1]);
+      `, [ownerId, cursor?.createdAt || null, cursor?.id || null, limit + 1, trash, folderId !== undefined, folderId ?? null]);
       return result.rows;
     },
     async findImage(ownerId, imageId) {
       const result = await query(database, `
         SELECT ${imageColumns}
           FROM images i JOIN stored_objects o ON o.hash_sha256 = i.object_hash
-         WHERE i.id = $1 AND i.user_id = $2 AND o.status = 'ready'
+         WHERE i.id = $1 AND i.user_id = $2 AND o.status = 'ready' AND i.deleted_at IS NULL
       `, [imageId, ownerId]);
       return result.rows[0] || null;
     },
@@ -180,6 +157,37 @@ export function createStorageRepository(database) {
          ORDER BY o.hash_sha256
       `);
       return result.rows;
+    },
+    async listAlbums(ownerId) {
+      const { rows } = await query(database, `SELECT f.id, f.name, f.created_at,
+          COUNT(i.id) FILTER (WHERE i.deleted_at IS NULL)::text AS image_count
+        FROM folders f LEFT JOIN images i ON i.folder_id=f.id AND i.user_id=f.user_id
+        WHERE f.user_id=$1 GROUP BY f.id ORDER BY lower(f.name), f.name, f.id`, [ownerId]);
+      return rows;
+    },
+    async findAlbum(connection, ownerId, albumId) {
+      const { rows: [album] } = await query(connection,
+        'SELECT id, name, created_at FROM folders WHERE id=$1 AND user_id=$2 FOR UPDATE', [albumId, ownerId]);
+      if (!album) throw new AppError(404, 'ALBUM_NOT_FOUND', 'El álbum no existe o no está disponible para esta cuenta.');
+      return album;
+    },
+    async insertAlbum(connection, ownerId, name) {
+      const { rows: [album] } = await query(connection,
+        'INSERT INTO folders(user_id,name) VALUES ($1,$2) RETURNING id,name,created_at', [ownerId, name]);
+      return album;
+    },
+    async renameAlbum(connection, ownerId, albumId, name) {
+      const { rows: [album] } = await query(connection,
+        'UPDATE folders SET name=$3 WHERE id=$1 AND user_id=$2 RETURNING id,name,created_at', [albumId, ownerId, name]);
+      const { rows: [count] } = await query(connection,
+        'SELECT COUNT(*)::text AS image_count FROM images WHERE folder_id=$1 AND user_id=$2 AND deleted_at IS NULL', [albumId, ownerId]);
+      return { ...album, ...count };
+    },
+    async removeAlbum(connection, ownerId, albumId) {
+      // Las referencias activas y las de papelera sobreviven. La FK de trabajos
+      // pone su destino a null; admitted_folder_id conserva la petición original.
+      await query(connection, 'UPDATE images SET folder_id=NULL WHERE folder_id=$1 AND user_id=$2', [albumId, ownerId]);
+      await query(connection, 'DELETE FROM folders WHERE id=$1 AND user_id=$2', [albumId, ownerId]);
     },
   };
 }

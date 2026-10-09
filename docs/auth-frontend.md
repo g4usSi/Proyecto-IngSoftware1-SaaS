@@ -15,13 +15,26 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | --- | --- |
 | `POST /api/auth/register` | Implementado (Bloque 1) |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Implementado (Bloque 2) |
-| `POST /api/auth/verify-email`, `forgot-password`, `reset-password` | Pendiente, responden `501 AUTH_NOT_IMPLEMENTED` |
+| `POST /api/auth/forgot-password`, `reset-password` | Implementado (Bloque 3) |
+| `POST /api/auth/change-password` | Implementado (Bloque 3) |
+| `POST /api/auth/verify-email`, `resend-verification` | Implementado. El login exige el correo verificado |
+
+Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se envían de verdad. Sin ellas, en desarrollo, el enlace se escribe en la consola del servidor (la terminal de `npm run dev`). El contrato de la API es el mismo en ambos casos.
+
+Pantallas que necesita el frontend:
+
+- `/verify-email?token=...`: al abrirse, llama a `POST /api/auth/verify-email` con el `token` de la URL y muestra el resultado.
+- `/forgot-password`: formulario con el correo que llama a `POST /api/auth/forgot-password` y muestra siempre el mismo aviso neutral (el `message` de la respuesta). El login debe tener un enlace "¿Olvidaste tu contraseña?" hacia esta pantalla.
+- `/reset-password?token=...`: formulario de nueva contraseña que llama a `POST /api/auth/reset-password`.
+- En el login, ante `403 EMAIL_NOT_VERIFIED`, ofrecer "Reenviar correo de verificación" (`POST /api/auth/resend-verification`).
+- Tras registrarse, avisar al usuario que revise su correo antes de iniciar sesión.
+- Dentro de la sesión (por ejemplo, en el menú de la cuenta): formulario "Cambiar contraseña" con la contraseña actual y la nueva, que llama a `POST /api/auth/change-password`.
 
 Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
 
 ## `POST /api/auth/register`
 
-Crea una cuenta nueva con una suscripción Free activa en la misma operación de PostgreSQL. **No requiere token.** No inicia sesión: tras registrarse, el usuario debe iniciar sesión.
+Crea una cuenta nueva con una suscripción Free activa en la misma operación de PostgreSQL. **No requiere token.** No inicia sesión. Envía un correo con el enlace de verificación: el usuario debe verificar su correo antes de poder iniciar sesión. Si el envío falla, la cuenta se crea igual y el usuario puede pedir el reenvío.
 
 Cuerpo:
 
@@ -129,6 +142,7 @@ El correo se limpia igual que en el registro (espacios y mayúsculas no importan
 | 400 | `VALIDATION_ERROR` | Falta el correo o la contraseña | `El correo electrónico y la contraseña son obligatorios.` |
 | 401 | `INVALID_CREDENTIALS` | Contraseña incorrecta **o** correo inexistente (misma respuesta a propósito) | `Correo electrónico o contraseña incorrectos.` |
 | 403 | `ACCOUNT_DISABLED` | Contraseña correcta pero la cuenta está desactivada | `Tu cuenta está desactivada. Contacta al administrador.` |
+| 403 | `EMAIL_NOT_VERIFIED` | Contraseña correcta pero el correo no está verificado | `Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.` |
 | 429 | `TOO_MANY_ATTEMPTS` | 5 intentos fallidos seguidos con ese correo | `Demasiados intentos fallidos. Inténtalo de nuevo en N minutos.` |
 | 503 | `AUTH_NOT_CONFIGURED` | El servidor no tiene `JWT_SECRET` | `La autenticación no está configurada en el servidor (falta JWT_SECRET).` |
 
@@ -165,6 +179,133 @@ Devuelve el usuario de la sesión actual. **Requiere token.** Útil para restaur
 | 401 | `TOKEN_EXPIRED` | Token vencido | `La sesión expiró. Inicia sesión de nuevo.` |
 | 403 | `ACCOUNT_DISABLED` | La cuenta se desactivó con la sesión abierta | `Tu cuenta está desactivada. Contacta al administrador.` |
 | 403 | `FORBIDDEN` | El rol no tiene permiso (rutas de administrador) | `No tienes permiso para realizar esta acción.` |
+
+## `POST /api/auth/forgot-password`
+
+Solicita la recuperación de contraseña. **No requiere token.**
+
+Cuerpo:
+
+```json
+{ "email": "lany@example.com" }
+```
+
+Éxito: siempre `200`, exista o no la cuenta (para no revelar qué correos están registrados):
+
+```json
+{ "data": { "message": "Si el correo está registrado, se enviaron instrucciones para restablecer la contraseña." } }
+```
+
+Ese `message` se puede mostrar tal cual al usuario. La respuesta no espera al envío del correo y no cambia si el envío falla: no hay un caso de error que el frontend deba distinguir.
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el correo | `El correo electrónico es obligatorio.` |
+
+El correo contiene un enlace `FRONTEND_URL/reset-password?token=...` que vence en **1 hora**. El frontend debe tener una ruta `/reset-password` que lea `token` de la query string y lo use al llamar a `reset-password`.
+
+## `POST /api/auth/reset-password`
+
+Establece una nueva contraseña usando el token recibido por correo (de un solo uso). **No requiere token de sesión** (Bearer); usa en su lugar el `token` de recuperación en el cuerpo.
+
+Cuerpo:
+
+```json
+{ "token": "…64 caracteres hexadecimales…", "password": "Clave#Segura1" }
+```
+
+La contraseña nueva debe cumplir la misma política que en el registro (ver arriba).
+
+Éxito: `200`
+
+```json
+{ "data": { "reset": true } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el token o la contraseña, o la contraseña no cumple la política | (el primer problema encontrado, mismos mensajes que en registro) |
+| 400 | `RESET_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta para los tres casos, a propósito) | `El enlace de recuperación no es válido o expiró.` |
+
+Tras un reset exitoso, ese token y cualquier otro enlace de recuperación pendiente de la misma cuenta quedan invalidados. El enlace sirve una sola vez aunque lleguen dos envíos al mismo tiempo (por ejemplo, un doble clic): uno responde `200` y el otro `400 RESET_TOKEN_INVALID`, así que conviene desactivar el botón mientras la petición está en curso. Las sesiones (tokens Bearer) que ya existían **no** se cierran automáticamente; si se necesita ese comportamiento, avisar para agregarlo.
+
+## `POST /api/auth/change-password`
+
+Cambia la contraseña del usuario de la sesión actual. **Requiere token** (`Authorization: Bearer <token>`). El usuario se toma del token, nunca del cuerpo.
+
+Cuerpo:
+
+```json
+{ "currentPassword": "Clave#Segura1", "newPassword": "OtraClave#9" }
+```
+
+La nueva contraseña debe cumplir la misma política que en el registro y ser distinta de la actual.
+
+Éxito: `200`
+
+```json
+{ "data": { "changed": true } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta la contraseña actual | `La contraseña actual es obligatoria.` |
+| 400 | `VALIDATION_ERROR` | Falta la nueva contraseña | `La nueva contraseña es obligatoria.` |
+| 400 | `VALIDATION_ERROR` | La nueva no cumple la política | (el primer problema encontrado, mismos mensajes que en registro) |
+| 400 | `VALIDATION_ERROR` | La nueva es igual a la actual | `La nueva contraseña debe ser distinta de la actual.` |
+| 400 | `INVALID_CURRENT_PASSWORD` | La contraseña actual es incorrecta | `La contraseña actual es incorrecta.` |
+| 429 | `TOO_MANY_ATTEMPTS` | 5 intentos fallidos seguidos | `Demasiados intentos fallidos. Inténtalo de nuevo en N minutos.` |
+| 401/403 | (ver "Errores de cualquier ruta privada") | Sin token, token inválido o vencido, cuenta desactivada | |
+
+Notas:
+
+- `INVALID_CURRENT_PASSWORD` es un **400 a propósito**: no borres la sesión ni redirijas al login; muestra el mensaje junto al campo de la contraseña actual.
+- El límite de intentos es el mismo que el del login y es por cuenta: 5 fallos aquí también bloquean el inicio de sesión durante 15 minutos, y al revés.
+- La sesión actual y las de otros dispositivos **siguen abiertas** tras el cambio. Los enlaces de recuperación pendientes de la cuenta dejan de servir.
+- Desactiva el botón mientras la petición está en curso: si llegan dos cambios a la vez, solo se aplica uno y el otro recibe `INVALID_CURRENT_PASSWORD`.
+
+## `POST /api/auth/verify-email`
+
+Verifica el correo con el token del enlace recibido. **No requiere token de sesión.**
+
+Cuerpo:
+
+```json
+{ "token": "…64 caracteres hexadecimales…" }
+```
+
+Éxito: `200`
+
+```json
+{ "data": { "verified": true } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el token | `El token de verificación es obligatorio.` |
+| 400 | `VERIFICATION_TOKEN_INVALID` | El token no existe, ya se usó o venció (misma respuesta a propósito) | `El enlace de verificación no es válido o expiró.` |
+
+El enlace vence en **24 horas** y sirve una sola vez. Si el usuario abre el enlace de nuevo después de verificar, recibe `VERIFICATION_TOKEN_INVALID`; conviene que esa pantalla ofrezca ir al login además de reenviar el correo.
+
+## `POST /api/auth/resend-verification`
+
+Envía un nuevo enlace de verificación. El enlace anterior deja de servir. **No requiere token.**
+
+Cuerpo:
+
+```json
+{ "email": "lany@example.com" }
+```
+
+Éxito: siempre `200`, exista o no la cuenta y esté o no verificada:
+
+```json
+{ "data": { "message": "Si el correo está registrado y aún no está verificado, se envió un nuevo enlace de verificación." } }
+```
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el correo | `El correo electrónico es obligatorio.` |
 
 ## Cuenta activa o desactivada
 

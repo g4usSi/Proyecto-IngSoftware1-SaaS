@@ -1,4 +1,12 @@
-# Estado de sistemas — primera versión v0.1.0
+# Estado de sistemas
+
+## Versión actual: v0.2.0 — 50%, 09/10/2026
+
+El alcance técnico del 50% y la revisión conjunta S3-11 están completos según la evidencia publicada y la confirmación del usuario del 09/10. La segunda versión incorpora las cuentas de Andy, cuotas de Elden, Storage/worker/organización de Geovanny e interfaz de Alegría. Consultar [alcance y aceptación del 50%](avance-50.md) para novedades y resultados de validación de la release. La publicación en main es distinta de la entrega académica: S3-12 permanece lista para entregar, sin constancia de presentación. S2-14/S2-16 conservan sus pendientes históricos.
+
+## Primera versión v0.1.0 (corte histórico)
+
+Este documento conserva el corte histórico del 01/10/2026. Para el backend incorporado el 07/10, consultar [S3-08/S3-11](s3-11-handoff.md) y la [guía vigente del frontend](frontend-auth-jobs-handoff.md).
 
 Corte del 01/10/2026 desde `7c7f397d6eb8278dc7339d605205222086a1e45c`, conservando los cambios de `main`. El alcance del 30% es la propuesta funcional del equipo descrita en [avance-30](avance-30.md), no una rúbrica calculada contando tarjetas. `v0.1.0` identifica este primer avance; `v1.0.0` se reserva para el alcance final aceptado.
 

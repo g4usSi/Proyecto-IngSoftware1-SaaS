@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Eye, ImageOff, LayoutGrid, List, LoaderCircle, RefreshCw, Search, SearchX } from 'lucide-react';
+import { Download, Eye, FolderInput, ImageOff, LayoutGrid, List, LoaderCircle, RefreshCw, Search, SearchX, Trash2 } from 'lucide-react';
 import { formatBytes, formatFullDate, formatPercent, formatRelative, savingRatio } from './format.js';
 import { useLibrary } from './library.jsx';
 import { ImagePreview } from './ImagePreview.jsx';
+import { FileActions } from './FileActions.jsx';
+import { ContextMenu, dragImage } from './ContextMenu.jsx';
+import './organization.css';
 
 const sorters = {
   recent: { label: 'Más recientes', fn: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
@@ -50,13 +53,23 @@ export function SavingBadge({ file }) {
   return <span className={`saving-badge${ratio < 0 ? ' is-negative' : ''}`} title="Diferencia entre el original y el WebP">{formatPercent(ratio)}</span>;
 }
 
-export function Gallery() {
+export function Gallery({ source, title = 'Todas', onChanged }) {
   const navigate = useNavigate();
-  const { items, loading, loaded, error, nextCursor, refresh, loadMore, download, downloadingId } = useLibrary();
+  const library = useLibrary();
+  const { download, downloadingId } = library;
+  const { items, unavailableItems, loading, loaded, error, nextCursor, refresh, loadMore } = source ?? library;
+  const changed = () => { if (source) source.refresh(); onChanged?.(); };
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
   const [view, setView] = useState('grid');
   const [previewId, setPreviewId] = useState(null);
+  const [menu, setMenu] = useState(null);
+  const [fileAction, setFileAction] = useState(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  function context(event, file) {
+    event.preventDefault(); event.stopPropagation();
+    setMenu({ file, position: { x: event.clientX, y: event.clientY } });
+  }
 
   const visible = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('es');
@@ -71,7 +84,7 @@ export function Gallery() {
     <section className="gallery" aria-labelledby="gallery-title" aria-busy={loading}>
       <div className="gallery-toolbar">
         <div className="gallery-title">
-          <h2 id="gallery-title">Todas</h2>
+          <h2 id="gallery-title">{title}</h2>
           {loaded && <span className="count-pill">{items.length}{nextCursor ? '+' : ''}</span>}
         </div>
         <div className="gallery-controls">
@@ -108,11 +121,21 @@ export function Gallery() {
         </div>
       )}
 
-      {loaded && !error && items.length === 0 && (
+      {unavailableItems.length > 0 && (
+        <div className="gallery-unavailable" role="status">
+          <h3>{unavailableItems.length} {unavailableItems.length === 1 ? 'archivo no disponible' : 'archivos no disponibles'}</h3>
+          <p>No encontramos estas imágenes guardadas. Solicita su restauración para volver a verlas y descargarlas. El ahorro mostrado corresponde solo a los archivos disponibles.</p>
+          <ul>{unavailableItems.map((file) => <li key={file.id}>{file.originalName}<FileActions file={file} onChanged={changed} /></li>)}</ul>
+          <button type="button" className="btn btn-secondary" onClick={refresh} disabled={loading}>Comprobar de nuevo</button>
+          <button type="button" className="link-button" onClick={() => navigate('/app/jobs?filter=unavailable')}>Revisar en Procesos</button>
+        </div>
+      )}
+
+      {loaded && !error && items.length === 0 && unavailableItems.length === 0 && (
         <div className="empty-state">
           <div className="empty-art" aria-hidden="true"><span /><span /><span /></div>
-          <h3>Tu biblioteca está vacía</h3>
-          <p>Sube tu primera imagen: la convertimos a WebP y la verás aquí al instante.</p>
+          <h3>{source ? 'No hay imágenes en este álbum' : 'Tu biblioteca está vacía'}</h3>
+          <p>{source ? 'Puedes mover imágenes desde tu biblioteca o subir nuevas.' : 'Sube tu primera imagen: aparecerá aquí cuando termine de procesarse.'}</p>
           <button type="button" className="btn btn-primary" onClick={() => navigate('/app/upload')}>Subir mi primera imagen</button>
         </div>
       )}
@@ -128,7 +151,7 @@ export function Gallery() {
       {visible.length > 0 && view === 'grid' && (
         <ul className="grid-view">
           {visible.map((file, index) => (
-            <li className="img-card" key={file.id} style={{ '--i': Math.min(index, 12) }}>
+            <li className="img-card" key={file.id} style={{ '--i': Math.min(index, 12) }} draggable onDragStart={(event) => dragImage(event, file)} onContextMenu={(event) => context(event, file)}>
               <button type="button" className="img-card-media" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`}>
                 <Thumb file={file} className="is-card" />
                 <SavingBadge file={file} />
@@ -143,6 +166,7 @@ export function Gallery() {
                   {downloadingId === file.id ? <LoaderCircle className="spin" strokeWidth={2} /> : <Download strokeWidth={2} />}
                 </button>
               </div>
+              <div className="file-organization-actions"><FileActions file={file} onChanged={changed} /></div>
             </li>
           ))}
         </ul>
@@ -154,7 +178,7 @@ export function Gallery() {
             <span role="columnheader">Imagen</span><span role="columnheader">Original</span><span role="columnheader">WebP</span><span role="columnheader">Ahorro</span><span role="columnheader"><span className="sr-only">Acciones</span></span>
           </div>
           {visible.map((file, index) => (
-            <div className="list-row" role="row" key={file.id} style={{ '--i': Math.min(index, 12) }}>
+            <div className="list-row" role="row" key={file.id} style={{ '--i': Math.min(index, 12) }} draggable onDragStart={(event) => dragImage(event, file)} onContextMenu={(event) => context(event, file)}>
               <span role="cell" className="list-name">
                 <button type="button" className="list-thumb" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`}><Thumb file={file} className="is-small" /></button>
                 <span><strong title={file.originalName}>{file.originalName}</strong><time dateTime={file.createdAt}>{formatFullDate(file.createdAt)}</time></span>
@@ -163,6 +187,7 @@ export function Gallery() {
               <span role="cell" className="list-num">{formatBytes(file.optimizedSizeBytes)}</span>
               <span role="cell"><SavingBadge file={file} /></span>
               <span role="cell" className="list-actions">
+                <FileActions file={file} onChanged={changed} />
                 <button type="button" className="icon-button" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`} title="Ver"><Eye strokeWidth={2} /></button>
                 <button type="button" className="icon-button" onClick={() => download(file)} disabled={Boolean(downloadingId)} aria-label={`Descargar ${file.originalName} en WebP`} title="Descargar WebP">
                   {downloadingId === file.id ? <LoaderCircle className="spin" strokeWidth={2} /> : <Download strokeWidth={2} />}
@@ -181,6 +206,12 @@ export function Gallery() {
         </div>
       )}
 
+      {menu && <ContextMenu position={menu.position} onClose={closeMenu} items={[
+        { label: 'Ver imagen', icon: Eye, run: () => setPreviewId(menu.file.id) },
+        { label: 'Mover a un álbum', icon: FolderInput, run: () => setFileAction({ file: menu.file, action: 'move' }) },
+        { label: 'Enviar a la papelera', icon: Trash2, danger: true, run: () => setFileAction({ file: menu.file, action: 'trash' }) },
+      ]} />}
+      {fileAction && <FileActions file={fileAction.file} initialAction={fileAction.action} onChanged={changed} onDismiss={() => setFileAction(null)} />}
       {previewIndex >= 0 && (
         <ImagePreview
           file={visible[previewIndex]}
