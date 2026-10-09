@@ -1,99 +1,110 @@
-# Traspaso a Alegría: contratos y trabajo pendiente del frontend
+# Alegría: contratos actuales y tareas pendientes
 
-**Snapshot de ramas consultado:** 05/10/2026, `origin/tema-y-flujo-git` en `8d60ba3` · **Alcance:** ramas remotas, contratos backend y trabajo pendiente del frontend.
+Actualizado el **07/10/2026** para la rama `tema-y-flujo-git`. Esta guía reemplaza la lista anterior: la integración funcional de subidas, cuotas, álbumes, papelera y contraseña ya está implementada. Alegría continúa el acabado visual y la revisión de la interfaz, sin rehacer esos flujos. No se modifican responsables, fechas ni estados de Trello/Excel con este documento.
 
-Trae los cambios de `tema-y-flujo-git` a tu rama de frontend antes de empezar. Esa rama reúne Auth, Storage y el worker. Desde la raíz del proyecto ejecuta `npm ci`; no agregues paquetes manualmente en el frontend. Las dependencias SMTP son solo del backend. No copies `SMTP_*`, `DATABASE_URL` ni `JWT_SECRET` al frontend.
+## Preparar el proyecto
 
-Contratos completos: [Auth](auth-frontend.md), [API](api.md), [estados de trabajos](contracts/job-states.json), [OpenAPI de trabajos](contracts/jobs.openapi.json) y [traspaso S3-05](s3-05-handoff.md).
+Seguir el [arranque del README](../README.md#arranque-rápido): instalar desde la raíz, configurar `backend/.env`, levantar PostgreSQL/Redis y ejecutar `npm run db:migrate` con API/worker detenidos. Debe estar aplicada `007_albums_and_trash.sql`.
 
-## Ramas remotas y equipo comprobados
+Mantener **dos terminales** desde la raíz: `npm run dev` y `npm run worker:images`. Comparten `backend/.env`, PostgreSQL y `STORAGE_ROOT`. `npm run dev` por sí solo no procesa las subidas. La verificación de correo es obligatoria para el login; sin SMTP en desarrollo, el enlace se imprime en la terminal de la API.
 
-Se ejecutó `git fetch origin` el 05/10/2026 y se compararon las ramas remotas. Solo `tema-y-flujo-git` está en el corte actual del 05/10; las demás referencias están en commits del 04/10 o anteriores. No aparecieron commits nuevos de Andy con las correcciones pendientes de S3-02.
+## Base ya implementada
 
-| Rama remota | HEAD observado | Qué significa para Alegría |
-| --- | --- | --- |
-| `origin/tema-y-flujo-git` | `8d60ba3` | Base compartida actual. Incluye worker/contratos S3-04/S3-05, Auth de Andy, dependencias y esta guía. |
-| `origin/feature/usuarios-login` | `fccb279` | Tiene los commits de Andy `687f79b` (recuperación) y `a8dd16b` (verificación), ya incorporados a `tema-y-flujo-git` en `5c2b1aa`. No tiene las dos correcciones pendientes de S3-02. |
-| `origin/feature/storage-subida` | `b07d370` | Sin commits funcionales exclusivos respecto de `origin/main`; su entrega de Storage ya forma parte de la base compartida. |
-| `origin/feature/pagos-planes` | `3874f4c` | Sin commits funcionales exclusivos respecto de `origin/main`; no hay una implementación nueva de suscripciones o pagos para integrar. |
-| `origin/feature/ui-tema` | `3874f4c` | Apunta al mismo commit que `feature/pagos-planes`; no contiene cambios de UI posteriores. Los commits previos de Alegría (`d332bdd`, `9c29060`) forman parte del frontend existente. |
-| `origin/docs` | `704a43e` | Rama documental anterior; no aporta contratos nuevos de API para este frontend. |
-| `origin/codex/release-30-v0-1-0` | `e6c4cac` | Rama de publicación anterior; no añade contratos de frontend posteriores al corte del 30%. |
-| `origin/main` | `22c1ef1` | Corte v0.1.0 del 30%; no usarlo como base de esta integración porque carece de los cambios recientes de `tema-y-flujo-git`. |
-
-El historial Git de las ramas consultadas muestra commits de Geovanny, Andy (`LanyXD`) y Diego/Alegría (`diegojao`). No aparecen commits de Elden en esas referencias, aunque `docs/flujo-git.md` le asigna suscripciones y cuotas. Esto comprueba autores Git, no miembros actuales ni trabajo local aún no publicado.
-
-## Contratos disponibles para consumir
-
-| Área | Contrato actual | Qué puede agregar Alegría |
-| --- | --- | --- |
-| Cuenta | `POST /api/auth/register` crea usuario cliente y Free; responde `emailVerified: false` y no inicia sesión. `POST /api/auth/login`, `GET /api/auth/me` y `POST /api/auth/logout` usan JWT; el campo se llama `token`. | Corregir el aviso tras registro para pedir verificación; mantener sesión solo después de un login correcto y enviar Bearer a rutas privadas. |
-| Verificación y recuperación | `POST /api/auth/verify-email` recibe `{ token }` (24 h); `POST /api/auth/resend-verification` recibe `{ email }`; `POST /api/auth/forgot-password` recibe `{ email }`; `POST /api/auth/reset-password` recibe `{ token, password }` (1 h). | Agregar las vistas descritas abajo y el aviso `EMAIL_NOT_VERIFIED`. Los errores son `{ error: { code, message } }`; `apiRequest()` entrega directamente el contenido de `data`. |
-| Storage síncrono | `POST /api/files` recibe `multipart/form-data` con `file`; `GET /api/files?limit=20&cursor=...` lista; `GET /api/files/:fileId/download` entrega un WebP autenticado. La carga responde cuando termina. | Conservar subida, galería y descarga actuales. No cambiar a trabajos asíncronos antes de S3-11. |
-| Trabajos asíncronos | `GET /api/jobs` y `GET /api/jobs/:jobId` son privados y consultables; estados `queued`, `processing`, `converted`, `published`, `failed`. | Agregar una vista/lista de estado con polling cancelable; solo `published` con `available` permite refrescar galería y descargar. |
-| Catálogo | `GET /api/plans` devuelve planes activos desde PostgreSQL. El seed actual publica únicamente Free; cantidades `BIGINT`/precios `NUMERIC` pueden venir como strings. | Mantener pagos como “Próximamente”; no inventar alta/cambio de plan. `GET /api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`. |
-| Administración y demo | `GET /api/admin/storage/stats` requiere rol `admin`; `/api/dev/storage-demo` es opt-in y solo local. La demo no habilita Auth ni trabajos. | No mostrar métricas globales a cuentas cliente ni usar identidad demo como sesión real. |
-
-## Límites que siguen pendientes
-
-- `POST /api/jobs` está reservado y responde `503 ASYNC_UPLOAD_NOT_READY`; todavía no admite archivos ni crea trabajos desde la UI. `converted` es un WebP temporal, no una imagen publicada.
-- S3-08 (reserva/liquidación real de cuotas de Elden) y el acoplamiento S3-11 (petición HTTP → cola → publicación/deduplicación) siguen pendientes. El puerto en `docs/worker-cuotas.md` es interno; no es una API que el navegador deba llamar.
-- Borrado de imágenes S3-06 y álbumes/mover imágenes S3-07 no están entregados. No habilitar botones que aparenten realizarlos.
-- La lista de planes contiene tarjetas de pago de muestra, pero no hay pagos ni endpoint personal operativo; conserva el aviso de “Próximamente”.
-- S3-02 tiene dos defectos en la rama integrada: el consumo del token y el cambio de contraseña no son atómicos, y un error SMTP puede revelar si existe una cuenta. Andy hará un segundo pull con las correcciones; no diseñes la pantalla para distinguir esos casos.
-
-## Auth: pantallas y recorrido
-
-Agrega rutas públicas en `frontend/src/app/App.jsx` y usa el cliente existente `apiRequest()` de `frontend/src/services/api.js` y los estilos de `frontend/src/features/auth/auth.css`.
-
-| Vista | Comportamiento |
+| Flujo | Archivos principales en `frontend/src/` |
 | --- | --- |
-| `/verify-email?token=...` | Lee el token de la URL y llama `POST /api/auth/verify-email` con `{ token }`. Ante éxito, confirma la verificación y ofrece ir al login. Ante `VERIFICATION_TOKEN_INVALID`, explica que el enlace venció o ya se usó y ofrece reenviar el correo. |
-| `/forgot-password` | Solicita el correo y llama `POST /api/auth/forgot-password` con `{ email }`. Muestra siempre el mismo aviso neutral, exista o no la cuenta. |
-| `/reset-password?token=...` | Pide una contraseña nueva y llama `POST /api/auth/reset-password` con `{ token, password }`. Aplica las reglas ya usadas en registro. Ante `RESET_TOKEN_INVALID`, informa que el enlace venció o ya se usó y ofrece volver a solicitarlo. |
+| Registro, login, verificación/reenvío, recuperación, rutas protegidas y logout | `features/auth/`, `app/App.jsx` |
+| Subidas asíncronas, reintentos con UUID estable y seguimiento durante la sesión | `features/storage/library.jsx`, `jobs.api.js`, `UploadDropzone.jsx`, `JobsPage.jsx` |
+| Cuota global, reservas y límites diarios reales | `features/storage/QuotaSummary.jsx`, `quota.css`, `app/AppLayout.jsx` |
+| Crear/renombrar/eliminar álbumes y mover imágenes | `features/storage/AlbumsPage.jsx`, `FileActions.jsx`, `Gallery.jsx`, `storage.api.js` |
+| Enviar a papelera, restaurar y eliminar definitivamente con confirmación | `features/storage/TrashPage.jsx`, `FileActions.jsx`, `components/ActionDialog.jsx` |
+| Cambiar contraseña dentro de la sesión | `features/auth/ChangePasswordPage.jsx`, `security.css`, `app/AccountMenu.jsx` |
 
-En el login, agrega un enlace a `/forgot-password`. Si la API responde `403 EMAIL_NOT_VERIFIED`, conserva el correo ingresado y permite llamar `POST /api/auth/resend-verification` con `{ email }`. El endpoint responde neutralmente; confirma que, si la cuenta existe y no está verificada, se envió un enlace.
+Las correcciones de Andy `96f743e` y `69c7486` están incorporadas mediante el merge `f31d233`. Los componentes nuevos tienen estilos básicos compatibles con el tema actual, preparados para que Alegría los ajuste.
 
-El registro devuelve `emailVerified: false` y no inicia sesión. Cambia el aviso actual de `AuthPage` —“Tu cuenta se creó. Inicia sesión para continuar.”— por una indicación para revisar el correo y verificarlo antes de iniciar sesión. No guardes sesión ni navegues al panel después del registro.
+## Tareas pendientes de Alegría
 
-Tiempos y respuestas:
+| Trabajo por implementar o revisar | Resultado esperado |
+| --- | --- |
+| **Acabado visual de álbumes y papelera** | Ajustar tarjetas, distribución, espaciado, iconos y jerarquía de acciones en `organization.css`, `AlbumsPage.jsx`, `TrashPage.jsx` y `FileActions.jsx`; conservar las operaciones reales y distinguir borrar álbum de borrar imagen. |
+| **Acabado visual de subidas, procesos y cuotas** | Unificar etiquetas de estado, carga, errores y reservas con su diseño. Mantener visible cuándo una imagen sigue en proceso, cuándo puede descargarse y cuándo la admisión no pudo confirmarse. |
+| **Integración visual de seguridad y confirmaciones** | Revisar el formulario de cambio de contraseña y los diálogos con el resto de la cuenta: foco, teclado, mensajes, botones y tema claro/oscuro. La confirmación del borrado definitivo debe permanecer. |
+| **Revisión final tras sus ajustes** | Recorrer escritorio/móvil, nombres largos, estados vacíos y errores; comprobar navegación por teclado, contraste y ausencia de desbordamientos. Ejecutar las comprobaciones de abajo y registrar la revisión del compañero para S3-11. |
 
-- Verificación: token de un uso, vence en 24 horas.
-- Recuperación: token de un uso, vence en 1 hora.
-- Éxito de verificación: `{ data: { verified: true } }`.
-- Éxito de recuperación: `{ data: { reset: true } }`.
-- Errores: `{ error: { code, message } }`; presenta `message` y usa `code` para elegir el estado de la pantalla.
+La base funcional de S3-09/S3-10 ya está conectada. Estas tareas corresponden a la presentación y revisión que quedaron a cargo de Alegría; no significan que falten los endpoints o sus clientes. La evidencia automatizada existente no sustituye su revisión del diseño ni la entrega académica.
 
-La rama de Andy integrada en este corte aún tiene dos correcciones pendientes en S3-02: consumo de token/cambio de contraseña atómico y respuesta neutral cuando SMTP falla. Andy publicará esas correcciones en un segundo pull. Mantén el mensaje visual neutral y vuelve a traer la rama cuando estén disponibles.
+## Contratos que debe conservar
 
-## Trabajos de imagen: estados consultables
+Base `/api`. Rutas privadas con `Authorization: Bearer <token>`. Éxito JSON `{ data: ... }`; error `{ error: { code, message } }`. `apiRequest()` ya devuelve el contenido de `data`: reutilizar `services/api.js`, `storage.api.js`, `jobs.api.js` y `auth.api.js`.
 
-El cliente `frontend/src/features/storage/jobs.api.js` ya ofrece `listImageJobs`, `getImageJob` y etiquetas para los estados. Las rutas actuales exigen JWT real; usa la sesión existente y no la identidad de demo.
+### Subida y procesos
 
-| Estado | Texto | Interacción |
-| --- | --- | --- |
-| `queued` | En cola | Consulta de nuevo según `nextPollAfterMs`. |
-| `processing` | Procesando | Conserva el mismo ID del trabajo. |
-| `converted` | Conversión terminada; publicación pendiente | No mostrar como imagen lista, no añadirla a la galería ni habilitar descarga. |
-| `published` | Disponible | Si `available` e `imageId` están presentes, refresca la galería y permite descargar usando el endpoint autenticado. |
-| `failed` | No se pudo completar | Detén las consultas y presenta un mensaje seguro basado en `errorCode`. |
+| Ruta | Entrada / respuesta |
+| --- | --- |
+| `POST /api/jobs` | `multipart/form-data`: un archivo `file`, `folderId` opcional. Cabecera `Idempotency-Key: UUID`. Responde `202 { data: job }` y `Location: /api/jobs/:id`. |
+| `GET /api/jobs/:id` | Estado de un trabajo propio, con `id`, `status`, `available`, `imageId`, `downloadUrl`, `errorCode`, `nextPollAfterMs`, intentos y fechas. |
+| `GET /api/jobs?limit=20&cursor=...` | `{ items: job[], nextCursor }`; omitir cursor en la primera página. |
+| `GET /api/files/:id/download` | WebP privado; usar el ID de imagen, no el ID del trabajo. |
 
-Endpoints:
+Estados: `queued → processing → converted → published`, o `failed`. **`202` sólo confirma admisión/reserva; `converted` todavía no habilita la descarga.** Mostrar una imagen disponible únicamente con `status === 'published' && available && imageId`.
 
-- `GET /api/jobs?limit=20&cursor=...` devuelve `{ data: { items, nextCursor } }`.
-- `GET /api/jobs/:jobId` devuelve `{ data: job }`.
-- `nextPollAfterMs` indica cuándo consultar de nuevo; es `null` en estados finales.
-- Al desmontar la vista o cerrar sesión, cancela el temporizador y el `AbortController`.
-- Para recuperar el estado tras recargar, vuelve a listar trabajos; no vuelvas a subir el archivo.
+La cola del frontend ya admite hasta tres envíos simultáneos y consulta los estados en `LibraryProvider`; `JobsPage` consume ese estado compartido. Conservar `nextPollAfterMs`, reintentos ante fallos temporales y cancelación al cerrar sesión. Cambiar de sección no debe interrumpir los procesos de la sesión. Tras recargar hay que iniciar sesión otra vez; los trabajos admitidos se consultan en el servidor.
 
-**Límite del contrato:** `POST /api/jobs` responde `503 ASYNC_UPLOAD_NOT_READY`. No conectes la pantalla de carga a esa ruta ni simules un éxito asíncrono. La carga vigente sigue siendo `uploadFile()` hacia `POST /api/files`, que responde cuando el WebP está listo. La admisión asíncrona se conectará en S3-11.
+Si se pierde la respuesta de admisión, consultar el mismo UUID y conservarlo al repetir el envío. Mismos archivo/nombre/álbum y clave recuperan el mismo trabajo; otros datos responden `409 IDEMPOTENCY_CONFLICT`. Un trabajo definitivamente fallido puede volver a subirse voluntariamente con una clave nueva. `POST /api/files` síncrono queda para compatibilidad; la cola web usa únicamente `/api/jobs`.
 
-## Criterios de entrega del frontend
+### Cuotas
 
-- Registro → revisar correo → verificar → login → galería.
-- Login con correo no verificado permite reenviar el enlace sin perder el correo escrito.
-- Solicitud de recuperación siempre muestra el aviso neutral; el enlace permite cambiar la contraseña una sola vez.
-- Listado y detalle de trabajos muestran los estados reales; solo `published` habilita galería/descarga.
-- `converted` no se presenta como disponible; `failed` no muestra detalles internos.
-- La subida sigue usando la ruta síncrona existente hasta que S3-11 publique el contrato funcional.
-- Conserva el login, logout, galería, subida y descarga del 30%; prueba las vistas en escritorio y móvil.
+`GET /api/quotas/me` devuelve:
+
+| Campo | Significado |
+| --- | --- |
+| `plan.code`, `plan.name`, `capacityBytes` | Plan activo y capacidad. |
+| `usedBytes`, `reservedBytes`, `availableBytes` | Espacio utilizado, reservado para procesos y disponible. |
+| `daily.date`, `daily.uploadLimit`, `daily.bytesLimit` | Día de Guatemala y límites diarios; los límites pueden ser `null` (ilimitado). |
+| `daily.uploadsUsed`, `daily.uploadsReserved`, `daily.bytesUsed`, `daily.bytesReserved` | Consumo confirmado y pendiente del día de admisión. |
+
+Los bytes y contadores de consumo viajan como strings decimales. La cuota se consulta al servidor y no se calcula con la página de la galería. Refrescar al admitir, publicar, fallar, restaurar o borrar. La papelera conserva capacidad; eliminar definitivamente libera espacio **sin devolver consumo diario**. Si falla la consulta, mostrar el error o indicar que se conservan los últimos valores conocidos; no aparentar cuota cero.
+
+### Álbumes, movimiento y papelera
+
+| Ruta | Entrada / respuesta dentro de `data` |
+| --- | --- |
+| `GET /api/albums` | `{ items: [{ id, name, createdAt, imageCount }] }`; contador de imágenes activas como string. |
+| `POST /api/albums` | `{ name }` → `201 { album }`. |
+| `PATCH /api/albums/:id` | `{ name }` → `{ album }`. |
+| `DELETE /api/albums/:id` | `{ deleted: true, albumId }`; conserva imágenes y deja sin álbum los procesos pendientes. |
+| `PATCH /api/files/:id` | `{ folderId: UUID o null }` → `{ imageId, folderId }`; `null` significa sin álbum. |
+| `GET /api/files` | `{ items, unavailableItems, nextCursor }`; admite `limit`, `cursor`, `folderId=UUID` o `folderId=none`, y `trash=true` o `false`. Por defecto sólo imágenes activas. |
+| `POST /api/files/:id/trash` | `{ trashed: true, imageId, deletedAt }`. |
+| `POST /api/files/:id/restore` | `{ restored: true, imageId }`. |
+| `DELETE /api/files/:id` | `{ deleted: true, imageId }`; borrado definitivo. La UI lo ofrece desde Papelera con confirmación. |
+
+Los DTO de imagen incluyen `folderId` y `deletedAt`. En álbumes, nombres de 1–120 caracteres tras recortar espacios; duplicados responden `409 ALBUM_NAME_CONFLICT`. Mover a un álbum ajeno/inexistente responde `404 FOLDER_NOT_FOUND`; actuar sobre un álbum ajeno/inexistente, `404 ALBUM_NOT_FOUND`. Filtrar por uno de esos álbumes devuelve una colección vacía sin revelar su existencia.
+
+Conservar estas reglas al cambiar el diseño:
+
+- Retirar imágenes y caché sólo tras una operación exitosa; ante fallo conservarlas y mostrar el error.
+- En papelera no se puede descargar ni mover (`409 FILE_IN_TRASH` al mover); restaurar recupera el álbum si aún existe. No hay caducidad ni vaciado automático.
+- El proceso de una imagen en papelera conserva `published` e `imageId`, pero tiene `available=false` y `downloadUrl=null`. Después del borrado definitivo, también queda `imageId=null`. Ocultar la descarga en ambos casos.
+- Eliminar un álbum conserva sus imágenes, incluidas las de papelera. Eliminar una imagen no afecta las referencias de otras cuentas al mismo objeto físico.
+
+### Cambio de contraseña y errores comunes
+
+`POST /api/auth/change-password`, JWT y JSON `{ currentPassword, newPassword }` → `200 { data: { changed: true } }`. La confirmación sólo se valida en la interfaz. Contraseña actual incorrecta: **`400 INVALID_CURRENT_PASSWORD`**, conservando la sesión. Tras éxito limpiar los campos; las sesiones existentes continúan abiertas según el contrato de Andy. Detalle en [autenticación](auth-frontend.md).
+
+Mantener el manejo común de `401` (limpiar sesión), `403` (cuenta/plan/capacidad), `429` (límite diario o intentos), `413 FILE_TOO_LARGE` y `404` (recurso no disponible). No confundir `failed` del worker con un fallo temporal al consultar su estado ni mostrar detalles internos del servidor.
+
+## Comprobar antes de entregar sus ajustes
+
+1. Registro/verificación → login → subida → proceso → galería y descarga. Repetir una admisión incierta con el mismo UUID, sin duplicarla.
+2. Crear/renombrar álbum → mover imagen → enviar a papelera → restaurar → borrar álbum conservando su contenido → purgar con confirmación.
+3. Verificar cuotas antes/después, rechazo por límite, recursos ajenos y persistencia de imágenes de la segunda cuenta.
+4. Cambiar contraseña; probar errores y confirmación. Cerrar sesión durante consultas y volver a entrar tras recarga.
+5. Repetir los controles principales en móvil y tema oscuro; ejecutar `npm run check`, `npm run test:frontend` y `npm run test:organization-browser`. Para backend completo, seguir [las pruebas con Redis del README](../README.md#comandos-del-equipo).
+
+Evidencia de la implementación previa: **123/123 backend con PostgreSQL/Redis, frontend aprobado y 11/11 recorridos Edge**; no se reejecutó por esta actualización documental. Ver [resultado y alcance de la verificación](organizacion-frontend.md#verificación-realizada).
+
+## Fuera de esta entrega
+
+Pagos y `GET /api/subscriptions/me` continúan pendientes (este último responde `501`). El plan activo ya está disponible en `/api/quotas/me`. No habilitar contratación ni presentar un backend inexistente como operativo. Retención automática, vaciado masivo de papelera y otras ampliaciones requieren acordar alcance; no son tareas pendientes de esta tarjeta.
+
+Referencias: [API](api.md), [OpenAPI de trabajos/cuotas](contracts/jobs.openapi.json), [cuotas](cuotas-asincronas.md), [worker](worker-cuotas.md) y [organización/verificaciones](organizacion-frontend.md).

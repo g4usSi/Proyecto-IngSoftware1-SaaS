@@ -31,16 +31,8 @@ export function SessionProvider({ children }) {
     return data.user;
   }, []);
 
-  // Devuelve false si la cuenta se creó pero el inicio de sesión automático falló.
-  const register = useCallback(async ({ name, email, password }) => {
-    await authApi.registerAccount({ name, email, password });
-    try {
-      await login({ email, password });
-      return true;
-    } catch {
-      return false;
-    }
-  }, [login]);
+  // El registro NO inicia sesión: la cuenta debe verificar su correo antes del primer login.
+  const register = useCallback(({ name, email, password }) => authApi.registerAccount({ name, email, password }), []);
 
   const logout = useCallback(async () => {
     const token = session?.token;

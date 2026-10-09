@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Check, Clock3, Minus } from 'lucide-react';
 import { useSession } from '../auth/session.jsx';
-import { useDemoAccount } from '../../app/AppLayout.jsx';
 import { plans } from './plans.data.js';
+import { useLibrary } from '../storage/library.jsx';
 
 const comparison = [
   { label: 'Almacenamiento lógico', values: ['2 GB', '25 GB', '100 GB', '500 GB o a medida'] },
@@ -22,7 +22,7 @@ function Cell({ value }) {
 
 export function PlansPage() {
   const { session } = useSession();
-  const { demoAccount } = useDemoAccount();
+  const { quota } = useLibrary();
 
   return (
     <div className="page">
@@ -36,7 +36,7 @@ export function PlansPage() {
 
       <div className="app-plans">
         {plans.map((plan, index) => {
-          const current = (session || demoAccount) && plan.code === 'free';
+          const current = session && plan.code === quota.data?.plan.code;
           return (
             <article className={`app-plan${plan.featured ? ' is-featured' : ''}${current ? ' is-current' : ''}`} key={plan.code} style={{ '--i': index }}>
               <div className="app-plan-head">
@@ -47,11 +47,11 @@ export function PlansPage() {
               <p className="app-plan-price"><strong>{plan.price}</strong><span>/ mes</span></p>
               <p className="app-plan-desc">{plan.description}</p>
               <ul>{plan.features.map((item) => <li key={item}><Check strokeWidth={2.4} aria-hidden="true" />{item}</li>)}</ul>
-              {plan.available
-                ? (current
-                  ? <span className="btn btn-secondary is-static">{session ? 'Plan actual' : 'Plan de prueba'}</span>
-                  : <Link className="btn btn-primary" to="/register">Empezar gratis</Link>)
-                : <span className="btn btn-ghost is-static" title="Los pagos todavía no están habilitados"><Clock3 strokeWidth={2} aria-hidden="true" />{plan.cta} · Próximamente</span>}
+              {current
+                ? <span className="btn btn-secondary is-static">Plan actual</span>
+                : plan.available
+                  ? <span className="btn btn-secondary is-static">{session ? 'Plan gratuito' : <Link to="/register">Empezar gratis</Link>}</span>
+                  : <span className="btn btn-ghost is-static" title="Los pagos todavía no están habilitados"><Clock3 strokeWidth={2} aria-hidden="true" />{plan.cta} · Próximamente</span>}
             </article>
           );
         })}

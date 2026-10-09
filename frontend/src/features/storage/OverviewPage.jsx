@@ -6,6 +6,7 @@ import { formatBytes, formatRelative } from './format.js';
 import { SavingBadge, Thumb } from './Gallery.jsx';
 import { useLibrary } from './library.jsx';
 import { StatCard } from './StatCard.jsx';
+import { PlanPromotion } from '../subscriptions/PlanPromotion.jsx';
 
 export function OverviewPage() {
   const { session } = useSession();
@@ -27,6 +28,8 @@ export function OverviewPage() {
         </div>
         <Link className="btn btn-primary" to="/app/upload"><CloudUpload strokeWidth={2} aria-hidden="true" />Subir imágenes</Link>
       </header>
+
+      <PlanPromotion pathname="/app" />
 
       <div className="stats-grid">
         <StatCard icon={Images} label="Imágenes" value={stats.count} format={(v) => `${Math.round(v)}${stats.complete ? '' : '+'}`} ready={stats.loaded} index={0} />
