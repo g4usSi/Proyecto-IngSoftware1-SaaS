@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, Menu, Moon, Sun, Trash2, Workflow, X } from 'lucide-react';
+import { ArrowUpRight, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, Menu, Moon, Sparkles, Sun, Trash2, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
@@ -10,6 +10,7 @@ import { formatBytes } from '../features/storage/format.js';
 import { SessionRequired } from '../features/auth/SessionRequired.jsx';
 import { AccountMenu } from './AccountMenu.jsx';
 import { useTheme } from './theme.jsx';
+import { PlanPromotion } from '../features/subscriptions/PlanPromotion.jsx';
 
 export const navGroups = [
   {
@@ -26,7 +27,7 @@ export const navGroups = [
   },
   { label: 'Análisis', items: [{ to: '/app/insights', label: 'Ahorro', icon: ChartNoAxesColumn }] },
 ];
-// Planes no va en la barra lateral: se abre desde "Mejorar plan" en el menú de la cuenta.
+// La tarjeta de almacenamiento ofrece un único acceso visible a los planes en el sidebar.
 const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))), '/app/plans': 'Mejorar plan', '/app/security': 'Cambiar contraseña' };
 
 export function AppLayout() {
@@ -134,6 +135,7 @@ function Shell() {
           </div>
         </header>
         <main className="app-content" id="main-content" key={pathname}>
+          {pathname !== '/app' && <PlanPromotion pathname={pathname} />}
           {showLibraryNotice && error && (
             <div className="gallery-error" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary" onClick={refresh}>Volver a intentar</button></div>
           )}
@@ -174,7 +176,7 @@ function SidebarNav() {
   );
 }
 
-/** Solo informa el uso; la mejora de plan está en el menú de la cuenta. */
+/** Cuota y único CTA de planes del sidebar; la etiqueta proviene del plan de la cuenta. */
 function UsageCard() {
   const { session } = useSession();
   const { enabled, quota, refreshQuota } = useLibrary();
@@ -189,6 +191,7 @@ function UsageCard() {
 
   return (
     <div className="usage-card">
+      {data?.plan && <div className="usage-tier"><span>Tu plan</span><strong className={data.plan.code === 'free' ? 'is-free' : undefined}>{data.plan.name}</strong></div>}
       <div className="usage-head">
         <span><HardDrive strokeWidth={1.9} aria-hidden="true" />Almacenamiento</span>
         <span className="usage-plan">{known ? `${Math.round(ratio * 100)} %` : '…'}</span>
@@ -197,9 +200,11 @@ function UsageCard() {
         <i style={{ transform: `scaleX(${known ? Math.max(ratio, 0.012) : 0})` }} />
       </div>
       <p className="usage-text">
-        {known ? <><strong>{formatBytes(used)}</strong> de {formatBytes(capacity)} · {data.plan.name}{reserved > 0 && <><br />{formatBytes(reserved)} reservados</>}</> : quota?.error ? 'Cuota no disponible' : 'Consultando cuota…'}
+        {known ? <><strong>{formatBytes(used)}</strong> de {formatBytes(capacity)}{reserved > 0 && <><br />{formatBytes(reserved)} reservados</>}</> : quota?.error ? 'Cuota no disponible' : 'Consultando cuota…'}
       </p>
       {quota?.error && <button type="button" className="link-button" onClick={refreshQuota}>Reintentar cuota</button>}
+      {data?.plan.code === 'free' && <p className="usage-pro-hint">Dale más espacio a tus ideas.<br /><span>Pro: 100 GB · Próximamente</span></p>}
+      <Link to="/app/plans" className="usage-upgrade"><Sparkles strokeWidth={2} aria-hidden="true" />{data?.plan.code === 'free' ? 'Mejorar plan' : 'Ver planes'}<ArrowUpRight strokeWidth={2} aria-hidden="true" /></Link>
     </div>
   );
 }

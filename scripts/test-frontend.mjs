@@ -37,6 +37,7 @@ try {
   let details = 0;
   let pollsFail = true;
   let quotaFails = false;
+  let accountPlan = { code: 'free', name: 'Free' };
   let quotaRequests = 0;
   let lostLookups = 0;
   const submissions = [];
@@ -82,7 +83,7 @@ try {
       quotaRequests++;
       if (quotaFails) return fail('TEMPORARY_ERROR', 503, 'No se pudo consultar la cuota.');
       const pending = [...admitted.values()].filter((item) => item.status !== 'published').length;
-      return ok({ plan: { code: 'free', name: 'Free' }, capacityBytes: '2000000000', usedBytes: '850000000',
+      return ok({ plan: accountPlan, capacityBytes: '2000000000', usedBytes: '850000000',
         reservedBytes: String(pending * png.length), availableBytes: String(1150000000 - pending * png.length),
         daily: { date: '2026-10-07', uploadLimit: 10, uploadsUsed: String(uploads - pending), uploadsReserved: String(pending),
           bytesLimit: '200000000', bytesUsed: String((uploads - pending) * png.length), bytesReserved: String(pending * png.length) } });
@@ -361,6 +362,45 @@ try {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await screenshot('albums-mobile.png', true);
     await page.setViewportSize({ width: 1440, height: 900 });
+  });
+  await step('Mejorar plan: acceso visible, motivos por sección y catálogo sin compra activa', async () => {
+    await page.getByRole('link', { name: 'Resumen', exact: true }).click();
+    await page.getByRole('heading', { name: 'Tus ideas merecen más espacio.' }).waitFor();
+    assert.equal(await page.locator('.app-sidebar').getByRole('link', { name: 'Mejorar plan', exact: true }).count(), 1);
+    await screenshot('upgrade-dashboard-dark.png', true);
+    await page.getByRole('button', { name: 'Cambiar a tema claro' }).click();
+    await screenshot('upgrade-dashboard-light.png', true);
+    await page.getByRole('main').getByRole('link', { name: 'Mejorar plan', exact: true }).click();
+    await page.getByRole('heading', { name: 'Más espacio cuando lo necesites' }).waitFor();
+    await page.locator('.app-plan.is-featured').getByText('Elegir plan · Próximamente', { exact: true }).waitFor();
+    for (const route of ['storage', 'albums', 'upload', 'history', 'jobs', 'trash', 'insights']) {
+      await page.locator(`.app-nav a[href="/app/${route}"]`).click();
+      await page.getByRole('complementary', { name: 'Ventaja de Pro' }).waitFor();
+      assert.equal(await page.locator('.plan-context a, .plan-context button').count(), 0, 'El motivo no repite el CTA persistente.');
+    }
+    await page.getByRole('link', { name: /^Mis imágenes/ }).click();
+    await screenshot('upgrade-library.png', true);
+    await page.setViewportSize({ width: 375, height: 812 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
+    await page.locator('.usage-upgrade').click();
+    await page.getByRole('heading', { name: 'Más espacio cuando lo necesites' }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'El catálogo no debe desbordar el móvil.');
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
+    await screenshot('upgrade-sidebar-mobile.png');
+    await page.getByRole('link', { name: 'Resumen', exact: true }).click();
+    await page.getByRole('heading', { name: 'Tus ideas merecen más espacio.' }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await screenshot('upgrade-dashboard-mobile.png', true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    accountPlan = { code: 'pro', name: 'Pro' };
+    await page.locator('.app-nav a[href="/app/upload"]').click();
+    await page.getByRole('button', { name: 'Actualizar cuota', exact: true }).click();
+    await page.locator('.usage-tier strong').filter({ hasText: /^Pro$/ }).waitFor();
+    assert.equal(await page.locator('.plan-context').count(), 0);
+    await page.locator('.usage-upgrade').click();
+    await page.locator('.app-plan.is-current').getByRole('heading', { name: 'Pro', exact: true }).waitFor();
+    accountPlan = { code: 'free', name: 'Free' };
   });
   await step('Una respuesta 401 retira el panel y vuelve al inicio', async () => {
     expired = true;

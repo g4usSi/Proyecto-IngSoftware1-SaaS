@@ -1,16 +1,19 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronsUpDown, CircleHelp, House, KeyRound, LogIn, LogOut, Rocket } from 'lucide-react';
+import { ChevronsUpDown, CircleHelp, House, KeyRound, LogIn, LogOut } from 'lucide-react';
 import { useSession } from '../features/auth/session.jsx';
+import { useLibrary } from '../features/storage/library.jsx';
 
 export function initials(name = '') {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[1][0] : '')).toUpperCase() || '?';
 }
 
-/** Botón de cuenta al pie de la barra lateral: plan, mejora de plan y sesión. El tema vive en la barra superior. */
+/** Botón de cuenta al pie de la barra lateral. La mejora de plan permanece visible en la tarjeta de cuota. */
 export function AccountMenu() {
   const { session, logout } = useSession();
+  const { quota } = useLibrary();
+  const planName = quota.data?.plan.name;
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -47,8 +50,7 @@ export function AccountMenu() {
 
         {session && (
           <div className="account-plan">
-            <div><span className="account-plan-label">Tu plan</span><strong>Free</strong></div>
-            <Link to="/app/plans" className="account-upgrade" role="menuitem" onClick={close}><Rocket strokeWidth={2} aria-hidden="true" />Mejorar plan</Link>
+            <div><span className="account-plan-label">Tu plan</span><strong>{planName ?? 'Sin confirmar'}</strong></div>
           </div>
         )}
 
@@ -68,7 +70,7 @@ export function AccountMenu() {
         <span className="account-avatar" aria-hidden="true">{user ? initials(user.name) : '?'}</span>
         <span className="account-trigger-text">
           <strong>{user?.name ?? 'Invitado'}</strong>
-          <span>{user ? 'Plan Free' : 'Sin sesión'}</span>
+          <span>{user ? (planName ? `Plan ${planName}` : 'Consultando plan…') : 'Sin sesión'}</span>
         </span>
         <ChevronsUpDown className="account-chevron" strokeWidth={2} aria-hidden="true" />
       </button>
