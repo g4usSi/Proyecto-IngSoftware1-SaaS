@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: autenticación, Storage e interfaz integrados.** El registro asigna el plan Free y, tras iniciar sesión, un token JWT permite subir y descargar imágenes. La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
+**Segunda versión: v0.2.0 — avance funcional del 50% (09/10/2026).** Incluye cuentas verificadas, recuperación/cambio de contraseña, procesamiento asíncrono, cuotas, álbumes y papelera. Consulta el [alcance, aceptación y novedades](docs/avance-50.md). El registro asigna Free y la sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 
@@ -19,11 +19,11 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Admisión asíncrona `POST /api/jobs`, worker Redis/BullMQ, publicación privada y recuperación.
 - Cuotas compartidas entre ambas rutas, consulta `GET /api/quotas/me` y borrado privado que conserva el consumo diario.
 
-La interfaz incluye subida asíncrona y cuotas reales, álbumes, movimiento de imágenes, papelera/restauración y borrado definitivo confirmado. También incorpora el cambio de contraseña y las correcciones de recuperación de Andy. La [guía vigente para Alegría](docs/frontend-auth-jobs-handoff.md) reúne los contratos y las tareas de acabado visual y revisión que faltan. Los pagos siguen pendientes. Este estado corresponde al trabajo de `tema-y-flujo-git`; no acredita publicación en `main`.
+La interfaz incluye subida asíncrona y cuotas reales, álbumes, movimiento de imágenes, papelera/restauración y borrado definitivo confirmado. También incorpora el cambio de contraseña y las correcciones de recuperación de Andy. El usuario confirmó la revisión conjunta del equipo y las correcciones terminadas el 09/10; S3-11 está cerrada. La [guía del frontend](docs/frontend-auth-jobs-handoff.md) conserva sus contratos para mantenimiento. Esta release se integra en `main` mediante PR; la presentación académica S3-12 sigue pendiente. Los pagos y el panel administrativo completo pertenecen al siguiente avance.
 
 ## Arranque rápido
 
-Requisitos: **Node.js 24, npm 11 o superior, PostgreSQL 17/18 y Redis**. Para los comandos siguientes, abrir Docker Desktop y usar PowerShell desde la raíz del repositorio. Docker ejecuta PostgreSQL/Redis; Node ejecuta la API, el frontend y el worker. Trabajar sobre `tema-y-flujo-git`, conservando cualquier cambio local antes de cambiar de rama.
+Requisitos: **Node.js 24, npm 11 o superior, PostgreSQL 17/18 y Redis**. Para los comandos siguientes, abrir Docker Desktop y usar PowerShell desde la raíz del repositorio. Docker ejecuta PostgreSQL/Redis; Node ejecuta la API, el frontend y el worker. La segunda versión se identifica con el tag `v0.2.0` en `main`; conservar cualquier cambio local antes de cambiar de rama. El desarrollo compartido continúa en `tema-y-flujo-git`.
 
 ### 1. Preparar dependencias y configuración
 
@@ -145,7 +145,7 @@ Los supervisores de Storage y navegador requieren PostgreSQL local en **5433** y
 
 El frontend usa el proxy `/api` de Vite hacia `127.0.0.1:3000`. Si cambia el puerto del backend, actualizar `API_PROXY_TARGET` en `frontend/.env` y reiniciar Vite. `frontend/dist` es solo la interfaz: el despliegue deberá proporcionar la API y configurar `/api` en el servidor frontal.
 
-La [guía de Alegría](docs/frontend-auth-jobs-handoff.md) distingue lo implementado, los contratos que debe conservar y sus tareas pendientes. El detalle adicional está en [autenticación](docs/auth-frontend.md), [API](docs/api.md), [OpenAPI de trabajos/cuotas/borrado](docs/contracts/jobs.openapi.json) y [evidencia de organización](docs/organizacion-frontend.md).
+La [guía de Alegría](docs/frontend-auth-jobs-handoff.md) conserva los contratos de mantenimiento tras la revisión del equipo. El detalle adicional está en [autenticación](docs/auth-frontend.md), [API](docs/api.md), [OpenAPI de trabajos/cuotas/borrado](docs/contracts/jobs.openapi.json) y [evidencia de organización](docs/organizacion-frontend.md).
 
 ## Organización
 
