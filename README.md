@@ -19,7 +19,7 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - Admisión asíncrona `POST /api/jobs`, worker Redis/BullMQ, publicación privada y recuperación.
 - Cuotas compartidas entre ambas rutas, consulta `GET /api/quotas/me` y borrado privado que conserva el consumo diario.
 
-La interfaz incluye subida asíncrona y cuotas reales, álbumes, movimiento de imágenes, papelera/restauración y borrado definitivo confirmado. También incorpora el cambio de contraseña y las correcciones de recuperación de Andy. El usuario confirmó la revisión conjunta del equipo y las correcciones terminadas el 09/10; S3-11 está cerrada. La [guía del frontend](docs/frontend-auth-jobs-handoff.md) conserva sus contratos para mantenimiento. Esta release se integra en `main` mediante PR; la presentación académica S3-12 sigue pendiente. Los pagos y el panel administrativo completo pertenecen al siguiente avance.
+La interfaz incluye subida asíncrona y cuotas reales, álbumes, movimiento de imágenes, papelera/restauración y borrado definitivo confirmado. También incorpora el cambio de contraseña y las correcciones de recuperación de Andy. El usuario confirmó la revisión conjunta del equipo y las correcciones terminadas el 09/10; S3-11 está cerrada. La [guía del frontend](docs/frontend-auth-jobs-handoff.md) conserva sus contratos para mantenimiento. La publicación de esta release en `main` es distinta de la presentación académica S3-12, que sigue pendiente. Los pagos y el panel administrativo completo pertenecen al siguiente avance.
 
 ## Arranque rápido
 

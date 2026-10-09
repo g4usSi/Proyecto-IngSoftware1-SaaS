@@ -2,7 +2,7 @@
 
 ## Versión actual: v0.2.0 — 50%, 09/10/2026
 
-El alcance técnico del 50% y la revisión conjunta S3-11 están completos según la evidencia publicada y la confirmación del usuario del 09/10. La segunda versión incorpora las cuentas de Andy, cuotas de Elden, Storage/worker/organización de Geovanny e interfaz de Alegría. Consultar [alcance y aceptación del 50%](avance-50.md) para novedades y resultados de validación de la release. La publicación en main mediante PR es distinta de la entrega académica: S3-12 permanece lista para entregar, sin constancia de presentación. S2-14/S2-16 conservan sus pendientes históricos.
+El alcance técnico del 50% y la revisión conjunta S3-11 están completos según la evidencia publicada y la confirmación del usuario del 09/10. La segunda versión incorpora las cuentas de Andy, cuotas de Elden, Storage/worker/organización de Geovanny e interfaz de Alegría. Consultar [alcance y aceptación del 50%](avance-50.md) para novedades y resultados de validación de la release. La publicación en main es distinta de la entrega académica: S3-12 permanece lista para entregar, sin constancia de presentación. S2-14/S2-16 conservan sus pendientes históricos.
 
 ## Primera versión v0.1.0 (corte histórico)
 
