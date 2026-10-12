@@ -13,6 +13,9 @@ export function createAuthController(service) {
     async me(req, res) {
       res.json({ data: await service.getCurrentUser(req.user) });
     },
+    async updateMe(req, res) {
+      res.json({ data: await service.updateProfile(req.user, req.body) });
+    },
     async verifyEmail(req, res) {
       res.json({ data: await service.verifyEmail(req.body) });
     },
