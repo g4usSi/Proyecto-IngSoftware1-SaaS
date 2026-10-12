@@ -15,6 +15,13 @@ export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {
   let nextResetId = 1;
   let nextVerificationId = 1;
 
+  function updateUser(id, fields) {
+    const user = [...users.values()].find((candidate) => candidate.id === id);
+    if (!user) return { rows: [] };
+    Object.assign(user, fields);
+    return { rows: [{ ...user, password_hash: undefined }] };
+  }
+
   return {
     users,
     revoked,
@@ -119,6 +126,23 @@ export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {
         const user = [...users.values()].find((candidate) => candidate.id === record.user_id);
         user.email_verified = true;
         return { rows: [{ id: user.id }] };
+      }
+      if (/^\s*UPDATE users SET name/i.test(sql)) {
+        return updateUser(params[0], { name: params[1] });
+      }
+      if (/^\s*UPDATE users SET active/i.test(sql)) {
+        return updateUser(params[0], { active: params[1] });
+      }
+      // Búsqueda del administrador: $1 = patrón ILIKE o null, $2 = activo o null.
+      if (/FROM users WHERE \(\$1::text IS NULL/i.test(sql)) {
+        const [pattern, active, limit, offset] = params;
+        const term = pattern === null ? null : pattern.slice(1, -1).replace(/\\(.)/g, '$1').toLowerCase();
+        const matches = [...users.values()]
+          .filter((user) => term === null || user.name.toLowerCase().includes(term) || user.email.includes(term))
+          .filter((user) => active === null || user.active === active)
+          .sort((a, b) => b.created_at - a.created_at || a.id.localeCompare(b.id));
+        if (/count\(\*\)/i.test(sql)) return { rows: [{ total: matches.length }] };
+        return { rows: matches.slice(offset, offset + limit).map((user) => ({ ...user, password_hash: undefined })) };
       }
       throw new Error(`Consulta inesperada: ${sql}`);
     },

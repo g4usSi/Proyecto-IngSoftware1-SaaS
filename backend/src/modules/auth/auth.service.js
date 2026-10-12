@@ -1,9 +1,10 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { AppError } from '../../lib/app-error.js';
 import { hashPassword, verifyPassword } from './password.js';
-import { normalizeEmail, passwordProblems, validateRegistration } from './auth.validation.js';
+import { normalizeEmail, passwordProblems, validateName, validateRegistration } from './auth.validation.js';
 import { createLoginLimiter } from './login-limiter.js';
 import { invalidToken } from './token.js';
+import { toPublicUser } from './public-user.js';
 
 const UNIQUE_VIOLATION = '23505';
 const PASSWORD_MAX = 128;
@@ -118,6 +119,15 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
 
     async getCurrentUser(identity) {
       const user = await repository.findUserById(identity.id);
+      if (!user) throw invalidToken();
+      return toPublicUser(user);
+    },
+
+    // RF07: el usuario autenticado (identity = req.user) solo puede cambiar su nombre.
+    // Los demás campos del cuerpo (correo, rol, estado...) se ignoran.
+    async updateProfile(identity, input) {
+      const name = validateName(input?.name);
+      const user = await repository.updateUserName(identity.id, name);
       if (!user) throw invalidToken();
       return toPublicUser(user);
     },
@@ -241,19 +251,6 @@ function invalidResetToken() {
 async function getDummyHash() {
   dummyHash ??= hashPassword('contraseña-de-relleno');
   return dummyHash;
-}
-
-// Nunca incluye password_hash.
-function toPublicUser(user) {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    active: user.active,
-    emailVerified: user.email_verified,
-    createdAt: user.created_at instanceof Date ? user.created_at.toISOString() : user.created_at,
-  };
 }
 
 function emailTaken() {
