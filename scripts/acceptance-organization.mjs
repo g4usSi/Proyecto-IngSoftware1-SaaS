@@ -21,7 +21,7 @@ const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomBytes(3
 const output = path.join(root, 'output', 'playwright', 'organization', runId);
 await mkdir(output, { recursive: true });
 const storageRoot = await mkdtemp(path.join(os.tmpdir(), 'smartstorage-organization-'));
-const database = new pg.Pool({ connectionString: testUrl.toString(), max: 8 });
+let database = new pg.Pool({ connectionString: testUrl.toString(), max: 8 });
 const evidence = { startedAt: new Date().toISOString(), browser: process.env.E2E_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : 'chromium'),
   scope: 'UI real → HTTP real → PostgreSQL/Sharp/publicación real. Entrega al consumidor en memoria; esta suite no valida Redis ni SMTP real.', steps: [], sourceSha256: {} };
 for (const file of ['scripts/acceptance-organization.mjs', 'scripts/test-storage.mjs',
@@ -34,7 +34,8 @@ const password = `Acceptance#1${randomBytes(8).toString('hex')}`;
 const newPassword = `Updated#2${randomBytes(8).toString('hex')}`;
 const verification = new Map();
 const corsOrigins = [];
-const jobs = createManagedImageJobs({ database, storageRoot });
+let jobs = createManagedImageJobs({ database, storageRoot });
+const jwtSecret = randomBytes(48).toString('hex');
 const pendingJobs = new Set();
 const pageErrors = [];
 const workerErrors = [];
@@ -160,16 +161,20 @@ async function screenshot(page, filename) {
   await page.screenshot({ path: path.join(output, filename), fullPage: true, animations: 'disabled' });
 }
 
+async function startApi(port = 0) {
+  api = createApp({ database, storageRoot, jwtSecret, storageDemo: false, corsOrigins,
+    mailer: { async sendEmailVerification({ to, verifyLink }) { verification.set(to, verifyLink); }, async sendPasswordReset() {} },
+    enqueueJob: async (id) => { pendingJobs.add(id); },
+  }).listen(port, '127.0.0.1');
+  await once(api, 'listening');
+  apiOrigin = `http://127.0.0.1:${api.address().port}`;
+}
+
 try {
   for (const filename of (await readdir(path.join(root, 'backend/migrations'))).filter((file) => /^\d+[-_].*\.sql$/.test(file)).sort()) {
     await database.query(await readFile(path.join(root, 'backend/migrations', filename), 'utf8'));
   }
-  api = createApp({ database, storageRoot, jwtSecret: randomBytes(48).toString('hex'), storageDemo: false, corsOrigins,
-    mailer: { async sendEmailVerification({ to, verifyLink }) { verification.set(to, verifyLink); }, async sendPasswordReset() {} },
-    enqueueJob: async (id) => { pendingJobs.add(id); },
-  }).listen(0, '127.0.0.1');
-  await once(api, 'listening');
-  apiOrigin = `http://127.0.0.1:${api.address().port}`;
+  await startApi();
   web = await createServer({ root: path.join(root, 'frontend'), configFile: path.join(root, 'frontend/vite.config.js'),
     logLevel: 'warn', server: { host: '127.0.0.1', port: 0, strictPort: false, open: false,
       proxy: { '/api': { target: apiOrigin, changeOrigin: true } } },
@@ -410,6 +415,61 @@ try {
     await pageB.waitForURL(`${base}/`, { timeout: 6_000 });
     sessionB = await login(pageB, 'organization-b@example.test', newPassword);
     await gallery(pageB, 0);
+  });
+
+  await step('Álbumes vacíos y con imágenes sobreviven recarga, cierre del navegador y reinicio de API/conexiones', async () => {
+    await navigate(pageB, /^Álbumes$/);
+    for (const name of ['Album A', 'Album B']) {
+      await pageB.getByRole('button', { name: 'Crear álbum', exact: true }).click();
+      await pageB.getByLabel('Nombre del álbum').fill(name);
+      const created = responseFor(pageB, '/albums');
+      await pageB.getByRole('dialog').getByRole('button', { name: 'Guardar álbum' }).click();
+      assert.equal((await created).status(), 201);
+      await pageB.getByRole('dialog').waitFor({ state: 'hidden' });
+      await pageB.getByRole('button', { name: `Abrir ${name}`, exact: true }).waitFor();
+    }
+    const uploaded = await upload(pageB);
+    await pageB.locator('.upload-item.is-done').waitFor();
+    const published = await apiData(`/jobs/${uploaded.id}`, sessionB.token);
+    const albums = (await apiData('/albums', sessionB.token)).items;
+    assert.equal((await apiRequest(`/files/${published.imageId}`, sessionB.token, {
+      method: 'PATCH', body: { folderId: albums.find((album) => album.name === 'Album A').id },
+    })).status, 200);
+    const before = (await apiData('/albums', sessionB.token)).items;
+    assert.deepEqual(before.map(({ name, imageCount }) => ({ name, imageCount })), [
+      { name: 'Album A', imageCount: '1' }, { name: 'Album B', imageCount: '0' },
+    ]);
+    await pageB.reload();
+    sessionB = await login(pageB, 'organization-b@example.test', newPassword);
+    await navigate(pageB, /^Álbumes$/);
+    for (const album of before) await pageB.getByRole('button', { name: `Abrir ${album.name}`, exact: true }).waitFor();
+
+    workerPaused = true;
+    await workerTask;
+    await browser.close();
+    const port = api.address().port;
+    const stopped = new Promise((resolve) => api.close(resolve)); api.closeAllConnections(); await stopped;
+    await database.end();
+    // Instancias nuevas: ningún estado React, servicio o conexión anterior puede sostener los álbumes.
+    database = new pg.Pool({ connectionString: testUrl.toString(), max: 8 });
+    jobs = createManagedImageJobs({ database, storageRoot });
+    await startApi(port);
+    browser = await chromium.launch({ headless: true,
+      ...(process.env.E2E_BROWSER_CHANNEL || process.platform === 'win32' ? { channel: evidence.browser } : {}) });
+    pageB = await browser.newPage({ viewport: { width: 1366, height: 900 }, reducedMotion: 'reduce' });
+    pageB.setDefaultTimeout(20_000);
+    pageB.on('pageerror', (error) => pageErrors.push(error.message));
+    sessionB = await login(pageB, 'organization-b@example.test', newPassword);
+    await navigate(pageB, /^Álbumes$/);
+    for (const album of before) await pageB.getByRole('button', { name: `Abrir ${album.name}`, exact: true }).waitFor();
+    assert.deepEqual((await apiData('/albums', sessionB.token)).items, before);
+    await pageB.getByRole('button', { name: 'Abrir Album A', exact: true }).click();
+    await pageB.getByRole('button', { name: `Ver ${shared.name}`, exact: true }).waitFor();
+    await pageB.locator('.img-card .thumb.is-loaded').waitFor();
+    await screenshot(pageB, '07-albumes-tras-reinicio.png');
+    await pageB.getByRole('button', { name: 'Abrir Album B', exact: true }).click();
+    await until(async () => await pageB.locator('.gallery').getAttribute('aria-busy') === 'false', 'álbum vacío cargado');
+    assert.equal(await pageB.locator('.img-card:not(.is-skeleton)').count(), 0);
   });
 
   assert.deepEqual(pageErrors, [], 'Sin errores JavaScript en navegador');
