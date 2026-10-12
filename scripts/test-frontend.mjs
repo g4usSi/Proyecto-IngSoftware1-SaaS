@@ -30,6 +30,8 @@ try {
   let uploads = 0;
   let files = [];
   const albums = [];
+  let albumReadMode = 'normal';
+  let heldAlbumRequest;
   let moveFails = false;
   let auditFiles = false;
   let loginError;
@@ -65,6 +67,8 @@ try {
     if (url.pathname === '/api/files' && request.method() === 'POST') throw new Error('La interfaz debe admitir subidas mediante POST /jobs.');
     if (url.pathname === '/api/albums') {
       if (request.method() === 'POST') { const album = { id: `album-${albums.length}`, name: request.postDataJSON().name, imageCount: '0' }; albums.push(album); return ok({ album }, 201); }
+      if (albumReadMode === 'error') return fail('DATABASE_UNAVAILABLE', 503, 'PostgreSQL no está disponible.');
+      if (albumReadMode === 'hang') { heldAlbumRequest = route; return; }
       return ok({ items: albums.map((album) => ({ ...album, imageCount: String(files.filter((file) => file.folderId === album.id).length) })) });
     }
     if (url.pathname.startsWith('/api/files/') && request.method() === 'PATCH') {
@@ -362,6 +366,27 @@ try {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await screenshot('albums-mobile.png', true);
     await page.setViewportSize({ width: 1440, height: 900 });
+  });
+  await step('Álbumes: error y espera agotada no simulan borrado; reintento y reconexión recuperan el listado', async () => {
+    await page.getByRole('link', { name: 'Resumen', exact: true }).click();
+    albumReadMode = 'error';
+    await page.getByRole('link', { name: 'Álbumes', exact: true }).click();
+    await page.locator('.album-browser [role="alert"]').waitFor();
+    assert.equal(await page.locator('.album-grid').count(), 0, 'Una consulta fallida no debe presentarse como una lista vacía.');
+    assert.equal(await page.getByText('Todavía no tienes álbumes en esta cuenta.', { exact: true }).count(), 0);
+    albumReadMode = 'normal';
+    await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
+    await page.getByRole('button', { name: 'Abrir Viajes', exact: true }).waitFor();
+    albumReadMode = 'hang';
+    await page.getByRole('button', { name: 'Actualizar álbumes', exact: true }).click();
+    await page.getByText(/La consulta de álbumes tardó demasiado/).waitFor({ timeout: 18_000 });
+    assert.equal(await page.getByRole('button', { name: 'Abrir Viajes', exact: true }).count(), 1, 'Se conserva la lista confirmada.');
+    await heldAlbumRequest.abort().catch(() => {});
+    albumReadMode = 'normal';
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.locator('.album-browser [role="alert"]').waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: 'Abrir Viajes', exact: true }).waitFor();
+    assert.equal(albums.length, 1);
   });
   await step('Mejorar plan: acceso visible, motivos por sección y catálogo sin compra activa', async () => {
     await page.getByRole('link', { name: 'Resumen', exact: true }).click();

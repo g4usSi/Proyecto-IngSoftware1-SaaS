@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronRight, Folder, FolderOpen, FolderPlus, Images, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, Folder, FolderOpen, FolderPlus, Images, MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { ActionDialog } from '../../components/ActionDialog.jsx';
 import { useToast } from '../../components/Toaster.jsx';
 import { useSession } from '../auth/session.jsx';
@@ -18,6 +18,7 @@ export function AlbumsPage() {
   const [selected, setSelected] = useState('none');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [action, setAction] = useState(null);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,17 +36,35 @@ export function AlbumsPage() {
   const loadAlbums = useCallback(async () => {
     controller.current?.abort();
     const request = new AbortController(); controller.current = request;
+    const timeout = setTimeout(() => request.abort('timeout'), 15000);
     setLoading(true); setError(null);
     try {
       const data = await listAlbums({ token: session.token, signal: request.signal });
-      if (!request.signal.aborted) {
+      if (!request.signal.aborted && controller.current === request) {
         setAlbums(data.items);
+        setLoaded(true);
         setSelected((value) => value === 'none' || data.items.some((album) => album.id === value) ? value : 'none');
       }
-    } catch (reason) { if (!request.signal.aborted) setError(storageErrorMessage(reason)); }
-    finally { if (!request.signal.aborted) setLoading(false); }
+    } catch (reason) {
+      if (controller.current === request && (!request.signal.aborted || request.signal.reason === 'timeout')) {
+        setError(request.signal.aborted ? 'La consulta de álbumes tardó demasiado. Vuelve a intentarlo.' : storageErrorMessage(reason));
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (controller.current === request && (!request.signal.aborted || request.signal.reason === 'timeout')) setLoading(false);
+    }
   }, [session.token]);
-  useEffect(() => { loadAlbums(); return () => { controller.current?.abort(); mutation.current?.abort(); }; }, [loadAlbums]);
+  useEffect(() => {
+    loadAlbums();
+    const recover = () => { if (document.visibilityState === 'visible') loadAlbums(); };
+    window.addEventListener('online', recover);
+    document.addEventListener('visibilitychange', recover);
+    return () => {
+      window.removeEventListener('online', recover);
+      document.removeEventListener('visibilitychange', recover);
+      controller.current?.abort(); mutation.current?.abort();
+    };
+  }, [loadAlbums]);
   function open(value, album = current) { if (movingRef.current) return; setTarget(album); setAction(value); setName(value === 'rename' ? album.name : ''); setActionError(null); }
   function context(event, album = null) {
     event.preventDefault(); event.stopPropagation();
@@ -90,10 +109,11 @@ export function AlbumsPage() {
     if (event.target.closest('input, button, select, a')) return;
     context(event);
   }}>
-    <header className="page-head"><div><span className="kicker">Biblioteca</span><h1>Álbumes</h1><p>Un lugar para cada imagen. Organiza por proyectos, viajes o ideas.</p></div><button className="btn btn-primary" type="button" onClick={() => open('create')}><FolderPlus aria-hidden="true" />Crear álbum</button></header>
-    <section className="album-browser" aria-label="Elegir álbum">
+    <header className="page-head"><div><span className="kicker">Biblioteca</span><h1>Álbumes</h1><p>Un lugar para cada imagen. Organiza por proyectos, viajes o ideas.</p></div><div className="organization-buttons"><button className="btn btn-secondary" type="button" onClick={loadAlbums} disabled={loading || busy || moving}><RefreshCw aria-hidden="true" />Actualizar álbumes</button><button className="btn btn-primary" type="button" onClick={() => open('create')}><FolderPlus aria-hidden="true" />Crear álbum</button></div></header>
+    <section className="album-browser" aria-label="Elegir álbum" aria-busy={loading}>
       <div className="album-section-head"><h2>Tus álbumes</h2><span>Abre un álbum o arrastra una imagen sobre él.</span></div>
-      <div className="album-grid">
+      <p className="album-help">Cuenta: {session.user.email}</p>
+      {loaded && <div className="album-grid">
         {[{ id: 'none', name: 'Sin álbum' }, ...albums].map((album) => <article key={album.id} className={`album-folder${selected === album.id ? ' is-selected' : ''}${dropTarget === album.id ? ' is-drop-target' : ''}`} onContextMenu={(event) => context(event, album.id === 'none' ? null : album)}
           onDragOver={(event) => { if (!moving && event.dataTransfer.types.includes(IMAGE_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget(album.id); } }}
           onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget(null); }} onDrop={(event) => drop(event, album.id)}>
@@ -103,16 +123,17 @@ export function AlbumsPage() {
           </button>
           {album.id !== 'none' && <button type="button" className="icon-button album-folder-menu" aria-label={`Acciones de ${album.name}`} aria-haspopup="menu" disabled={moving} onClick={(event) => context(event, album)}><MoreHorizontal aria-hidden="true" /></button>}
         </article>)}
-      </div>
+      </div>}
       <p className="album-help">Funcionan como carpetas de un solo nivel: cada imagen puede estar en un solo álbum. Moverla no crea una copia. Usa clic derecho o los botones de acciones.</p>
       {moving && <p role="status">Moviendo imagen…</p>}
       {loading && <p role="status">Cargando álbumes…</p>}
-      {error && <div role="alert"><p>{error}</p><button type="button" className="link-button" onClick={loadAlbums}>Reintentar</button></div>}
+      {error && <div role="alert"><p>No se pudo actualizar la lista de álbumes. {error}{loaded ? ' Se conserva la última lista consultada.' : ''}</p><button type="button" className="link-button" onClick={loadAlbums}>Reintentar</button></div>}
+      {loaded && !loading && !error && !albums.length && <p className="album-help">Todavía no tienes álbumes en esta cuenta.</p>}
     </section>
-    <div className="album-current"><div><span>Álbumes</span><ChevronRight aria-hidden="true" /><strong>{current?.name ?? 'Sin álbum'}</strong></div>
+    {loaded && <><div className="album-current"><div><span>Álbumes</span><ChevronRight aria-hidden="true" /><strong>{current?.name ?? 'Sin álbum'}</strong></div>
       {current && <div className="organization-buttons"><button className="btn btn-secondary" type="button" onClick={() => open('rename')}><Pencil aria-hidden="true" />Renombrar</button><button className="btn btn-secondary" type="button" onClick={() => open('delete')}><Trash2 aria-hidden="true" />Eliminar álbum</button></div>}
     </div>
-    <Gallery source={files} title={current?.name ?? 'Sin álbum'} onChanged={loadAlbums} />
+    <Gallery source={files} title={current?.name ?? 'Sin álbum'} onChanged={loadAlbums} /></>}
     {menu && <ContextMenu position={menu.position} onClose={closeMenu} items={menu.album ? [
       { label: 'Abrir álbum', icon: FolderOpen, run: () => setSelected(menu.album.id) },
       { label: 'Renombrar', icon: Pencil, run: () => open('rename', menu.album) },
