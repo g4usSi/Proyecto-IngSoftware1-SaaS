@@ -7,6 +7,7 @@ import { ToastProvider } from '../components/Toaster.jsx';
 import { useSession } from '../features/auth/session.jsx';
 import { LibraryProvider, useLibrary } from '../features/storage/library.jsx';
 import { formatBytes } from '../features/storage/format.js';
+import { describeQuota } from '../features/storage/quota.model.js';
 import { SessionRequired } from '../features/auth/SessionRequired.jsx';
 import { AccountMenu } from './AccountMenu.jsx';
 import { useTheme } from './theme.jsx';
@@ -188,9 +189,10 @@ function UsageCard() {
   const reserved = Number(data?.reservedBytes ?? 0);
   const capacity = Number(data?.capacityBytes ?? 0);
   const ratio = capacity > 0 ? Math.min(1, (used + reserved) / capacity) : 0;
+  const level = known ? describeQuota(data).meters[0].level : 'ok';
 
   return (
-    <div className="usage-card">
+    <div className={`usage-card is-${level}`}>
       {data?.plan && <div className="usage-tier"><span>Tu plan</span><strong className={data.plan.code === 'free' ? 'is-free' : undefined}>{data.plan.name}</strong></div>}
       <div className="usage-head">
         <span><HardDrive strokeWidth={1.9} aria-hidden="true" />Almacenamiento</span>
