@@ -1,5 +1,16 @@
 # Decisiones de SmartStorage
 
+## Catálogo y cuotas del 14/10/2026
+
+Acuerdo de Geovanny para S4-01: USD; Estándar US$8/mes con 25 GB y 500 MB diarios;
+Pro US$15/mes con 100 GB sin límite diario; Enterprise US$40/mes con 200 GB incluidos,
+sin límite diario, más US$0.20 por GB-mes adicional ponderado por tiempo.
+Free mantiene 2 GB, diez subidas y 200 MB diarios. Vigencia pagada: mes calendario;
+Free sin vencimiento periódico. La migración 009 y el
+[contrato del catálogo](planes-pagados-s4-01.md) sustituyen la matriz provisional
+en GTQ y los 500 GB de Enterprise de la 008. No hay cobros ejecutados por publicar
+el catálogo; facturación y renovación corresponden a S4-02/S4-03.
+
 ## Organización incorporada el 07/10/2026
 
 El trabajo local sobre `tema-y-flujo-git` añade una papelera manual como protección frente a borrados accidentales, a partir de la solicitud del usuario. Conserva la referencia y el espacio consumido hasta su eliminación definitiva; no reembolsa el consumo diario. Restaurar no crea una nueva subida. Eliminar un álbum conserva sus imágenes y deja sin álbum sus trabajos pendientes. No hay caducidad ni vaciado automático. Ver [contratos y traspaso](organizacion-frontend.md).
@@ -56,7 +67,9 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 - Capacidad del plan: contabilizar bytes originales por referencia lógica y sumar reservas pendientes. Storage y worker validan capacidad, número de subidas y bytes diarios con la misma conexión y bloqueo por usuario. El día de admisión se calcula en `America/Guatemala`; el consumo se conserva en reservas confirmadas y su agregado diario.
 - Actualización del 07/10/2026: el borrado libera capacidad y conserva el consumo diario. Sólo elimina físicamente el último objeto sin referencias, mediante una tarea durable y bloqueo por hash. El lifecycle del worker confirma imagen, reserva y consumo en un único COMMIT.
 - Los planes usan bytes decimales: 1 GB = 1,000,000,000 bytes. El plan Free aplica ambos límites diarios, 10 subidas y 200 MB.
-- Solo se precarga Free. Los precios pagados se decidirán antes de cargar Estándar, Pro y Enterprise.
+- La migración 002 precargó Free. S4-01 añadió Estándar, Pro y Enterprise mediante la migración 008; la matriz y su estado de aprobación están en [catálogo y cuotas](planes-pagados-s4-01.md). Esta actualización sustituye la restricción inicial de precargar únicamente Free.
+- `standard` / Estándar es el nombre canónico del nivel que la propuesta académica llamaba Básico. Los clientes deben usar `code` o `id`, nunca el nombre comercial como identificador.
+- Un límite diario `NULL` significa sin límite. La capacidad y el máximo por archivo continúan aplicándose, también a Pro y Enterprise. Las condiciones personalizadas de Enterprise requieren un acuerdo específico; no se deducen de `NULL`.
 
 ## Cambios pendientes en documentación académica
 
