@@ -10,7 +10,7 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | --- | --- | --- |
 | GET | `/health` | `200`, `{ "data": { "status": "ok", "service": "smartstorage-api" } }` |
 | GET | `/ready` | `200` con BD conectada; `503 DATABASE_UNAVAILABLE` si falta configuración o conexión |
-| GET | `/plans` | `200`, catálogo activo de PostgreSQL; requiere migraciones. El seed incluye únicamente Free |
+| GET | `/plans` | `200`, catálogo activo de PostgreSQL: Free, Estándar, Pro y Enterprise; requiere migraciones. Ver [cuotas y condiciones del catálogo](planes-pagados-s4-01.md) |
 | POST | `/auth/register` | `201`, crea usuario cliente y suscripción Free de forma atómica; no inicia sesión; envía el correo de verificación |
 | POST | `/auth/login` | `200`, `{ data: { token, expiresAt, user } }`; `403 EMAIL_NOT_VERIFIED` si el correo no está verificado |
 | POST | `/auth/verify-email` | `200`, `{ data: { verified: true } }`; `{ token }` de un solo uso, vence en 24 h |
@@ -31,6 +31,12 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET | `/admin/storage/stats` | `200`, ahorro global calculado; requiere rol `admin` |
 
 Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimales para no perder precisión. Los contadores diarios limitados son enteros o `null`.
+
+`GET /plans` es público y devuelve `{ "data": [...] }`, ordenado por capacidad y código. Un catálogo sin planes activos devuelve `200` y `data: []`. Si PostgreSQL o las migraciones no están disponibles, responde `503 DATABASE_UNAVAILABLE` sin exponer detalles internos. `null` en un límite diario significa sin límite; nunca equivale a cero ni a una cuota personalizada pendiente.
+
+El catálogo describe capacidades; consultarlo no contrata ni activa una suscripción. Los precios, la vigencia y el alcance de Enterprise se documentan en [S4-01](planes-pagados-s4-01.md). Los beneficios de SDK, prioridad y soporte no son permisos implementados por este endpoint.
+
+Desde la migración 009, `monthlyPrice` y `currency` representan el importe mensual (USD), `billingPeriod` su vigencia y `pricingModel` el modelo de precio. Enterprise devuelve `monthlyPrice: "40.00"`, `capacityBytes: "200000000000"`, `includedStorageBytes: "200000000000"`, `storagePricePerGbMonth: "0.20"` y `storageBillingBasis: "time_weighted_excess"`: sólo se cobra el excedente de los 200 GB incluidos, ponderado por tiempo. La ampliación de capacidad y la medición para facturación corresponden a S4-02/S4-03. `monthlyPriceGtq` queda deprecado y devuelve `null` para dólares. La respuesta mantiene los límites diarios y el resto de campos anteriores. Ejecutar las migraciones antes de usar este contrato.
 
 El login devuelve el campo **`token`**, no `accessToken`. El frontend lo envía con `Authorization: Bearer <token>` en las rutas privadas. `GET /auth/me` devuelve el usuario directamente dentro de `data`, no `{ data: { user } }`. Ver [contrato detallado de autenticación](auth-frontend.md) y [traspaso al frontend](frontend-handoff.md).
 

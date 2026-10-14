@@ -178,7 +178,7 @@ Cada módulo del backend sigue rutas → controladores → servicios → reposit
 - Solo se conserva el **WebP definitivo**; el original se elimina tras el procesamiento.
 - Solo se persiste el tamaño original como métrica; el tamaño WebP se consulta en disco y el ahorro se calcula para el administrador.
 - Almacenamiento privado: conocer un hash no concede acceso a una imagen.
-- Free: 2 GB lógicos, máximo 10 subidas y 200 MB diarios. Los precios definitivos de planes pagados siguen pendientes.
+- Free: 2 GB lógicos, máximo 10 subidas y 200 MB diarios. El catálogo incluye también Estándar, Pro y Enterprise; consultar [precios, vigencia, cuotas y estado de aprobación](docs/planes-pagados-s4-01.md). Publicar el catálogo no activa contratación ni renovación.
 
 Ver [guía de Storage y demostración](docs/storage.md), [decisiones y cálculo del ahorro](docs/decisiones.md), [contratos de API](docs/api.md), [tareas del avance del 30 %](docs/avance-30.md) y [verificaciones realizadas](docs/verificacion.md).
 

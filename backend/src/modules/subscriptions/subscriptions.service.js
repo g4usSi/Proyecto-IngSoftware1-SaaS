@@ -17,7 +17,15 @@ export function createSubscriptionsService(repository) {
         capacityBytes: String(plan.capacity_bytes),
         dailyUploadLimit: plan.daily_upload_limit,
         dailyBytesLimit: plan.daily_bytes_limit === null ? null : String(plan.daily_bytes_limit),
-        monthlyPriceGtq: plan.monthly_price_gtq === null ? null : String(plan.monthly_price_gtq),
+        monthlyPrice: plan.monthly_price === null ? null : String(plan.monthly_price),
+        currency: plan.currency,
+        billingPeriod: plan.billing_period,
+        pricingModel: plan.pricing_model,
+        storagePricePerGbMonth: plan.storage_price_per_gb_month === null ? null : String(plan.storage_price_per_gb_month),
+        includedStorageBytes: plan.storage_included_bytes === null ? null : String(plan.storage_included_bytes),
+        storageBillingBasis: plan.storage_billing_basis,
+        // Compatibilidad del DTO anterior: nunca representar dólares como GTQ.
+        monthlyPriceGtq: plan.currency === 'GTQ' && plan.monthly_price !== null ? String(plan.monthly_price) : null,
         active: plan.active,
       }));
     },
