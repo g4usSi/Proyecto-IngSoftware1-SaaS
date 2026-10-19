@@ -29,6 +29,9 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | POST | `/jobs` | `202`, admite multipart, reserva cuota y entrega el trabajo privado; Bearer JWT |
 | GET | `/quotas/me` | `200`, plan vigente, capacidad y consumo/reservas diarios; Bearer JWT |
 | GET | `/admin/storage/stats` | `200`, ahorro global calculado; requiere rol `admin` |
+| GET | `/admin/summary` | `200`, resumen de cuentas, planes, almacenamiento lógico y trabajos; requiere rol `admin` |
+| GET | `/admin/subscriptions` | `200`, suscripciones paginadas con usuario y plan; requiere rol `admin` |
+| GET | `/admin/usage` | `200`, consumo por cuenta (lógico, reservado, disponible); requiere rol `admin` |
 
 Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimales para no perder precisión. Los contadores diarios limitados son enteros o `null`.
 
@@ -86,6 +89,50 @@ Ambas rutas de subida siguen vigentes y comparten límites; usar sólo una por e
 Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inválida; `413 FILE_TOO_LARGE`; `415` formato o animación no admitidos; `403` capacidad o suscripción no válida; `429` cualquiera de los límites diarios; `503 STORAGE_INTEGRITY_ERROR` en descarga, deduplicación o estadísticas si falta un objeto que la BD declara disponible. El listado informa esos objetos mediante `unavailableItems`.
 
 `GET /admin/storage/stats` devuelve strings decimales: `originalSizeBytes` (B), `uniqueOriginalSizeBytes` (U), `optimizedSizeBytes` (P), `savedBytes` (B−P), `savedPercent`, `imageCount` y `objectCount`. Biblioteca vacía: ceros y `savedPercent: "0.00"`. Incluye cada objeto físico una sola vez y puede informar ahorro negativo. Las cuentas demo son clientes, no administradores.
+
+## Consultas administrativas (S4-04)
+
+Las tres rutas exigen `Authorization: Bearer <token>` de una cuenta activa con rol `admin`: sin sesión `401`, cliente `403 FORBIDDEN`. Son de solo lectura, responden `Cache-Control: private, no-store` y no usan columnas de precio, por lo que funcionan con el esquema hasta la migración 007 y con el de pagos (009). Los bytes y contadores viajan como strings decimales (1 GB = 1 000 000 000 bytes). Un parámetro desconocido, repetido o fuera de rango responde `400 INVALID_ADMIN_QUERY`.
+
+Paginación común: `limit` (1–100, por defecto 20) y `offset` (por defecto 0). Las listas responden `{ items, total, limit, offset }`, con `total` como string. `search` (hasta 100 caracteres) busca por correo o nombre sin distinguir mayúsculas; `%` y `_` se tratan como texto.
+
+`GET /admin/summary` (sin parámetros):
+
+```json
+{"data":{
+  "users":{"total":"3","active":"3","verified":"3","admins":"1"},
+  "plans":[{"code":"free","name":"Free","capacityBytes":"2000000000","currentSubscriptions":"3"}],
+  "storage":{"logicalBytes":"2500","reservedBytes":"250","uniqueOriginalBytes":"1500",
+    "deduplicatedBytes":"1000","deduplicatedPercent":"40.00",
+    "imageCount":"3","trashCount":"1","uniqueObjectCount":"2"},
+  "jobs":{"queued":"0","processing":"0","converted":"0","published":"0","failed":"0"}}}
+```
+
+- `logicalBytes`: suma de originales de todas las referencias, incluida la papelera (lo que se cobra a los clientes).
+- `uniqueOriginalBytes`: originales de objetos físicos distintos. `deduplicatedBytes` = lógico − único, y `deduplicatedPercent` es su porcentaje sobre lo lógico (`"0.00"` sin datos).
+- El tamaño físico WebP y el ahorro por conversión siguen en `GET /admin/storage/stats`, que lee los archivos del disco.
+- `currentSubscriptions` cuenta suscripciones vigentes (`active`, ya iniciadas y sin vencer), con el mismo criterio que la admisión de cuotas.
+
+`GET /admin/subscriptions?status=&plan=&search=&limit=&offset=`: `status` es `active`, `expired` o `cancelled`; `plan` es un código como `free`. Orden: inicio más reciente primero.
+
+```json
+{"data":{"items":[{"id":"UUID","status":"active","current":true,
+  "startedAt":"2026-10-18T23:05:26.455Z","expiresAt":null,
+  "user":{"id":"UUID","name":"Ana","email":"ana@ejemplo.com","active":true},
+  "plan":{"code":"free","name":"Free","capacityBytes":"2000000000"}}],
+  "total":"1","limit":20,"offset":0}}
+```
+
+`GET /admin/usage?plan=&search=&limit=&offset=`: una fila por cuenta, ordenada por consumo comprometido (usado + reservado), de mayor a menor. `plan` filtra por el plan vigente.
+
+```json
+{"data":{"items":[{"user":{"id":"UUID","name":"Ana","email":"ana@ejemplo.com","active":true},
+  "plan":{"code":"free","name":"Free","capacityBytes":"2000000000"},
+  "usedBytes":"1500","reservedBytes":"0","availableBytes":"1999998500","usedPercent":"0.00",
+  "imageCount":"2","trashCount":"1"}],"total":"3","limit":20,"offset":0}}
+```
+
+Una cuenta sin suscripción vigente devuelve `plan: null`, `availableBytes: null` y `usedPercent: null`; la interfaz debe mostrarlo como "sin plan", no como cero. `availableBytes` nunca es negativo; `usedPercent` puede superar 100 si las reservas exceden la capacidad tras un cambio de plan.
 
 ## Rutas aún pendientes (501)
 
