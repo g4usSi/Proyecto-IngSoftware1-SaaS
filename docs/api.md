@@ -6,29 +6,29 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 
 ## Operaciones disponibles
 
-| Método | Ruta | Resultado |
-| --- | --- | --- |
-| GET | `/health` | `200`, `{ "data": { "status": "ok", "service": "smartstorage-api" } }` |
-| GET | `/ready` | `200` con BD conectada; `503 DATABASE_UNAVAILABLE` si falta configuración o conexión |
-| GET | `/plans` | `200`, catálogo activo de PostgreSQL: Free, Estándar, Pro y Enterprise; requiere migraciones. Ver [cuotas y condiciones del catálogo](planes-pagados-s4-01.md) |
-| POST | `/auth/register` | `201`, crea usuario cliente y suscripción Free de forma atómica; no inicia sesión; envía el correo de verificación |
-| POST | `/auth/login` | `200`, `{ data: { token, expiresAt, user } }`; `403 EMAIL_NOT_VERIFIED` si el correo no está verificado |
-| POST | `/auth/verify-email` | `200`, `{ data: { verified: true } }`; `{ token }` de un solo uso, vence en 24 h |
-| POST | `/auth/resend-verification` | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral |
-| POST | `/auth/forgot-password` | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral sin revelar si existe la cuenta |
-| POST | `/auth/reset-password` | `200`, `{ data: { reset: true } }`; `{ token, password }`, token de un solo uso, vence en 1 h |
-| GET | `/auth/me` | `200`, `{ data: user }`; requiere Bearer JWT |
-| POST | `/auth/logout` | `200`, `{ data: { loggedOut: true } }`; revoca el JWT actual |
-| GET | `/dev/storage-demo` | `200`, `{ data: { enabled, accounts } }`; apagada no devuelve identidades |
-| GET | `/files` | `200`, listado paginado privado; necesita autenticación o demo local explícita |
-| POST | `/files` | `201`, recibe una imagen y confirma cuando el WebP está listo |
-| GET | `/files/:fileId/download` | `200`, descarga WebP del propietario; recurso ajeno o inexistente: `404` |
-| DELETE | `/files/:fileId` | `200`, elimina la referencia propia; conserva consumo diario y objetos compartidos |
-| GET | `/jobs` | `200`, trabajos propios paginados; Bearer JWT; `limit` y `cursor` |
-| GET | `/jobs/:jobId` | `200`, estado persistente privado; ajeno/inexistente: `404` |
-| POST | `/jobs` | `202`, admite multipart, reserva cuota y entrega el trabajo privado; Bearer JWT |
-| GET | `/quotas/me` | `200`, plan vigente, capacidad y consumo/reservas diarios; Bearer JWT |
-| GET | `/admin/storage/stats` | `200`, ahorro global calculado; requiere rol `admin` |
+| Método | Ruta                        | Resultado                                                                                                                                                      |
+| ------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                   | `200`, `{ "data": { "status": "ok", "service": "smartstorage-api" } }`                                                                                         |
+| GET    | `/ready`                    | `200` con BD conectada; `503 DATABASE_UNAVAILABLE` si falta configuración o conexión                                                                           |
+| GET    | `/plans`                    | `200`, catálogo activo de PostgreSQL: Free, Estándar, Pro y Enterprise; requiere migraciones. Ver [cuotas y condiciones del catálogo](planes-pagados-s4-01.md) |
+| POST   | `/auth/register`            | `201`, crea usuario cliente y suscripción Free de forma atómica; no inicia sesión; envía el correo de verificación                                             |
+| POST   | `/auth/login`               | `200`, `{ data: { token, expiresAt, user } }`; `403 EMAIL_NOT_VERIFIED` si el correo no está verificado                                                        |
+| POST   | `/auth/verify-email`        | `200`, `{ data: { verified: true } }`; `{ token }` de un solo uso, vence en 24 h                                                                               |
+| POST   | `/auth/resend-verification` | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral                                                                                                 |
+| POST   | `/auth/forgot-password`     | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral sin revelar si existe la cuenta                                                                 |
+| POST   | `/auth/reset-password`      | `200`, `{ data: { reset: true } }`; `{ token, password }`, token de un solo uso, vence en 1 h                                                                  |
+| GET    | `/auth/me`                  | `200`, `{ data: user }`; requiere Bearer JWT                                                                                                                   |
+| POST   | `/auth/logout`              | `200`, `{ data: { loggedOut: true } }`; revoca el JWT actual                                                                                                   |
+| GET    | `/dev/storage-demo`         | `200`, `{ data: { enabled, accounts } }`; apagada no devuelve identidades                                                                                      |
+| GET    | `/files`                    | `200`, listado paginado privado; necesita autenticación o demo local explícita                                                                                 |
+| POST   | `/files`                    | `201`, recibe una imagen y confirma cuando el WebP está listo                                                                                                  |
+| GET    | `/files/:fileId/download`   | `200`, descarga WebP del propietario; recurso ajeno o inexistente: `404`                                                                                       |
+| DELETE | `/files/:fileId`            | `200`, elimina la referencia propia; conserva consumo diario y objetos compartidos                                                                             |
+| GET    | `/jobs`                     | `200`, trabajos propios paginados; Bearer JWT; `limit` y `cursor`                                                                                              |
+| GET    | `/jobs/:jobId`              | `200`, estado persistente privado; ajeno/inexistente: `404`                                                                                                    |
+| POST   | `/jobs`                     | `202`, admite multipart, reserva cuota y entrega el trabajo privado; Bearer JWT                                                                                |
+| GET    | `/quotas/me`                | `200`, plan vigente, capacidad y consumo/reservas diarios; Bearer JWT                                                                                          |
+| GET    | `/admin/storage/stats`      | `200`, ahorro global calculado; requiere rol `admin`                                                                                                           |
 
 Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimales para no perder precisión. Los contadores diarios limitados son enteros o `null`.
 
@@ -82,7 +82,24 @@ El `202` devuelve `{ data: ImageJob }` con `Location: /api/jobs/:jobId`. La admi
 `GET /quotas/me` devuelve:
 
 ```json
-{"data":{"plan":{"code":"free","name":"Free"},"capacityBytes":"2000000000","usedBytes":"1000","reservedBytes":"500","availableBytes":"1999998500","daily":{"date":"2026-10-07","uploadLimit":10,"uploadsUsed":"1","uploadsReserved":"1","bytesLimit":"200000000","bytesUsed":"1000","bytesReserved":"500"}}}
+{
+  "data": {
+    "plan": { "code": "free", "name": "Free" },
+    "capacityBytes": "2000000000",
+    "usedBytes": "1000",
+    "reservedBytes": "500",
+    "availableBytes": "1999998500",
+    "daily": {
+      "date": "2026-10-07",
+      "uploadLimit": 10,
+      "uploadsUsed": "1",
+      "uploadsReserved": "1",
+      "bytesLimit": "200000000",
+      "bytesUsed": "1000",
+      "bytesReserved": "500"
+    }
+  }
+}
 ```
 
 Bytes y consumo viajan como strings decimales; `uploadLimit` es entero o `null` y `bytesLimit` es string o `null`. La capacidad incluye referencias sin archivo y reservas pendientes de cualquier fecha. El consumo diario y las reservas diarias corresponden al día de **admisión** en Guatemala, incluso si se confirma después de medianoche. Refrescar cuotas tras admisión, publicación, fallo y borrado. Una suscripción futura, vencida o un plan inactivo responde `403 NO_ACTIVE_SUBSCRIPTION`.
@@ -93,13 +110,146 @@ Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inváli
 
 `GET /admin/storage/stats` devuelve strings decimales: `originalSizeBytes` (B), `uniqueOriginalSizeBytes` (U), `optimizedSizeBytes` (P), `savedBytes` (B−P), `savedPercent`, `imageCount` y `objectCount`. Biblioteca vacía: ceros y `savedPercent: "0.00"`. Incluye cada objeto físico una sola vez y puede informar ahorro negativo. Las cuentas demo son clientes, no administradores.
 
-## Rutas aún pendientes (501)
+## Suscripciones y pagos (S4-02 y S4-03)
 
-| Método | Ruta | Contrato previsto |
-| --- | --- | --- |
-| GET | `/subscriptions/me` | Suscripción y plan de la cuenta autenticada |
+Las siguientes rutas están implementadas y requieren autenticación mediante JWT.
 
-Estas rutas siguen siendo marcadores de alcance: no deben mostrarse como funciones operativas en el frontend. `GET /subscriptions/me` exige un JWT válido y después responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`; no sirve todavía para mostrar el plan de la cuenta. Las rutas privadas sin sesión responden `401`.
+| Método | Ruta                             | Descripción                                   |
+| ------ | -------------------------------- | --------------------------------------------- |
+| GET    | `/api/subscriptions/me`          | Consulta el plan y la suscripción del usuario |
+| POST   | `/api/subscriptions/checkout`    | Contrata un plan mediante pago simulado       |
+| GET    | `/api/payments`                  | Consulta el historial de pagos del usuario    |
+| POST   | `/api/subscriptions/renew`       | Renueva la suscripción por un mes calendario  |
+| POST   | `/api/subscriptions/change-plan` | Permite subir o bajar de plan                 |
+
+### Reglas de pagos
+
+- Los pagos son simulados y pueden tener estado `approved`, `rejected` o `error`.
+- Los precios se obtienen del catálogo de planes del servidor, en USD.
+- Las solicitudes de pago utilizan la cabecera `Idempotency-Key` para evitar cobros duplicados.
+- No se almacena el número completo de la tarjeta ni el CVV.
+- El historial de pagos pertenece únicamente al usuario autenticado.
+
+### Reglas de suscripciones
+
+- Los planes de pago tienen vigencia de un mes calendario, calculado en horario de Guatemala.
+- El plan Free no tiene fecha de vencimiento.
+- Renovar una suscripción extiende su vencimiento un mes calendario.
+- Subir de plan requiere un pago simulado y activa inmediatamente el nuevo plan.
+- Bajar de plan no genera un nuevo cobro.
+- Para bajar de plan, el almacenamiento utilizado más el reservado no puede superar la capacidad del nuevo plan.
+- Si supera esa capacidad, el sistema responde `409 PLAN_CAPACITY_EXCEEDED`.
+- Cuando vence una suscripción de pago, se aplican los límites del plan Free sin eliminar las imágenes almacenadas.
+- Las operaciones de suscripción utilizan transacciones y bloqueos por usuario para coordinar solicitudes simultáneas.
+
+### Contratar un plan (S4-02)
+
+**Endpoint:** `POST /api/subscriptions/checkout`
+
+Requiere autenticación JWT y una clave de idempotencia.
+
+**Cabeceras:**
+
+```http
+Authorization: Bearer TOKEN_JWT
+Content-Type: application/json
+Idempotency-Key: clave-unica-de-la-solicitud
+```
+
+**Ejemplo de solicitud:**
+
+```json
+{
+  "planCode": "standard",
+  "card": {
+    "number": "4242424242424242"
+  }
+}
+```
+
+**Resultado esperado:**
+
+- `201 Created`: solicitud de pago procesada.
+- `approved`: el pago fue aprobado y se activa el plan Standard.
+- `rejected`: el pago fue rechazado y no se cambia la suscripción.
+- `error`: ocurrió un error simulado en el pago y no se cambia la suscripción.
+
+El precio del plan Standard es de USD 8.00 mensuales y se obtiene del catálogo del servidor.
+
+Repetir una solicitud con la misma clave de idempotencia y los mismos datos no debe generar otro pago.
+
+### Renovación de suscripción (S4-03)
+
+**Endpoint:** `POST /api/subscriptions/renew`
+
+Permite renovar una suscripción mediante un pago simulado.
+
+**Cabeceras:**
+
+- `Authorization: Bearer TOKEN_JWT`
+- `Content-Type: application/json`
+- `Idempotency-Key: clave-unica`
+
+**Ejemplo de solicitud:**
+
+```json
+{
+  "card": {
+    "number": "4242424242424242"
+  }
+}
+```
+
+**Reglas:**
+
+- El importe se obtiene del plan contratado.
+- Si el pago es aprobado, el vencimiento se extiende un mes calendario en horario de Guatemala.
+- Un pago rechazado o con error no debe extender la suscripción.
+- Repetir la misma solicitud con la misma clave no debe generar otro pago ni extender nuevamente la fecha.
+
+### Cambio de plan (S4-03)
+
+**Endpoint:** `POST /api/subscriptions/change-plan`
+
+Permite cambiar el plan de la cuenta autenticada.
+
+**Ejemplo para subir de Standard a Pro:**
+
+```json
+{
+  "planCode": "pro",
+  "card": {
+    "number": "4242424242424242"
+  }
+}
+```
+
+**Ejemplo para bajar de Pro a Standard:**
+
+```json
+{
+  "planCode": "standard"
+}
+```
+
+**Reglas:**
+
+- Subir de plan requiere un pago simulado aprobado.
+- El nuevo plan se activa inmediatamente después del pago.
+- Bajar de plan no genera un cobro adicional.
+- Si el espacio utilizado más el reservado supera la capacidad del nuevo plan, se devuelve `409 PLAN_CAPACITY_EXCEEDED`.
+- Una solicitud repetida con la misma clave de idempotencia no debe generar pagos duplicados.
+- Los cambios se realizan mediante transacciones y bloqueos por usuario.
+
+### Vencimiento de suscripciones
+
+Cuando vence una suscripción de pago, la API aplica los límites del plan Free sin eliminar las imágenes almacenadas.
+
+El plan Free no tiene vencimiento. Si el almacenamiento existente supera su capacidad, no se permiten nuevas cargas que excedan los límites.
+
+### Autenticación
+
+Estas rutas privadas requieren un JWT válido. Las solicitudes sin autenticación responden `401`.
 
 Únicamente con la demo local habilitada se admite `X-Storage-Demo-User` para las dos cuentas reservadas. `npm run dev:demo` la activa en el proceso; no permite cuentas arbitrarias ni habilita las rutas de Auth o Suscripciones. El cliente elige una cuenta explícitamente. Ver [límites de la demo](storage.md).
 
@@ -108,7 +258,7 @@ Estas rutas siguen siendo marcadores de alcance: no deben mostrarse como funcion
 El cliente envía `Authorization: Bearer <token>`. El middleware verifica firma, expiración, revocación y estado del usuario. Solo entonces asigna:
 
 ```js
-req.user = { id: 'UUID', email: 'cliente@example.test', role: 'client' };
+req.user = { id: "UUID", email: "cliente@example.test", role: "client" };
 ```
 
 Los controladores de Storage toman el propietario de `req.user.id`; nunca de un `userId` enviado por el cliente. Roles válidos: `client`, `admin`. El registro público siempre crea `client` aunque el cuerpo incluya `role`.
