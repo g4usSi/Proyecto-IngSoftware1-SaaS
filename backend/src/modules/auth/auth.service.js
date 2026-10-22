@@ -16,7 +16,9 @@ const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 // no revele si la cuenta existe. Se calcula una sola vez, la primera vez que hace falta.
 let dummyHash;
 
-export function createAuthService({ repository, tokens, loginLimiter = createLoginLimiter(), mailer, frontendUrl }) {
+const NO_AUDIT = { record: async () => {} };
+
+export function createAuthService({ repository, tokens, loginLimiter = createLoginLimiter(), mailer, frontendUrl, audit = NO_AUDIT }) {
   // Deja un solo enlace de verificación válido por cuenta y lo envía por correo.
   async function sendVerification(user) {
     const rawToken = randomBytes(RESET_TOKEN_BYTES).toString('hex');
@@ -77,7 +79,7 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
     },
 
     // RF02, RF04, RF10, RNF11: credenciales -> token. Nunca revela si el correo existe.
-    async login(input) {
+    async login(input, meta) {
       const { email, password } = input ?? {};
       if (typeof email !== 'string' || email.trim() === '' || typeof password !== 'string' || password === '') {
         throw new AppError(400, 'VALIDATION_ERROR', 'El correo electrónico y la contraseña son obligatorios.');
@@ -86,7 +88,10 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
 
       const key = normalizeEmail(email);
       const lockedSeconds = loginLimiter.lockedFor(key);
-      if (lockedSeconds > 0) throw tooManyAttempts(lockedSeconds);
+      if (lockedSeconds > 0) {
+        await audit.record({ type: 'login_failed', email: key, detail: { reason: 'locked' } }, meta);
+        throw tooManyAttempts(lockedSeconds);
+      }
 
       const user = await repository.findUserByEmail(key);
       // Una contraseña enorme se rechaza sin hashearla (evita gastar CPU); cuenta como intento fallido.
@@ -94,26 +99,31 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
         await verifyPassword(password, user?.password_hash ?? await getDummyHash());
       if (!user || !passwordOk) {
         loginLimiter.recordFailure(key);
+        await audit.record({ type: 'login_failed', userId: user?.id, email: key, detail: { reason: 'invalid_credentials' } }, meta);
         throw new AppError(401, 'INVALID_CREDENTIALS', 'Correo electrónico o contraseña incorrectos.');
       }
       // Solo se informa de la desactivación cuando la contraseña es correcta (no revela qué correos existen).
       if (!user.active) {
+        await audit.record({ type: 'login_failed', userId: user.id, email: key, detail: { reason: 'account_disabled' } }, meta);
         throw new AppError(403, 'ACCOUNT_DISABLED', 'Tu cuenta está desactivada. Contacta al administrador.');
       }
       if (!user.email_verified) {
+        await audit.record({ type: 'login_failed', userId: user.id, email: key, detail: { reason: 'email_not_verified' } }, meta);
         throw new AppError(403, 'EMAIL_NOT_VERIFIED',
           'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.');
       }
 
       loginLimiter.reset(key);
       const { token, expiresAt } = tokens.issue(user.id);
+      await audit.record({ type: 'login_success', userId: user.id, email: key }, meta);
       return { token, expiresAt: expiresAt.toISOString(), user: toPublicUser(user) };
     },
 
     // RF03: revoca el token de la sesión actual (identity = req.session, cargado por requireAuth).
-    async logout(session) {
+    async logout(session, meta, identity) {
       await repository.revokeToken(session);
       await repository.purgeExpiredRevocations();
+      await audit.record({ type: 'logout', userId: identity?.id, email: identity?.email }, meta);
       return { loggedOut: true };
     },
 
@@ -148,7 +158,7 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
     },
 
     // RF05: consume el token de un solo uso y cambia la contraseña.
-    async resetPassword(input) {
+    async resetPassword(input, meta) {
       const { token, password } = input ?? {};
       if (typeof token !== 'string' || token.trim() === '') {
         throw new AppError(400, 'VALIDATION_ERROR', 'El token de recuperación es obligatorio.');
@@ -163,12 +173,13 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       // Un solo error para "no existe", "ya se usó" y "venció": no distingue el motivo.
       const userId = await repository.consumePasswordResetToken(hashToken(token), await hashPassword(password));
       if (!userId) throw invalidResetToken();
+      await audit.record({ type: 'password_reset', userId }, meta);
       return { reset: true };
     },
 
     // RF06: el usuario autenticado (identity = req.user) cambia su contraseña dando la actual.
     // Las demás sesiones siguen abiertas, igual que tras un reset.
-    async changePassword(identity, input) {
+    async changePassword(identity, input, meta) {
       const { currentPassword, newPassword } = input ?? {};
       if (typeof currentPassword !== 'string' || currentPassword === '') {
         throw new AppError(400, 'VALIDATION_ERROR', 'La contraseña actual es obligatoria.');
@@ -200,6 +211,7 @@ export function createAuthService({ repository, tokens, loginLimiter = createLog
       const changed = await repository.changePassword(user.id, user.password_hash, await hashPassword(newPassword));
       if (!changed) throw invalidCurrentPassword();
       loginLimiter.reset(key);
+      await audit.record({ type: 'password_changed', userId: user.id, email: key }, meta);
       return { changed: true };
     },
 

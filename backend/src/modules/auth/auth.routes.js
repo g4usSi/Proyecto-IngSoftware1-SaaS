@@ -3,11 +3,12 @@ import { requireAuth } from '../../middleware/require-auth.js';
 import { createAuthRepository } from './auth.repository.js';
 import { createAuthService } from './auth.service.js';
 import { createAuthController } from './auth.controller.js';
+import { createAuditRecorder } from '../audit/audit.routes.js';
 
 export function createAuthRouter(database, { tokens, loginLimiter, mailer, frontendUrl }) {
   const router = Router();
   const repository = createAuthRepository(database);
-  const service = createAuthService({ repository, tokens, loginLimiter, mailer, frontendUrl });
+  const service = createAuthService({ repository, tokens, loginLimiter, mailer, frontendUrl, audit: createAuditRecorder(database) });
   const controller = createAuthController(service);
   router.post('/register', controller.register);
   router.post('/login', controller.login);

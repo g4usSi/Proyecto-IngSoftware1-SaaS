@@ -16,6 +16,7 @@ import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions
 import { createJobsRouter } from './modules/storage/jobs.routes.js';
 import { createQuotasRouter } from './modules/quotas/quotas.routes.js';
 import { createUsersAdminRouter } from './modules/users/users.routes.js';
+import { createAuditRouter } from './modules/audit/audit.routes.js';
 
 export function createApp({
   database = defaultDatabase,
@@ -66,6 +67,7 @@ export function createApp({
   app.use('/api/quotas', createQuotasRouter(database));
   app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api/admin/users', createUsersAdminRouter(database));
+  app.use('/api/admin/audit-events', createAuditRouter(database));
   app.use('/api', createSubscriptionsRouter(database));
   app.use(notFound);
   app.use(errorHandler);

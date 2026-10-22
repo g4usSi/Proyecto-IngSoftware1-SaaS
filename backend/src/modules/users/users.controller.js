@@ -7,7 +7,7 @@ export function createUsersController(service) {
       res.json({ data: await service.getUser(req.params.id) });
     },
     async setStatus(req, res) {
-      res.json({ data: await service.setUserActive(req.user, req.params.id, req.body) });
+      res.json({ data: await service.setUserActive(req.user, req.params.id, req.body, { ip: req.ip, userAgent: req.get('user-agent') }) });
     },
   };
 }
