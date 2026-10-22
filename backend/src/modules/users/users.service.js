@@ -8,7 +8,9 @@ const SEARCH_MAX = 254;
 const STATUS_FILTERS = { active: true, inactive: false };
 
 // RF09: gestión de cuentas por el administrador. Las rutas ya exigen rol admin.
-export function createUsersService({ repository }) {
+const NO_AUDIT = { record: async () => {} };
+
+export function createUsersService({ repository, audit = NO_AUDIT }) {
   return {
     async listUsers(query) {
       const { search, active, page, pageSize } = parseListQuery(query ?? {});
@@ -23,7 +25,7 @@ export function createUsersService({ repository }) {
     },
 
     // identity = req.user (el admin que hace la petición).
-    async setUserActive(identity, id, input) {
+    async setUserActive(identity, id, input, meta) {
       const active = input?.active;
       if (typeof active !== 'boolean') fail('VALIDATION_ERROR', 'El campo active debe ser true o false.');
       assertUuid(id);
@@ -33,6 +35,7 @@ export function createUsersService({ repository }) {
       }
       const user = await repository.setUserActive(id, active);
       if (!user) throw userNotFound();
+      await audit.record({ type: 'account_status_changed', userId: user.id, actorId: identity.id, email: user.email, detail: { active } }, meta);
       return toPublicUser(user);
     },
   };
