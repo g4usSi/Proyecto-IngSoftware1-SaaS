@@ -19,6 +19,7 @@ export function createStorageRouter({ database = defaultDatabase, storageRoot = 
   router.use(privateResponse, authenticate, requireStorageIdentity);
   router.get('/', controller.list);
   router.post('/', createUploadMiddleware(storageRoot), controller.upload);
+  router.get('/summary', controller.summary);
   router.get('/:fileId/download', controller.download);
   router.patch('/:fileId', controller.move);
   router.post('/:fileId/trash', controller.trash);

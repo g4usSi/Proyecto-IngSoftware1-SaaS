@@ -1,3 +1,47 @@
+// Respuesta pública de pagos y suscripciones: camelCase y sin columnas internas de la base.
+function iso(value) {
+  return value === null || value === undefined ? null : new Date(value).toISOString();
+}
+
+function publicPayment(payment) {
+  if (!payment) return null;
+  return {
+    id: payment.id,
+    status: payment.status,
+    amount: String(payment.amount),
+    currency: payment.currency,
+    reference: payment.reference,
+  };
+}
+
+function publicSubscription(subscription) {
+  if (!subscription) return null;
+  return {
+    id: subscription.id,
+    status: subscription.status,
+    startedAt: iso(subscription.startedAt ?? subscription.started_at),
+    expiresAt: iso(subscription.expiresAt ?? subscription.expires_at),
+  };
+}
+
+function present(result) {
+  const { payment, subscription, ...rest } = result;
+  const body = { ...rest };
+  if (payment !== undefined) body.payment = publicPayment(payment);
+  if (subscription !== undefined) body.subscription = publicSubscription(subscription);
+  return body;
+}
+
+function sendPdf(res, { filename, pdf }) {
+  res
+    .set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+    })
+    .send(pdf);
+}
+
 export function createSubscriptionsController(service) {
   return {
     async listPlans(_req, res) {
@@ -18,7 +62,7 @@ export function createSubscriptionsController(service) {
         idempotencyKey: req.get("Idempotency-Key"),
       });
 
-      res.status(result.repeated ? 200 : 201).json({ data: result });
+      res.status(result.repeated ? 200 : 201).json({ data: present(result) });
     },
 
     async renew(req, res) {
@@ -29,7 +73,7 @@ export function createSubscriptionsController(service) {
       });
 
       res.status(result.repeated ? 200 : 201).json({
-        data: result,
+        data: present(result),
       });
     },
 
@@ -42,8 +86,16 @@ export function createSubscriptionsController(service) {
       });
 
       res.status(200).json({
-        data: result,
+        data: present(result),
       });
+    },
+
+    async receipt(req, res) {
+      sendPdf(res, await service.getReceipt(req.user.id, req.params.paymentId));
+    },
+
+    async allReceipts(req, res) {
+      sendPdf(res, await service.getAllReceipts(req.user.id));
     },
 
     async paymentHistory(req, res) {

@@ -1,5 +1,18 @@
 import { AppError } from "../../lib/app-error.js";
 import { createQuotasRepository } from "../quotas/quotas.repository.js";
+// 1 GB = 1 000 000 000 bytes, igual que el catálogo de planes.
+function describeBytes(value) {
+  const bytes = BigInt(value);
+  const units = [[1000000000n, "GB"], [1000000n, "MB"], [1000n, "KB"]];
+  for (const [size, label] of units) {
+    if (bytes >= size) {
+      const hundredths = (bytes * 100n + size - 1n) / size;
+      return `${hundredths / 100n}.${String(hundredths % 100n).padStart(2, "0")} ${label} (${bytes} bytes)`;
+    }
+  }
+  return `${bytes} bytes`;
+}
+
 export function createSubscriptionsRepository(database) {
   const quotasRepository = createQuotasRepository(database);
 
@@ -12,10 +25,18 @@ export function createSubscriptionsRepository(database) {
     const capacityBytes = BigInt(newCapacityBytes);
 
     if (totalBytes > capacityBytes) {
+      const bytesToFree = totalBytes - capacityBytes;
+
       throw new AppError(
         409,
         "PLAN_CAPACITY_EXCEEDED",
-        "El almacenamiento utilizado y reservado supera la capacidad del nuevo plan.",
+        `El almacenamiento utilizado y reservado (${describeBytes(totalBytes)}) supera la capacidad del nuevo plan (${describeBytes(capacityBytes)}). Libera al menos ${describeBytes(bytesToFree)} antes de cambiar de plan.`,
+        {
+          capacityBytes: capacityBytes.toString(),
+          usedBytes: usedBytes.toString(),
+          reservedBytes: pendingBytes.toString(),
+          bytesToFree: bytesToFree.toString(),
+        },
       );
     }
 
@@ -367,19 +388,39 @@ export function createSubscriptionsRepository(database) {
     async listPaymentsByUser(userId, limit, offset) {
       const result = await database.query(
         `SELECT
-          id,
-          plan_id,
-          amount,
-          currency,
-          status,
-          card_last4,
-          reference,
-          created_at
-        FROM payments
-        WHERE user_id = $1
-        ORDER BY created_at DESC, id DESC
+          p.id,
+          p.plan_id,
+          pl.code AS plan_code,
+          pl.name AS plan_name,
+          p.amount,
+          p.currency,
+          p.status,
+          p.card_last4,
+          p.reference,
+          p.created_at
+        FROM payments p
+        JOIN plans pl ON pl.id = p.plan_id
+        WHERE p.user_id = $1
+        ORDER BY p.created_at DESC, p.id DESC
         LIMIT $2 OFFSET $3`,
         [userId, limit, offset],
+      );
+
+      return result.rows;
+    },
+
+    // RF-PAG-03: pagos aprobados con los datos del recibo. paymentId opcional; siempre filtra por propietario.
+    async listReceiptRows(userId, paymentId = null) {
+      const result = await database.query(
+        `SELECT p.id, p.reference, p.amount, p.currency, p.status, p.card_last4, p.created_at,
+                pl.name AS plan_name, u.name AS user_name, u.email AS user_email
+           FROM payments p
+           JOIN plans pl ON pl.id = p.plan_id
+           JOIN users u ON u.id = p.user_id
+          WHERE p.user_id = $1 AND ($2::uuid IS NULL OR p.id = $2)
+          ORDER BY p.created_at DESC, p.id DESC
+          LIMIT 500`,
+        [userId, paymentId],
       );
 
       return result.rows;

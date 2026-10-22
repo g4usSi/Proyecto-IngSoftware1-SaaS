@@ -7,7 +7,9 @@ export function notFound(_req, _res, next) {
 export function errorHandler(error, _req, res, next) {
   if (res.headersSent) return next(error);
   if (error instanceof AppError) {
-    return res.status(error.status).json({ error: { code: error.code, message: error.message } });
+    const body = { code: error.code, message: error.message };
+    if (error.details !== undefined) body.details = error.details;
+    return res.status(error.status).json({ error: body });
   }
   if (error.type === 'entity.parse.failed') {
     return res.status(400).json({ error: { code: 'INVALID_JSON', message: 'El cuerpo JSON no es válido.' } });

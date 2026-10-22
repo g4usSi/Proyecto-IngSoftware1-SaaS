@@ -66,6 +66,27 @@ export function parseUsageQuery(query = {}) {
   return { plan: planCode(query.plan), search: search(query.search), ...page(query) };
 }
 
+const JOB_STATUSES = ['queued', 'processing', 'converted', 'published', 'failed'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// RF-STO-14: cola global de procesamiento para el administrador.
+export function parseJobsQuery(query = {}) {
+  onlyKeys(query, ['status', 'userId', 'limit', 'offset']);
+  let status = null;
+  if (query.status !== undefined) {
+    status = single(query.status, 'status');
+    if (!JOB_STATUSES.includes(status)) {
+      throw new AppError(400, 'INVALID_ADMIN_QUERY', `status debe ser ${JOB_STATUSES.join(', ')}.`);
+    }
+  }
+  let userId = null;
+  if (query.userId !== undefined) {
+    userId = single(query.userId, 'userId');
+    if (!UUID.test(userId)) throw new AppError(400, 'INVALID_ADMIN_QUERY', 'userId debe ser un UUID válido.');
+  }
+  return { status, userId, ...page(query) };
+}
+
 export function parseSummaryQuery(query = {}) {
   onlyKeys(query, []);
   return {};
