@@ -11,6 +11,7 @@ import { createTokenService } from './modules/auth/token.js';
 import { createMailer } from './modules/auth/mailer.js';
 import { createStorageRouter, createStorageAdminRouter, createAlbumsRouter } from './modules/storage/storage.routes.js';
 import { createStorageDemo } from './dev/storage-demo.js';
+import { createAdminRouter } from './modules/admin/admin.routes.js';
 import { createSubscriptionsRouter } from './modules/subscriptions/subscriptions.routes.js';
 import { createJobsRouter } from './modules/storage/jobs.routes.js';
 import { createQuotasRouter } from './modules/quotas/quotas.routes.js';
@@ -60,6 +61,8 @@ export function createApp({
   app.use('/api/files', createStorageRouter(storageOptions));
   app.use('/api/albums', createAlbumsRouter(storageOptions));
   app.use('/api/jobs', createJobsRouter({ database, storageRoot, enqueueJob }));
+  // Rutas de solo lectura S4-04; cada una exige rol admin y deja pasar las demás /api/admin/*.
+  app.use('/api/admin', createAdminRouter(database));
   app.use('/api/quotas', createQuotasRouter(database));
   app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api/admin/users', createUsersAdminRouter(database));
