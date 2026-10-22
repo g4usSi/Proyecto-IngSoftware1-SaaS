@@ -1,5 +1,4 @@
-// Columnas públicas del usuario: password_hash nunca se selecciona para respuestas.
-const PUBLIC_COLUMNS = 'id, name, email, role, active, email_verified, created_at';
+import { PUBLIC_USER_COLUMNS as PUBLIC_COLUMNS } from './public-user.js';
 
 export function createAuthRepository(database) {
   return {
@@ -37,6 +36,15 @@ export function createAuthRepository(database) {
          SELECT ${PUBLIC_COLUMNS.split(', ').map((column) => `new_user.${column}`).join(', ')}
            FROM new_user JOIN new_subscription ON new_subscription.user_id = new_user.id`,
         [name, email, passwordHash],
+      );
+      return rows[0] ?? null;
+    },
+
+    // RF07: el usuario solo puede cambiar su nombre.
+    async updateUserName(id, name) {
+      const { rows } = await database.query(
+        `UPDATE users SET name = $2, updated_at = now() WHERE id = $1 RETURNING ${PUBLIC_COLUMNS}`,
+        [id, name],
       );
       return rows[0] ?? null;
     },
