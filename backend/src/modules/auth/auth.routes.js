@@ -18,5 +18,6 @@ export function createAuthRouter(database, { tokens, loginLimiter, mailer, front
   router.post('/change-password', requireAuth, controller.changePassword);
   router.post('/logout', requireAuth, controller.logout);
   router.get('/me', requireAuth, controller.me);
+  router.patch('/me', requireAuth, controller.updateMe);
   return router;
 }

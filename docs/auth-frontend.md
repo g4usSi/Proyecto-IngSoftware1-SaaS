@@ -18,6 +18,8 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | `POST /api/auth/forgot-password`, `reset-password` | Implementado (Bloque 3) |
 | `POST /api/auth/change-password` | Implementado (Bloque 3) |
 | `POST /api/auth/verify-email`, `resend-verification` | Implementado. El login exige el correo verificado |
+| `PATCH /api/auth/me` (editar perfil) | Implementado (Bloque 4) |
+| `GET /api/admin/users`, `GET /api/admin/users/:id`, `PATCH /api/admin/users/:id/status` | Implementado (Bloque 4), solo `admin` |
 
 Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se envían de verdad. Sin ellas, en desarrollo, el enlace se escribe en la consola del servidor (la terminal de `npm run dev`). El contrato de la API es el mismo en ambos casos.
 
@@ -29,6 +31,8 @@ Pantallas que necesita el frontend:
 - En el login, ante `403 EMAIL_NOT_VERIFIED`, ofrecer "Reenviar correo de verificación" (`POST /api/auth/resend-verification`).
 - Tras registrarse, avisar al usuario que revise su correo antes de iniciar sesión.
 - Dentro de la sesión (por ejemplo, en el menú de la cuenta): formulario "Cambiar contraseña" con la contraseña actual y la nueva, que llama a `POST /api/auth/change-password`.
+- Pantalla "Mi perfil": muestra los datos de `GET /api/auth/me` y permite editar **solo el nombre** con `PATCH /api/auth/me`. El correo se muestra como solo lectura.
+- Solo para `user.role === 'admin'`: pantalla "Usuarios" con buscador, filtro por estado, paginación y un botón para activar o desactivar cada cuenta (ver "Administración de usuarios"). Ocultar el enlace a los clientes es solo cosmética: el servidor responde `403 FORBIDDEN` de todas formas.
 
 Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
 
@@ -170,6 +174,32 @@ Devuelve el usuario de la sesión actual. **Requiere token.** Útil para restaur
 { "data": { "id": "...", "name": "Lany Pérez", "email": "lany@example.com", "role": "client", "active": true, "emailVerified": false, "createdAt": "2026-09-24T12:00:00.000Z" } }
 ```
 
+## `PATCH /api/auth/me`
+
+Actualiza el perfil del usuario de la sesión actual. **Requiere token.** Por ahora solo se puede cambiar el **nombre**: cualquier otro campo del cuerpo (`email`, `role`, `active`...) se ignora sin error.
+
+Cuerpo:
+
+```json
+{ "name": "Lany Pérez" }
+```
+
+El nombre se limpia en el servidor (espacios al inicio y al final), igual que en el registro.
+
+Éxito: `200`, con el usuario actualizado (mismo objeto que `GET /api/auth/me`):
+
+```json
+{ "data": { "id": "...", "name": "Lany Pérez", "email": "lany@example.com", "role": "client", "active": true, "emailVerified": true, "createdAt": "2026-09-24T12:00:00.000Z" } }
+```
+
+Conviene reemplazar el `user` guardado en el cliente con esta respuesta, para que el nombre nuevo se vea de inmediato (por ejemplo, en la barra lateral).
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Falta el nombre, está vacío o no es texto | `El nombre es obligatorio.` |
+| 400 | `VALIDATION_ERROR` | Nombre de más de 120 caracteres | `El nombre no puede superar 120 caracteres.` |
+| 401/403 | (ver "Errores de cualquier ruta privada") | Sin token, token inválido o vencido, cuenta desactivada | |
+
 ## Errores de cualquier ruta privada
 
 | Estado | `code` | Cuándo | Mensaje |
@@ -309,4 +339,79 @@ Cuerpo:
 
 ## Cuenta activa o desactivada
 
-Toda cuenta nueva se crea con `active: true`. Una cuenta desactivada no puede iniciar sesión (`403 ACCOUNT_DISABLED`) y su token deja de funcionar. La activación y desactivación desde el panel de administración llega en el Bloque 4.
+Toda cuenta nueva se crea con `active: true`. Una cuenta desactivada no puede iniciar sesión (`403 ACCOUNT_DISABLED`) y su token deja de funcionar. Un administrador la activa o desactiva con `PATCH /api/admin/users/:id/status` (ver abajo).
+
+## Administración de usuarios
+
+Tres rutas, todas con **token de una cuenta `admin`**. Un cliente recibe `403 FORBIDDEN`; sin token, `401`. Las respuestas usan el mismo objeto de usuario que `GET /api/auth/me` y nunca incluyen la contraseña ni su hash. El rol no se puede cambiar desde la API.
+
+### `GET /api/admin/users`
+
+Lista y busca cuentas, de la más reciente a la más antigua. Parámetros opcionales en la query string:
+
+| Parámetro | Valores | Por defecto |
+| --- | --- | --- |
+| `q` | Texto que se busca en el nombre o el correo (sin distinguir mayúsculas; `%` y `_` se buscan como texto). Máximo 254 caracteres | Sin filtro |
+| `status` | `active`, `inactive` o `all` | `all` |
+| `page` | Entero desde 1 | `1` |
+| `pageSize` | Entero de 1 a 100 | `20` |
+
+Ejemplo: `GET /api/admin/users?q=lany&status=active&page=1&pageSize=20`. Codifica `q` con `encodeURIComponent` (o `URLSearchParams`).
+
+Éxito: `200`
+
+```json
+{
+  "data": {
+    "items": [
+      { "id": "...", "name": "Lany Pérez", "email": "lany@example.com", "role": "client", "active": true, "emailVerified": true, "createdAt": "2026-09-24T12:00:00.000Z" }
+    ],
+    "total": 1,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+
+`total` es el número de cuentas que coinciden con los filtros (todas las páginas). Número de páginas: `Math.ceil(total / pageSize)`. Una página fuera de rango devuelve `items: []`, no un error.
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `status` inválido | `El parámetro status debe ser active, inactive o all.` |
+| 400 | `VALIDATION_ERROR` | `page` o `pageSize` no es un entero mayor que 0 | `El parámetro page debe ser un número entero mayor que 0.` (o `pageSize`) |
+| 400 | `VALIDATION_ERROR` | `pageSize` mayor que 100 | `El parámetro pageSize no puede superar 100.` |
+| 400 | `VALIDATION_ERROR` | `q` repetido o demasiado largo | `El parámetro q debe ser texto.` / `La búsqueda no puede superar 254 caracteres.` |
+
+### `GET /api/admin/users/:id`
+
+Detalle de una cuenta. Éxito: `200` con `{ "data": { ...usuario } }`.
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `INVALID_USER_ID` | El `id` no es un UUID | `El ID de usuario no es válido.` |
+| 404 | `USER_NOT_FOUND` | No existe una cuenta con ese `id` | `El usuario no existe.` |
+
+### `PATCH /api/admin/users/:id/status`
+
+Activa o desactiva una cuenta.
+
+Cuerpo:
+
+```json
+{ "active": false }
+```
+
+Éxito: `200` con el usuario actualizado (`{ "data": { ...usuario, "active": false } }`).
+
+- Al desactivar, el usuario queda fuera **de inmediato**: su siguiente petición con el token que ya tenía responde `403 ACCOUNT_DISABLED` y no puede volver a iniciar sesión. Al reactivarla, su token vuelve a funcionar si aún no venció.
+- Un admin puede desactivar a otros admins, pero **no a sí mismo**.
+- Repetir la misma operación (desactivar una cuenta ya desactivada) no es un error.
+
+| Estado | `code` | Cuándo | Mensaje |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `active` falta o no es `true`/`false` (booleano, no texto) | `El campo active debe ser true o false.` |
+| 400 | `INVALID_USER_ID` | El `id` no es un UUID | `El ID de usuario no es válido.` |
+| 400 | `CANNOT_DEACTIVATE_SELF` | El admin intenta desactivar su propia cuenta | `No puedes desactivar tu propia cuenta.` |
+| 404 | `USER_NOT_FOUND` | No existe una cuenta con ese `id` | `El usuario no existe.` |
+
+Errores comunes a las tres rutas: ver "Errores de cualquier ruta privada" (`401`, `403 ACCOUNT_DISABLED`, `403 FORBIDDEN`).

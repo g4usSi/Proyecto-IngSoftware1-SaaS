@@ -23,6 +23,14 @@ export function passwordProblems(password) {
   return problems;
 }
 
+// Valida y limpia el nombre (registro y perfil). Lanza 400 si falta o es demasiado largo.
+export function validateName(name) {
+  if (typeof name !== 'string' || name.trim() === '') fail('El nombre es obligatorio.');
+  const cleanName = name.trim();
+  if (cleanName.length > NAME_MAX) fail(`El nombre no puede superar ${NAME_MAX} caracteres.`);
+  return cleanName;
+}
+
 // Valida y limpia los datos de registro (RF11). Lanza 400 con el primer problema encontrado.
 export function validateRegistration(input) {
   const { name, email, password } = input ?? {};
@@ -31,9 +39,8 @@ export function validateRegistration(input) {
   if (typeof email !== 'string' || email.trim() === '') fail('El correo electrónico es obligatorio.');
   if (typeof password !== 'string' || password === '') fail('La contraseña es obligatoria.');
 
-  const cleanName = name.trim();
+  const cleanName = validateName(name);
   const cleanEmail = normalizeEmail(email);
-  if (cleanName.length > NAME_MAX) fail(`El nombre no puede superar ${NAME_MAX} caracteres.`);
   if (cleanEmail.length > EMAIL_MAX || !EMAIL_PATTERN.test(cleanEmail)) {
     fail('El formato del correo electrónico no es válido.');
   }
