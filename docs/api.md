@@ -32,6 +32,13 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET | `/admin/summary` | `200`, resumen de cuentas, planes, almacenamiento lógico y trabajos; requiere rol `admin` |
 | GET | `/admin/subscriptions` | `200`, suscripciones paginadas con usuario y plan; requiere rol `admin` |
 | GET | `/admin/usage` | `200`, consumo por cuenta (lógico, reservado, disponible); requiere rol `admin` |
+| GET | `/admin/jobs` | `200`, cola global de procesamiento paginada (RF-STO-14); requiere rol `admin` |
+| GET | `/admin/audit-events` | `200`, bitácora de autenticación y cuentas (RF-AUT-12); requiere rol `admin` |
+| GET | `/files/summary` | `200`, consumo lógico frente a físico y ahorro de la cuenta; Bearer JWT |
+| GET | `/payments/:paymentId/receipt` | `200`, recibo PDF de un pago aprobado propio; Bearer JWT |
+| GET | `/payments/receipts` | `200`, PDF con un recibo por pago aprobado; Bearer JWT |
+
+Contratos para el frontend del 80 %: [frontend-80-contratos.md](frontend-80-contratos.md). Matriz de permisos: [permisos-api.md](permisos-api.md).
 
 Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimales para no perder precisión. Los contadores diarios limitados son enteros o `null`.
 

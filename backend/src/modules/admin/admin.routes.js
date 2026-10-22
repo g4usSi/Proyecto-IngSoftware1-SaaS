@@ -14,5 +14,6 @@ export function createAdminRouter(database) {
   router.get('/summary', ...guard, controller.summary);
   router.get('/subscriptions', ...guard, controller.subscriptions);
   router.get('/usage', ...guard, controller.usage);
+  router.get('/jobs', ...guard, controller.jobs);
   return router;
 }

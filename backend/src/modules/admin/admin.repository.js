@@ -29,6 +29,23 @@ export function createAdminRepository(database) {
       return rows;
     },
 
+    // RF-STO-14: trabajos de todas las cuentas, del más reciente al más antiguo. Nunca incluye rutas ni hashes.
+    async listJobs({ status, userId, limit, offset }) {
+      const { rows } = await database.query(`
+        SELECT j.id, j.status, j.attempts, j.error_code, j.original_name,
+               j.original_size_bytes::text AS original_size_bytes, j.created_at, j.updated_at, j.converted_at,
+               j.published_image_id, u.id AS user_id, u.name AS user_name, u.email AS user_email, u.active AS user_active,
+               EXISTS (SELECT 1 FROM images i WHERE i.object_hash = j.original_hash
+                        AND i.id IS DISTINCT FROM j.published_image_id) AS shared_object,
+               COUNT(*) OVER()::text AS total
+          FROM image_processing_jobs j JOIN users u ON u.id = j.user_id
+         WHERE ($1::text IS NULL OR j.status = $1)
+           AND ($2::uuid IS NULL OR j.user_id = $2)
+         ORDER BY j.created_at DESC, j.id DESC
+         LIMIT $3 OFFSET $4`, [status, userId, limit, offset]);
+      return rows;
+    },
+
     async listUsage({ plan, search, limit, offset }) {
       const { rows } = await database.query(`
         WITH current_plan AS (

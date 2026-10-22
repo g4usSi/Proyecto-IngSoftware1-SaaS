@@ -215,10 +215,13 @@ function assertImage(image, originalBytes, name) {
   assert.equal(image.originalName, name);
   assert.equal(image.status, 'ready');
   assert.equal(image.originalSizeBytes, String(originalBytes));
+  assert.match(image.hashPrefix, /^[a-f0-9]{12}$/, 'solo se muestra una huella corta');
+  assert.equal(image.optimizedFormat, 'webp');
+  assert.equal(typeof image.duplicate, 'boolean');
   assert.match(image.optimizedSizeBytes, /^\d+$/);
   assert.ok(Number(image.optimizedSizeBytes) > 0);
   assert.ok(Number.isFinite(Date.parse(image.createdAt)));
-  for (const field of ['hash', 'hashSha256', 'objectHash', 'storageKey', 'storage_key', 'path', 'userId']) {
+  for (const field of ['hash', 'hashSha256', 'hash_sha256', 'objectHash', 'storageKey', 'storage_key', 'path', 'userId']) {
     assert.equal(field in image, false, `La respuesta pública no debe exponer ${field}.`);
   }
 }

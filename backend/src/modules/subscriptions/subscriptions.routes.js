@@ -16,6 +16,8 @@ export function createSubscriptionsRouter(database) {
   router.post("/subscriptions/renew", requireAuth, controller.renew);
   router.post("/subscriptions/change-plan", requireAuth, controller.changePlan);
   router.get("/payments", requireAuth, controller.paymentHistory);
+  router.get("/payments/receipts", requireAuth, controller.allReceipts);
+  router.get("/payments/:paymentId/receipt", requireAuth, controller.receipt);
 
   return router;
 }

@@ -39,6 +39,30 @@ export function createAdminService(repository) {
       };
     },
 
+    async listJobs(filters) {
+      const rows = await repository.listJobs(filters);
+      return {
+        items: rows.map((row) => ({
+          id: row.id,
+          status: row.status,
+          // Reintento: ya hubo al menos un intento y el trabajo sigue sin terminar.
+          retrying: row.attempts > 1 && ['queued', 'processing'].includes(row.status),
+          attempts: row.attempts,
+          errorCode: row.error_code,
+          originalName: row.original_name,
+          originalSizeBytes: row.original_size_bytes,
+          // Otra imagen (de cualquier cuenta) ya referencia el mismo contenido: deduplicación global.
+          sharedObject: row.shared_object,
+          imageId: row.published_image_id,
+          createdAt: iso(row.created_at),
+          updatedAt: iso(row.updated_at),
+          convertedAt: iso(row.converted_at),
+          user: user(row),
+        })),
+        ...page(rows, filters),
+      };
+    },
+
     async listUsage(filters) {
       const rows = await repository.listUsage(filters);
       return {

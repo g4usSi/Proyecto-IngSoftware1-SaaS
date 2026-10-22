@@ -397,9 +397,8 @@ test('S4-08: un pago rechazado no cambia capacidad ni consumo', options, async (
   });
 });
 
-// Criterio de la tarjeta S4-03: el rechazo debe indicar cuánto espacio liberar. Hoy el mensaje es genérico;
-// se deja como "todo" para documentar la brecha sin romper la regresión (avisado a Elden).
-test('S4-08: el rechazo de downgrade indica cuánto espacio liberar', { ...options, todo: 'S4-03 pide el mensaje con los bytes a liberar' }, async (t) => {
+// Criterio de la tarjeta S4-03 / RF-PAG-05: el rechazo indica cuánto espacio liberar.
+test('S4-08: el rechazo de downgrade indica cuánto espacio liberar', options, async (t) => {
   const f = await setup(t);
   await f.plans({ standard: 2, pro: 6 });
   const user = await f.account('Cliente');
@@ -409,5 +408,8 @@ test('S4-08: el rechazo de downgrade indica cuánto espacio liberar', { ...optio
     const refused = await api.changePlan(user, 'standard');
     assert.equal(refused.status, 409);
     assert.match(refused.body.error.message, new RegExp(String(f.size)), 'debe mencionar los bytes a liberar');
+    assert.deepEqual(refused.body.error.details, {
+      capacityBytes: String(2 * f.size), usedBytes: String(3 * f.size), reservedBytes: '0', bytesToFree: String(f.size),
+    });
   });
 });

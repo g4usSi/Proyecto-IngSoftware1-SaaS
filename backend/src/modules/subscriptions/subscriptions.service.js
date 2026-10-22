@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { AppError } from "../../lib/app-error.js";
+import { buildPdf, receiptLines } from "./receipt-pdf.js";
 
 export function createSubscriptionsService(repository) {
   return {
@@ -762,6 +763,43 @@ export function createSubscriptionsService(repository) {
       );
     },
 
+    // RF-PAG-03: recibo PDF de un pago aprobado propio.
+    async getReceipt(userId, paymentId) {
+      if (typeof paymentId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paymentId)) {
+        throw new AppError(400, "INVALID_PAYMENT_ID", "El ID de pago no es válido.");
+      }
+
+      const [row] = await repository.listReceiptRows(userId, paymentId);
+
+      if (!row) {
+        throw new AppError(404, "PAYMENT_NOT_FOUND", "El pago no existe.");
+      }
+
+      if (row.status !== "approved") {
+        throw new AppError(
+          409,
+          "RECEIPT_NOT_AVAILABLE",
+          "Solo los pagos aprobados tienen recibo.",
+        );
+      }
+
+      return {
+        filename: `recibo-${row.reference.slice(0, 8)}.pdf`,
+        pdf: buildPdf([receiptLines(row)]),
+      };
+    },
+
+    // RF-PAG-03: descarga masiva, una página por pago aprobado (del más reciente al más antiguo).
+    async getAllReceipts(userId) {
+      const rows = (await repository.listReceiptRows(userId)).filter((row) => row.status === "approved");
+
+      if (rows.length === 0) {
+        throw new AppError(404, "NO_RECEIPTS", "Todavía no tienes pagos aprobados.");
+      }
+
+      return { filename: "recibos-smartstorage.pdf", pdf: buildPdf(rows.map(receiptLines)) };
+    },
+
     async getPaymentHistory(userId, page = 1, limit = 10) {
       const pageNumber = Number(page);
       const limitNumber = Number(limit);
@@ -813,6 +851,8 @@ export function createSubscriptionsService(repository) {
         payments: payments.map((payment) => ({
           id: payment.id,
           planId: payment.plan_id,
+          planCode: payment.plan_code,
+          planName: payment.plan_name,
           amount: String(payment.amount),
           currency: payment.currency,
           status: payment.status,
