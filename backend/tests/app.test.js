@@ -59,7 +59,9 @@ test('catálogo conserva precisión BIGINT y campos opcionales', async (t) => {
     assert.match(sql, /WHERE active = TRUE/);
     return { rows: [{
       id: 'a-plan-id', code: 'free', name: 'Free', capacity_bytes: '9007199254740993',
-      daily_upload_limit: 10, daily_bytes_limit: null, monthly_price_gtq: '0.00', active: true,
+      daily_upload_limit: 10, daily_bytes_limit: null, monthly_price: '0.00', currency: 'GTQ',
+      billing_period: 'none', pricing_model: 'fixed', storage_price_per_gb_month: null,
+      storage_included_bytes: null, storage_billing_basis: null, active: true,
     }] };
   } });
   const response = await request('/api/plans');
@@ -68,6 +70,8 @@ test('catálogo conserva precisión BIGINT y campos opcionales', async (t) => {
   assert.equal(data[0].capacityBytes, '9007199254740993');
   assert.equal(data[0].dailyBytesLimit, null);
   assert.equal(data[0].monthlyPriceGtq, '0.00');
+  assert.equal(data[0].monthlyPrice, '0.00');
+  assert.equal(data[0].currency, 'GTQ');
   assert.equal('capacity_bytes' in data[0], false);
 });
 
