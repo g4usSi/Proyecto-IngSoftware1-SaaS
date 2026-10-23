@@ -17,6 +17,10 @@ function imageDto(row, optimizedBytes) {
     status: 'ready',
     originalSizeBytes: String(row.original_size_bytes),
     optimizedSizeBytes: optimizedBytes.toString(),
+    // RF-STO-10/11: huella corta (nunca el hash completo), formato publicado y duplicado dentro de la misma cuenta.
+    hashPrefix: row.hash_sha256.slice(0, 12),
+    optimizedFormat: 'webp',
+    duplicate: Boolean(row.has_duplicate),
   };
 }
 
@@ -165,6 +169,45 @@ export function createStorageService({ database, storageRoot }) {
         await handle?.close().catch(() => {});
         throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'No se pudo abrir el archivo de esta imagen.');
       }
+    },
+    // RF-STO-12 / RF-PAG-04: espacio lógico de la cuenta frente al físico real y ahorro acumulado.
+    // Lógico = originales de todas sus referencias (incluida la papelera, como en la cuota).
+    // Físico = WebP de cada objeto distinto, una sola vez aunque la cuenta lo repita.
+    async summary(ownerId) {
+      const objects = await repository.ownerObjects(ownerId);
+      let logical = 0n;
+      let physical = 0n;
+      let images = 0n;
+      let trash = 0n;
+      let duplicates = 0n;
+      let unavailable = 0n;
+      for (const object of objects) {
+        const active = BigInt(object.active_references);
+        const trashed = BigInt(object.trash_references);
+        const references = active + trashed;
+        images += active;
+        trash += trashed;
+        logical += BigInt(object.original_size_bytes) * references;
+        duplicates += references - 1n;
+        try {
+          physical += (await inspectStoredFile(storageRoot, object)).size;
+        } catch (error) {
+          if (error.code !== 'STORAGE_INTEGRITY_ERROR') throw error;
+          unavailable += 1n;
+        }
+      }
+      const saved = logical - physical;
+      return {
+        logicalBytes: logical.toString(),
+        physicalBytes: physical.toString(),
+        savedBytes: saved.toString(),
+        savedPercent: unavailable > 0n ? null : percentage(saved, logical),
+        imageCount: images.toString(),
+        trashCount: trash.toString(),
+        uniqueObjectCount: String(objects.length),
+        duplicateCount: duplicates.toString(),
+        unavailableObjectCount: unavailable.toString(),
+      };
     },
     async stats() {
       const objects = await repository.referencedObjects();

@@ -3,7 +3,8 @@ import { AppError } from '../../lib/app-error.js';
 const imageColumns = `
   i.id, i.original_name, i.created_at, i.folder_id, i.deleted_at,
   to_char(i.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
-  o.hash_sha256, o.original_size_bytes, o.storage_key, o.status
+  o.hash_sha256, o.original_size_bytes, o.storage_key, o.status,
+  EXISTS (SELECT 1 FROM images d WHERE d.user_id = i.user_id AND d.object_hash = i.object_hash AND d.id <> i.id) AS has_duplicate
 `;
 
 const unavailableCodes = new Set([
@@ -146,6 +147,19 @@ export function createStorageRepository(database) {
          WHERE i.id = $1 AND i.user_id = $2 AND o.status = 'ready' AND i.deleted_at IS NULL
       `, [imageId, ownerId]);
       return result.rows[0] || null;
+    },
+    // RF-STO-12 / RF-PAG-04: objetos físicos distintos que referencia una cuenta, con sus referencias.
+    async ownerObjects(ownerId) {
+      const result = await query(database, `
+        SELECT o.hash_sha256, o.original_size_bytes, o.storage_key, o.status,
+               COUNT(i.id) FILTER (WHERE i.deleted_at IS NULL)::text AS active_references,
+               COUNT(i.id) FILTER (WHERE i.deleted_at IS NOT NULL)::text AS trash_references
+          FROM stored_objects o JOIN images i ON i.object_hash = o.hash_sha256
+         WHERE i.user_id = $1 AND o.status = 'ready'
+         GROUP BY o.hash_sha256, o.original_size_bytes, o.storage_key, o.status
+         ORDER BY o.hash_sha256
+      `, [ownerId]);
+      return result.rows;
     },
     async referencedObjects() {
       const result = await query(database, `

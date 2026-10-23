@@ -117,7 +117,8 @@ test('reset-password gasta el enlace y cambia la contraseña en una sola consult
   const reset = await postJson(request, '/api/auth/reset-password', { token, password: NEW_PASSWORD });
   assert.equal(reset.status, 200);
 
-  const queries = database.calls.slice(before);
+  // La bitácora (RF-AUT-12) escribe aparte y no forma parte de la operación atómica del reset.
+  const queries = database.calls.slice(before).filter((call) => !/INSERT INTO auth_events/.test(call.sql));
   assert.equal(queries.length, 1);
   assert.match(queries[0].sql, /UPDATE password_reset_tokens/);
   assert.match(queries[0].sql, /UPDATE users SET password_hash/);

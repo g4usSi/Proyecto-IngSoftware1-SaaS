@@ -1,0 +1,75 @@
+{
+  "module": "S4-01",
+  "description": "Ajuste de cuotas y condiciones de planes",
+  "branch": "feature/pagos-planes",
+  "baseCommit": "d55922dfbe362d65f45bd2543256944954a19c81",
+  "verifiedAt": "2026-10-14T19:07:43Z",
+  "environment": {
+    "node": "24.14.0",
+    "npm": "11.9.0",
+    "postgresql": "17.11",
+    "redis": "7.4.11",
+    "database": "Base temporal aislada, eliminada al finalizar",
+    "developmentDatabaseModified": false
+  },
+  "approvedCatalog": {
+    "currency": "USD",
+    "standard": { "monthlyPrice": "8.00", "capacityBytes": "25000000000", "dailyBytesLimit": "500000000" },
+    "pro": { "monthlyPrice": "15.00", "capacityBytes": "100000000000" },
+    "enterprise": {
+      "monthlyPrice": "40.00",
+      "capacityBytes": "200000000000",
+      "includedStorageBytes": "200000000000",
+      "storagePricePerGbMonth": "0.20",
+      "storageBillingBasis": "time_weighted_excess"
+    },
+    "freeQuotasPreserved": true
+  },
+  "checks": [
+    {
+      "command": "npm run test:storage",
+      "environmentOverrides": { "TEST_REDIS_URL": "redis://127.0.0.1:6379/0" },
+      "exitCode": 0,
+      "tests": 131,
+      "passed": 131,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 15227.7267,
+      "logSha256": "902938f401c3d28c52cfc1441420920ddcb775245646c547959b624939f12eca"
+    },
+    {
+      "command": "npm run check",
+      "exitCode": 0,
+      "backendSyntax": "passed",
+      "frontendBuild": "passed",
+      "logSha256": "924f19738ebdf1e5012e3c1f523b0be29d2752410d22e8c92e2065f6f066631d"
+    },
+    { "command": "git diff --check", "exitCode": 0 }
+  ],
+  "verifiedScenarios": [
+    "Migrador real: actualización desde esquema anterior al catálogo pagado y desde la migración 008",
+    "Conservación de IDs, Free, suscripciones, consumo diario y reservas",
+    "Reejecución conserva datos y registros de migraciones",
+    "Fallo de catálogo revierte la migración; reintento completa la actualización",
+    "Enterprise anterior sobre 200 GB conserva sus metadatos; nuevas reservas se rechazan por capacidad",
+    "GET /api/plans contra PostgreSQL real: USD, importes, vigencia y condiciones del cargo variable",
+    "Planes inactivos excluidos y catálogo vacío válido",
+    "Indisponibilidad HTTP 503 sin detalles internos, con fallo de BD simulado",
+    "Estándar: frontera de 500 MB diarios sin heredar diez subidas de Free",
+    "Pro y Enterprise: sin límites diarios, conservando capacidad total y reservas pendientes",
+    "Regresión existente de autenticación, Storage, worker, recuperación y cuotas compartidas"
+  ],
+  "scope": {
+    "previousMigrationsUnchanged": true,
+    "frontendProductChanged": false,
+    "frontendGuideUpdated": true,
+    "notImplementedByThisChange": [
+      "Cobros, medición histórica de GB-mes e historial de pagos: S4-02",
+      "Activación, renovación y ampliación de capacidad por suscripción: S4-02/S4-03",
+      "Integración visual del catálogo y pagos: S4-06",
+      "SDK por plan, prioridad y soporte comerciales"
+    ],
+    "noAcademicDeliveryOrTrelloClosureClaimed": true
+  }
+}
