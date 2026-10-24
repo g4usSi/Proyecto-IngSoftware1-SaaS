@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, Menu, Moon, Sparkles, Sun, Trash2, Workflow, X } from 'lucide-react';
+import { ArrowUpRight, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, LayoutDashboard, ListChecks, Menu, Moon, ScrollText, Sparkles, Sun, Trash2, UserCog, Users, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
@@ -12,6 +12,7 @@ import { SessionRequired } from '../features/auth/SessionRequired.jsx';
 import { AccountMenu } from './AccountMenu.jsx';
 import { useTheme } from './theme.jsx';
 import { PlanPromotion } from '../features/subscriptions/PlanPromotion.jsx';
+import { planPrice, usePlans } from '../features/subscriptions/subscriptions.api.js';
 
 export const navGroups = [
   {
@@ -28,8 +29,21 @@ export const navGroups = [
   },
   { label: 'Análisis', items: [{ to: '/app/insights', label: 'Ahorro', icon: ChartNoAxesColumn }] },
 ];
+// Solo se muestra a role === 'admin'; el servidor igual responde 403 a un cliente.
+export const adminGroup = {
+  label: 'Administración',
+  items: [
+    { to: '/app/admin', end: true, label: 'Panel', icon: LayoutDashboard },
+    { to: '/app/admin/users', label: 'Usuarios', icon: Users },
+    { to: '/app/admin/subscriptions', label: 'Suscripciones', icon: UserCog },
+    { to: '/app/admin/usage', label: 'Consumo', icon: HardDrive },
+    { to: '/app/admin/jobs', label: 'Cola', icon: ListChecks },
+    { to: '/app/admin/audit', label: 'Bitácora', icon: ScrollText },
+  ],
+};
 // La tarjeta de almacenamiento ofrece un único acceso visible a los planes en el sidebar.
-const titles = { ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))), '/app/plans': 'Mejorar plan', '/app/security': 'Cambiar contraseña' };
+const titles = { ...Object.fromEntries([...navGroups, adminGroup].flatMap((group) => group.items.map((item) => [item.to, item.label]))),
+  '/app/plans': 'Planes', '/app/security': 'Cambiar contraseña', '/app/profile': 'Mi perfil', '/app/payments': 'Historial de pagos' };
 
 export function AppLayout() {
   const { session } = useSession();
@@ -156,11 +170,13 @@ function Shell() {
 
 function SidebarNav() {
   const { enabled, loaded, items, nextCursor, queue } = useLibrary();
+  const { session } = useSession();
+  const groups = session?.user?.role === 'admin' ? [...navGroups, adminGroup] : navGroups;
   const uploading = queue.filter((item) => ['waiting', 'uploading', 'unknown', 'queued', 'processing', 'converted'].includes(item.status)).length;
 
   return (
     <nav className="app-nav" aria-label="Secciones">
-      {navGroups.map((group) => (
+      {groups.map((group) => (
         <div className="nav-group" key={group.label}>
           <span className="sidebar-label">{group.label}</span>
           {group.items.map(({ to, end, label, icon: ItemIcon, count, activity }) => (
@@ -181,6 +197,7 @@ function SidebarNav() {
 function UsageCard() {
   const { session } = useSession();
   const { enabled, quota, refreshQuota } = useLibrary();
+  const pro = usePlans().plans.find((plan) => plan.code === 'pro');
   if (!session || !enabled) return null;
   // La capacidad del plan se mide con el tamaño original de cada subida.
   const data = quota?.data;
@@ -205,7 +222,7 @@ function UsageCard() {
         {known ? <><strong>{formatBytes(used)}</strong> de {formatBytes(capacity)}{reserved > 0 && <><br />{formatBytes(reserved)} reservados</>}</> : quota?.error ? 'Cuota no disponible' : 'Consultando cuota…'}
       </p>
       {quota?.error && <button type="button" className="link-button" onClick={refreshQuota}>Reintentar cuota</button>}
-      {data?.plan.code === 'free' && <p className="usage-pro-hint">Dale más espacio a tus ideas.<br /><span>Pro: 100 GB · Próximamente</span></p>}
+      {data?.plan.code === 'free' && <p className="usage-pro-hint">Dale más espacio a tus ideas.<br />{pro && <span>Pro: {formatBytes(pro.capacityBytes)} · {planPrice(pro)} / mes</span>}</p>}
       <Link to="/app/plans" className="usage-upgrade"><Sparkles strokeWidth={2} aria-hidden="true" />{data?.plan.code === 'free' ? 'Mejorar plan' : 'Ver planes'}<ArrowUpRight strokeWidth={2} aria-hidden="true" /></Link>
     </div>
   );

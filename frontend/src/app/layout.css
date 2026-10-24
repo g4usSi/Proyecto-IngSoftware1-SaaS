@@ -239,3 +239,37 @@
   .app-content { padding-top: 24px; }
   .not-found h1 { font-size: 31px; }
 }
+
+/* ── Tablas de datos compartidas (pagos y administración) ── */
+.btn-small { padding: 7px 12px; font-size: 13px; border-radius: 10px; }
+.btn-small svg { width: 15px; height: 15px; }
+.muted { color: var(--app-muted); }
+.block { display: block; margin-top: 2px; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ellipsis { display: inline-block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.data-table th { padding: 10px 12px; border-bottom: 1px solid var(--app-border-strong); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-align: left; text-transform: uppercase; color: var(--app-muted); white-space: nowrap; }
+.data-table td { padding: 12px; border-bottom: 1px solid var(--app-border); vertical-align: middle; }
+.data-table tbody tr { transition: background-color .15s ease; }
+.data-table tbody tr:hover { background: var(--app-surface-2); }
+.data-table .cell-action { text-align: right; white-space: nowrap; }
+.data-table small { font-size: 12px; }
+.status-pill { display: inline-flex; align-items: center; margin: 2px 4px 2px 0; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--app-surface-3); color: var(--app-muted); }
+.status-pill.is-success { background: var(--app-success-soft); color: var(--app-success); }
+.status-pill.is-danger { background: var(--app-danger-soft); color: var(--app-danger); }
+.status-pill.is-accent { background: var(--app-accent-soft); color: var(--app-accent-text); }
+.status-pill.is-warn { background: color-mix(in srgb, var(--color-status-offline) 16%, transparent); color: color-mix(in srgb, var(--color-status-offline) 80%, var(--app-text)); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; padding-top: 16px; font-size: 13px; color: var(--app-muted); }
+.pager-count { padding-top: 12px; font-size: 13px; text-align: center; color: var(--app-muted); }
+.kv-list { display: grid; margin: 0; }
+.kv-list div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--app-border); font-size: 14px; }
+.kv-list div:last-child { border-bottom: 0; }
+.kv-list dt { color: var(--app-muted); }
+.kv-list dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .data-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--app-border); }
+  .data-table td { display: flex; justify-content: space-between; gap: 12px; padding: 5px 2px; border: 0; text-align: right; }
+  .data-table td[data-label]::before { content: attr(data-label); flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--app-muted); text-align: left; }
+  .data-table .cell-action { justify-content: flex-end; }
+}

@@ -35,6 +35,15 @@ export async function listFiles({ cursor, folderId, trash = false, ...options } 
   return data;
 }
 
+export async function getFilesSummary(options = {}) {
+  const data = await apiRequest('/files/summary', options);
+  const decimal = (value) => /^\d+$/.test(String(value));
+  if (!['logicalBytes', 'physicalBytes', 'imageCount', 'duplicateCount', 'unavailableObjectCount'].every((key) => decimal(data?.[key]))
+    || (data.savedPercent !== null && !/^-?\d+(\.\d+)?$/.test(String(data.savedPercent)))) {
+    throw new ApiError('No se pudo confirmar el resumen de tu biblioteca.', 'INVALID_RESPONSE', 200);
+  }
+  return data;
+}
 export const listAlbums = (options = {}) => apiRequest('/albums', options);
 export const createAlbum = (name, options = {}) => apiRequest('/albums', { ...options, method: 'POST', body: { name } });
 export const renameAlbum = (id, name, options = {}) => apiRequest(`/albums/${encodeURIComponent(id)}`, { ...options, method: 'PATCH', body: { name } });
