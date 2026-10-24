@@ -11,13 +11,13 @@ import { QuotaSummary } from './QuotaSummary.jsx';
 
 export function OverviewPage() {
   const { session } = useSession();
-  const { stats, items, loaded } = useLibrary();
+  const { stats, items, loaded, refresh } = useLibrary();
   const firstName = session?.user?.name?.trim().split(/\s+/)[0];
   const recent = useMemo(() => [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4), [items]);
   const saved = stats.originalBytes - stats.webpBytes;
   const grew = saved < 0;
   const direction = grew ? 'más' : 'menos';
-  const percent = Math.round(stats.savedRatio * 100);
+  const percent = stats.savedRatio === null ? null : Math.round(stats.savedRatio * 100);
 
   return (
     <div className="page">
@@ -32,11 +32,13 @@ export function OverviewPage() {
 
       <PlanPromotion pathname="/app" />
 
+      {stats.error && <div className="gallery-error" role="alert"><p>{stats.error}</p><button type="button" className="btn btn-secondary" onClick={refresh}>Volver a intentar</button></div>}
+
       <div className="stats-grid">
-        <StatCard icon={Images} label="Imágenes" value={stats.count} format={(v) => `${Math.round(v)}${stats.complete ? '' : '+'}`} ready={stats.loaded} index={0} />
+        <StatCard icon={Images} label="Imágenes" value={stats.count} format={(v) => String(Math.round(v))} ready={stats.loaded} index={0} />
         <StatCard icon={Weight} label="Peso original" value={stats.originalBytes} format={formatBytes} ready={stats.loaded} index={1} />
         <StatCard icon={Scale} label="Peso en WebP" value={stats.webpBytes} format={formatBytes} ready={stats.loaded} index={2} />
-        <StatCard icon={TrendingDown} label={grew ? 'Aumento de peso' : 'Ahorro'} value={Math.abs(stats.savedRatio * 100)} format={(v) => `${Math.round(v)} %`} ready={stats.loaded} accent={!grew} index={3} />
+        <StatCard icon={TrendingDown} label={grew ? 'Aumento de peso' : 'Ahorro'} value={percent === null ? null : Math.abs(percent)} format={(v) => `${Math.round(v)} %`} ready={stats.loaded} accent={!grew} index={3} />
       </div>
 
       <QuotaSummary upgrade={false} />
@@ -74,10 +76,10 @@ export function OverviewPage() {
             <h2 id="saving-title">Tu ahorro</h2>
             <Link className="panel-link" to="/app/insights">Detalle <ArrowRight strokeWidth={2} aria-hidden="true" /></Link>
           </div>
-          <div className="ring" style={{ '--p': loaded ? Math.max(0, percent) : 0 }} role="img" aria-label={`${Math.abs(percent)} % ${direction} peso que los originales`}>
-            <div><strong>{loaded ? `${Math.abs(percent)} %` : '—'}</strong><span>{direction} peso</span></div>
+          <div className="ring" style={{ '--p': percent ? Math.max(0, percent) : 0 }} role="img" aria-label={percent === null ? 'Ahorro no disponible' : `${Math.abs(percent)} % ${direction} peso que los originales`}>
+            <div><strong>{percent === null ? '—' : `${Math.abs(percent)} %`}</strong><span>{percent === null ? 'no disponible' : `${direction} peso`}</span></div>
           </div>
-          <p className="saving-text">{stats.count ? <>Tus WebP pesan <strong>{formatBytes(Math.abs(saved))}</strong> {direction} que los originales.</> : 'Sube imágenes para ver cuánto ahorras.'}</p>
+          <p className="saving-text">{stats.unavailableCount > 0 ? 'Falta algún archivo en el servidor, así que el ahorro no se puede calcular por ahora.' : stats.count ? <>Tus WebP pesan <strong>{formatBytes(Math.abs(saved))}</strong> {direction} que los originales.</> : 'Sube imágenes para ver cuánto ahorras.'}</p>
         </section>
       </div>
     </div>

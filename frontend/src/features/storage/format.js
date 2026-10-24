@@ -1,5 +1,19 @@
 const number = new Intl.NumberFormat('es-GT', { maximumFractionDigits: 1 });
-const fullDate = new Intl.DateTimeFormat('es-GT', { dateStyle: 'long', timeStyle: 'short' });
+// Las fechas del servidor vienen en UTC; se muestran siempre en hora de Guatemala.
+const fullDate = new Intl.DateTimeFormat('es-GT', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Guatemala' });
+const shortDate = new Intl.DateTimeFormat('es-GT', { dateStyle: 'medium', timeZone: 'America/Guatemala' });
+
+export function formatDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? '—' : shortDate.format(date);
+}
+
+/** Precio del servidor ("8.00", "USD") → "US$8.00". */
+export function formatMoney(amount, currency = 'USD') {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return '—';
+  return new Intl.NumberFormat('es-GT', { style: 'currency', currency, currencyDisplay: 'symbol' }).format(value);
+}
 const relative = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
 
 /** Bytes decimales (1 KB = 1000 B), igual que los límites de los planes. */

@@ -38,9 +38,9 @@
 .plan-tag svg { width: 13px; height: 13px; }
 .plan-tag.is-current { background: var(--app-success-soft); color: var(--app-success); }
 .plan-tag.is-hot { background: var(--brand-orange); color: var(--app-on-accent); }
-.app-plan-price { display: flex; align-items: baseline; gap: 6px; margin-top: 18px; }
+.app-plan-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin-top: 18px; }
 .app-plan-price strong { font-size: 38px; line-height: 1; letter-spacing: -.045em; }
-.app-plan-price span { font-size: 14px; color: var(--app-muted); }
+.app-plan-price span { font-size: 14px; color: var(--app-muted); white-space: nowrap; }
 .app-plan-desc { margin-top: 10px; font-size: 14px; line-height: 1.55; color: var(--app-muted); }
 .is-featured .app-plan-price span, .is-featured .app-plan-desc { color: color-mix(in srgb, white 72%, var(--brand-navy)); }
 .app-plan ul { display: grid; gap: 10px; margin: 20px 0 22px; padding: 18px 0 0; list-style: none; border-top: 1px solid var(--app-border); }
@@ -68,3 +68,41 @@
 @media (max-width: 1180px) { .app-plans { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .app-plans { grid-template-columns: 1fr; } }
 .cmp-current { display: block; width: fit-content; margin: 4px auto 0; padding: 1px 8px; border-radius: 999px; background: var(--app-success-soft); color: var(--app-success); font-size: 11px; font-weight: 700; }
+
+/* ── Suscripción actual y diálogo de pago ── */
+.sub-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; gap: 16px; }
+.sub-grid > div { display: grid; gap: 4px; }
+.sub-grid span { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--app-muted); }
+.sub-grid strong { font-size: 17px; }
+.sub-grid small { font-size: 13px; font-weight: 500; color: var(--app-muted); }
+.sub-grid.is-loading { grid-template-columns: 1fr; }
+.pay-field { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
+.pay-input { position: relative; display: flex; align-items: center; }
+.pay-input svg { position: absolute; left: 13px; width: 18px; height: 18px; color: var(--app-muted); pointer-events: none; }
+.pay-input input { width: 100%; padding: 12px 14px 12px 42px; border: 1px solid var(--app-border-strong); border-radius: 12px; background: var(--app-surface-2); color: var(--app-text); font: inherit; font-size: 17px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.pay-input input:focus { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+.pay-input input[aria-invalid="true"] { border-color: var(--app-danger); }
+.action-dialog .pay-help { margin: 8px 0 6px; font-size: 13px; color: var(--app-muted); }
+.action-dialog .pay-help.is-error { color: var(--app-danger); }
+.pay-test-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.pay-summary { display: grid; margin: 0 0 12px; }
+.pay-summary div { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--app-border); font-size: 14px; }
+.pay-summary dt { color: var(--app-muted); }
+.pay-summary dd { margin: 0; font-weight: 600; text-align: right; }
+.pay-summary .pay-total { border-bottom: 0; padding-top: 12px; font-size: 16px; }
+.pay-summary .pay-total dd { font-size: 20px; }
+.action-dialog .pay-note { font-size: 13px; color: var(--app-muted); }
+.pay-alert { display: flex; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--app-danger-soft); }
+.pay-alert svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--app-danger); }
+.action-dialog .pay-alert p { margin: 4px 0 0; font-size: 13px; }
+.pay-alert a { color: var(--app-accent-text); font-weight: 600; }
+.pay-result { display: grid; justify-items: center; gap: 8px; padding: 8px 0; text-align: center; }
+.pay-result svg { width: 46px; height: 46px; }
+.pay-result.is-approved svg { color: var(--app-success); }
+.pay-result.is-rejected svg, .pay-result.is-error svg { color: var(--app-danger); }
+.action-dialog .pay-result p { margin: 0; }
+.pay-result small { font-size: 12px; color: var(--app-muted); overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .sub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sub-grid .btn { grid-column: 1 / -1; }
+}

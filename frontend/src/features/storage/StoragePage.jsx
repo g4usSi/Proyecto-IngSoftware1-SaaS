@@ -12,7 +12,7 @@ export function StoragePage() {
         <div>
           <span className="kicker">Biblioteca</span>
           <h1>Mis imágenes</h1>
-          <p>{stats.loaded ? `${stats.count}${stats.complete ? '' : '+'} ${stats.count === 1 ? 'imagen' : 'imágenes'} en WebP. Haz clic en una para verla en grande.` : 'Cargando…'}</p>
+          <p>{stats.loaded ? `${stats.count} ${stats.count === 1 ? 'imagen' : 'imágenes'} en WebP. Haz clic en una para verla en grande.` : 'Cargando…'}</p>
         </div>
         <Link className="btn btn-secondary" to="/app/upload"><CloudUpload strokeWidth={2} aria-hidden="true" />Subir</Link>
       </header>
