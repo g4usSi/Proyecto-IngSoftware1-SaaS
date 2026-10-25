@@ -1,6 +1,8 @@
-# Instrucciones para Alegría — cierre del 80 % (S4-06, S4-07 y S4-09)
+# Instrucciones para Alegría — cierre del 80 % (S4-06, S4-07, S4-09 y S4-10)
 
-Guía de trabajo para el frontend. El backend del 80 % ya está **integrado en `tema-y-flujo-git`**
+Guía de trabajo para el frontend. **Entrega del 80 %: sábado 31/10/2026.** Fechas internas (cierre 23:59, Guatemala):
+S4-06 y S4-07 el **27/10**, regresión S4-09 el **29/10** (2 días antes de la entrega) y presentación S4-10 el **31/10**.
+Se trabaja en **una sola rama: `frontend-80`**, que se unifica en `tema-y-flujo-git`. El backend del 80 % ya está **integrado en `tema-y-flujo-git`**
 (PR #5 `integracion-80`, `bf0b86a`) y la suite completa pasa **196/196** con PostgreSQL y Redis reales.
 Los endpoints exactos, con ejemplos de respuesta, están en [frontend-80-contratos.md](frontend-80-contratos.md);
 esta guía dice **qué cambió, qué hay que construir y cómo trabajar**. Si algo difiere, manda el contrato de esa guía y
@@ -38,7 +40,7 @@ esta guía dice **qué cambió, qué hay que construir y cómo trabajar**. Si al
 ```powershell
 git switch tema-y-flujo-git
 git pull --ff-only origin tema-y-flujo-git
-git switch -c feature/ui-planes-pagos        # o feature/ui-admin para S4-07
+git switch -c frontend-80                     # una sola rama para S4-06 y S4-07
 npm ci
 # Con API y worker detenidos, con PostgreSQL y Redis arriba (README, pasos 2 y 3):
 npm run db:migrate
@@ -115,11 +117,11 @@ El menú de administración solo se muestra si `session.user.role === 'admin'`; 
 ```powershell
 git add frontend/src/features/subscriptions/ frontend/src/features/admin/ frontend/src/app/
 git diff --cached
-git commit -m "feat(S4-06): planes, contratación e historial de pagos"
-git push -u origin feature/ui-planes-pagos
+git commit -m "feat(S4-06): planes, contratación e historial de pagos"   # y luego otro commit para S4-07
+git push -u origin frontend-80
 ```
 
-Añade solo los archivos de tu tarea; no subas `.env` ni `node_modules`. Abre el PR **hacia `tema-y-flujo-git`** y pide revisión a un compañero.
+Añade solo los archivos de tu tarea; no subas `.env` ni `node_modules`. Abre **un PR `frontend-80` → `tema-y-flujo-git`** y pide revisión a un compañero.
 Antes de avisar que terminó, ejecuta y anota el resultado en la tarjeta de Trello (S4-06 / S4-07):
 
 ```powershell
@@ -128,5 +130,26 @@ npm run test:frontend    # regresiones con API simulada (usa Edge en Windows)
 ```
 
 Una tarea se considera **terminada** cuando el flujo funciona contra la API real (no solo con datos simulados), el PR está revisado y la tarjeta
-tiene la evidencia (rama/commit, comandos y resultado, capturas). Las fechas del plan de S4-06, S4-07 y S4-09 ya vencieron y no se han reprogramado:
-coordina la nueva fecha con Geovanny.
+tiene la evidencia (rama/commit, comandos y resultado, capturas). Las fechas ya están reprogramadas (ver arriba y las tarjetas de Trello).
+
+## 6. S4-09 y S4-10 — regresión y constancia de entrega
+
+**S4-09 (29/10, todo el equipo):** con `frontend-80` ya unificada en `tema-y-flujo-git`, Alegría recorre la interfaz integrada y cada integrante prueba su módulo.
+Registrar en la tarjeta: rama y SHA, comandos ejecutados (`npm run check`, `npm run test:frontend`, `node --test`), resultados, defectos y capturas;
+distinguir pruebas reales de simuladas. Los bloqueos se corrigen o se registran con evidencia.
+
+**S4-10 (31/10, entrega):** corregir lo que dejó S4-09 y repetir esos casos; dejar una versión identificable (SHA o etiqueta), una demo reproducible y la
+documentación coherente; cada integrante explica su módulo. **Registrar el enlace o la constancia de entrega** en la tarjeta; S4-10 se cierra después de presentar.
+
+## 7. Manual de usuario (a cargo de Alegría)
+
+Redactar `docs/manual-usuario.md` (o el formato que pida el curso), para el cliente y el administrador, con capturas reales de `frontend-80`:
+
+- [ ] Registro, verificación de correo, inicio de sesión y recuperación de contraseña.
+- [ ] Subir, ver, descargar, organizar en álbumes y mover a la papelera; consumo de espacio y ahorro.
+- [ ] Planes: contratar con tarjeta de prueba, renovar, cambiar de plan, historial de pagos y recibos PDF.
+- [ ] Perfil: editar el nombre.
+- [ ] Administrador: panel, usuarios (activar/desactivar), suscripciones, consumo, trabajos y bitácora.
+- [ ] Mensajes de error frecuentes (cuota excedida, pago rechazado, sesión vencida) y cómo resolverlos.
+
+Fecha límite de borrador: **29/10**, para revisarlo en S4-09 y entregarlo con S4-10 el 31/10.
