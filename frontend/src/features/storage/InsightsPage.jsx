@@ -15,7 +15,7 @@ function formatOf(name) {
 
 /** Ahorro: cuánto pesan tus imágenes antes y después, por formato y las que más bajaron. */
 export function InsightsPage() {
-  const { items, stats, nextCursor } = useLibrary();
+  const { items, stats, nextCursor, refresh } = useLibrary();
 
   const byFormat = useMemo(() => {
     const groups = new Map();
@@ -32,8 +32,8 @@ export function InsightsPage() {
 
   const top = useMemo(() => items.filter((file) => savingRatio(file) > 0).sort((a, b) => savingRatio(b) - savingRatio(a)).slice(0, 5), [items]);
   const maxBytes = Math.max(1, ...byFormat.flatMap((group) => [group.original, group.webp]));
-  const saved = stats.originalBytes - stats.webpBytes;
-  const grew = saved < 0;
+  const saved = stats.savedRatio === null ? null : stats.originalBytes - stats.webpBytes;
+  const grew = saved !== null && saved < 0;
 
   return (
     <div className="page">
@@ -41,19 +41,21 @@ export function InsightsPage() {
         <div>
           <span className="kicker">Análisis</span>
           <h1>Tu ahorro</h1>
-          <p>Cuánto pesan tus imágenes en WebP frente a los archivos originales{nextCursor ? ' (de las imágenes cargadas)' : ''}.</p>
+          <p>Espacio lógico (originales, incluida la papelera) frente al espacio físico real en WebP, sin duplicados.</p>
         </div>
       </header>
 
+      {stats.error && <div className="gallery-error" role="alert"><p>{stats.error}</p><button type="button" className="btn btn-secondary" onClick={refresh}>Volver a intentar</button></div>}
+
       <div className="stats-grid is-three">
-        <StatCard icon={PiggyBank} label={grew ? 'Espacio adicional' : 'Espacio ahorrado'} value={Math.abs(saved)} format={formatBytes} hint={`${Math.abs(Math.round(stats.savedRatio * 100))} % ${grew ? 'más' : 'menos'}`} ready={stats.loaded} accent={!grew} index={0} />
-        <StatCard icon={Weight} label="Originales" value={stats.originalBytes} format={formatBytes} hint="lo que cuenta tu plan" ready={stats.loaded} index={1} />
-        <StatCard icon={Scale} label="En WebP" value={stats.webpBytes} format={formatBytes} hint="lo que se guarda y descargas" ready={stats.loaded} index={2} />
+        <StatCard icon={PiggyBank} label={grew ? 'Espacio adicional' : 'Espacio ahorrado'} value={saved === null ? null : Math.abs(saved)} format={formatBytes} hint={saved === null ? 'falta algún archivo en el servidor' : `${Math.abs(Math.round(stats.savedRatio * 100))} % ${grew ? 'más' : 'menos'} · ${stats.duplicateCount} duplicadas`} ready={stats.loaded} accent={!grew} index={0} />
+        <StatCard icon={Weight} label="Espacio lógico" value={stats.originalBytes} format={formatBytes} hint="lo que cuenta tu plan" ready={stats.loaded} index={1} />
+        <StatCard icon={Scale} label="Espacio físico" value={stats.webpBytes} format={formatBytes} hint="WebP guardado, una vez por contenido" ready={stats.loaded} index={2} />
       </div>
 
       <div className="overview-grid">
         <section className="panel" aria-labelledby="format-title">
-          <div className="panel-head"><h2 id="format-title">Por formato de origen</h2></div>
+          <div className="panel-head"><h2 id="format-title">Por formato de origen{nextCursor ? ' (imágenes cargadas)' : ''}</h2></div>
           {byFormat.length === 0 ? <p className="panel-muted">Aún no hay datos.</p> : (
             <ul className="format-bars">
               {byFormat.map((group) => (

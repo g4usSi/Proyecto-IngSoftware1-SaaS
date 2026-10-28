@@ -1,0 +1,20 @@
+/* Panel de administración. Tokens --app-* (tema claro/oscuro) en app/layout.css. */
+.admin-head-actions { display: flex; align-items: center; gap: 8px; }
+.admin-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.search-inline { display: flex; flex-wrap: wrap; gap: 8px; }
+.usage-meter { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.usage-meter-track { display: inline-block; width: 80px; height: 6px; overflow: hidden; border-radius: 6px; background: var(--app-surface-3); }
+.usage-meter-track i { display: block; height: 100%; border-radius: inherit; background: var(--app-accent); }
+.usage-meter.is-warn .usage-meter-track i { background: var(--color-status-offline); }
+.usage-meter.is-danger .usage-meter-track i { background: var(--app-danger); }
+.plan-bars { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.plan-bars li { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 12px; font-size: 14px; }
+.plan-bars .usage-meter-track { width: 100%; height: 8px; }
+.job-counts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.job-counts div { display: grid; justify-items: start; gap: 6px; padding: 12px; border-radius: 12px; background: var(--app-surface-2); }
+.job-counts strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  .job-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-filters > * { flex: 1 1 100%; }
+  .search-inline .search-field, .search-inline input { width: 100%; flex: 1; }
+}
