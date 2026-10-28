@@ -1,5 +1,7 @@
 # Alegría: contratos actuales y mantenimiento
 
+> **Vigencia (27/10/2026):** esta guía corresponde al corte del 50 %. Para el cierre del 80 % (planes, pagos, administración y perfil) usar [alegria-80-instrucciones.md](alegria-80-instrucciones.md) y [frontend-80-contratos.md](frontend-80-contratos.md).
+
 Actualizado el **09/10/2026** para la segunda versión `v0.2.0`. La integración funcional de subidas, cuotas, álbumes, papelera y contraseña está implementada. El usuario confirmó que el equipo ejecutó la aplicación en la reunión y terminó las correcciones; S3-11 quedó cerrada en Excel/Trello. Las comprobaciones siguientes se conservan para mantenimiento y futuras regresiones, sin reabrir módulos terminados. La entrega académica S3-12 sigue pendiente. Se conservan responsables y fechas.
 
 ## Preparar el proyecto

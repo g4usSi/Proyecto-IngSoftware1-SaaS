@@ -1,5 +1,11 @@
 # Estado de sistemas
 
+## Avance 80 % (en curso, 27/10/2026) — entrega 31/10
+
+- **Backend integrado:** `tema-y-flujo-git` @ `bf0b86a` (PR #5, 23/10): suscripciones, pagos con recibos PDF, `GET /files/summary`, `PATCH /auth/me` y administración. Suite `node --test` 196/196 con PostgreSQL y Redis reales. Contratos en [frontend-80-contratos.md](frontend-80-contratos.md).
+- **Frontend (S4-06, S4-07):** PR #7 `frontend-80` → `tema-y-flujo-git` abierto por Alegría el 24/10 y pendiente de revisión/merge. Verificado el 27/10 sin tocar el backend: `npm run check` correcto y `npm run test:frontend` con todos los recorridos correctos (planes en USD, contratación, bajar de plan con consumo alto, historial y recibos, perfil, administración).
+- **Pendiente:** merge del PR #7, regresión conjunta S4-09 (29/10), constancia de entrega S4-10 y manual de usuario (31/10). Guía: [alegria-80-instrucciones.md](alegria-80-instrucciones.md).
+
 ## Versión actual: v0.2.0 — 50%, 09/10/2026
 
 El alcance técnico del 50% y la revisión conjunta S3-11 están completos según la evidencia publicada y la confirmación del usuario del 09/10. La segunda versión incorpora las cuentas de Andy, cuotas de Elden, Storage/worker/organización de Geovanny e interfaz de Alegría. Consultar [alcance y aceptación del 50%](avance-50.md) para novedades y resultados de validación de la release. La publicación en main es distinta de la entrega académica: S3-12 permanece lista para entregar, sin constancia de presentación. S2-14/S2-16 conservan sus pendientes históricos.

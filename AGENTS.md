@@ -13,14 +13,14 @@ que abra el repositorio. Comunicarse en español.
 | Geovanny | Storage, cuotas, workers, coordinación e integración | `tema-y-flujo-git` | S4-04, S4-08 |
 | Elden | Pagos y suscripciones (backend) | `feature/pagos-planes` | S4-01, S4-02, S4-03 |
 | Andy | Usuarios, perfil, administración y permisos (backend) | `feature/usuarios-login` | S4-05 |
-| Diego Alegría | Todo el frontend | `feature/frontend-80` (crear desde `tema-y-flujo-git`) | S4-06, S4-07 |
+| Diego Alegría | Todo el frontend | `frontend-80` (PR #7 hacia `tema-y-flujo-git`) | S4-06, S4-07 |
 | Equipo | Regresión, documentación y entrega | — | S4-09, S4-10 |
 
 Las tarjetas explican qué hacer, qué endpoints usar y cuándo una tarea está
 terminada: [tablero SmartStorage](https://trello.com/b/uOpp9rO7/smartstorage-proyecto-ing-software-i).
 
-Fechas: backend de pagos y usuarios **19/10**; frontend e integración **21/10**;
-regresión conjunta **22/10**; entrega del 80 % **23/10**.
+Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **27/10**; regresión **29/10**; entrega **31/10**
+(fechas reprogramadas el 24/10; ver `docs/alegria-80-instrucciones.md`).
 
 ## Flujo de ramas
 

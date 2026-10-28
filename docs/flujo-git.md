@@ -9,27 +9,36 @@ Una rama contiene el repositorio completo. La división por módulos se refleja 
 
 ## Ramas y responsables
 
-`main` contiene el trabajo integrado y revisado. Usamos ramas temporales pequeñas; no hace falta una rama `develop` para este equipo. La rama existente `docs` se conserva para el trabajo documental que ya tenga el equipo.
+Actualizado el 27/10/2026. El repositorio tiene dos ramas permanentes:
 
-| Integrante | Ejemplo de rama | Área principal |
+| Rama | Uso |
+| --- | --- |
+| `main` | Versiones entregadas y etiquetadas (`v0.1.0`, `v0.2.0`, y la del 80 % cuando se entregue). Solo recibe un PR de `tema-y-flujo-git` al cerrar un hito. |
+| `tema-y-flujo-git` | Rama de integración: todo trabajo terminado y revisado entra aquí. Es la base de cualquier tarea nueva. |
+
+Cada tarea sale de `tema-y-flujo-git` y vuelve a ella con un PR. Las ramas de las tareas ya integradas se borran; las personales de desarrollo se conservan y se actualizan desde `tema-y-flujo-git`:
+
+| Integrante | Rama de desarrollo | Área principal |
 | --- | --- | --- |
-| Andy | `feature/usuarios-login` | `backend/src/modules/auth/`, middleware de autenticación y pantallas acordadas |
-| Elden | `feature/pagos-planes` | `backend/src/modules/subscriptions/` y `frontend/src/features/subscriptions/` |
-| Geovanny | `feature/storage-subida` | `backend/src/modules/storage/`, futuros workers y `frontend/src/features/storage/` |
-| Diego Alegría | `feature/ui-tema` | Tema, componentes compartidos, estructura visual e integración del frontend |
+| Andy | `feature/usuarios-login` | `backend/src/modules/auth/`, administración y permisos |
+| Elden | `feature/pagos-planes` | `backend/src/modules/subscriptions/` y pagos |
+| Diego Alegría | `feature/ui-tema` (tarea vigente: `frontend-80`) | Todo el frontend y su integración |
+| Geovanny | `tema-y-flujo-git` | Storage, cuotas, workers, integración y documentación |
 
-Son ejemplos de próximas tareas, no ramas permanentes reservadas para cada persona. Después del tema visual, Alegría puede abrir `feature/ui-login` o `feature/ui-galeria`. Una tarea de módulo puede incluir frontend y backend; acordar quién edita cada archivo si participan dos personas.
+Antes de empezar una tarea, cada persona actualiza su rama: `git switch feature/su-rama && git merge --ff-only origin/tema-y-flujo-git` (o crea una rama nueva desde `tema-y-flujo-git`). Una tarea de módulo puede incluir frontend y backend; acordar quién edita cada archivo si participan dos personas.
 
-Las tareas asistidas por Codex usan el prefijo `codex/`, como `codex/tema-y-flujo-git`. Se revisan e integran mediante el mismo proceso. El prefijo no cambia la responsabilidad del integrante que presenta el trabajo.
+Ramas retiradas el 27/10/2026 por estar integradas: `integracion-80` (PR #5), `feature/storage-subida` (PR #2), `feature/admin-consultas`, `docs`, `codex/release-30-v0-1-0` y `codex/release-50-v0-2-0`. Su contenido está en `tema-y-flujo-git`/`main` y en las etiquetas `v0.1.0` y `v0.2.0`.
+
+Las tareas asistidas por Codex usan el prefijo `codex/`. Se revisan e integran mediante el mismo proceso; el prefijo no cambia la responsabilidad del integrante que presenta el trabajo.
 
 ## Empezar una tarea
 
-Primero integrar a `main` la preparación compartida de estilos y documentación. Después, cada integrante ejecuta desde su clon:
+Cada integrante ejecuta desde su clon:
 
 ```powershell
 git status
-git switch main
-git pull --ff-only origin main
+git switch tema-y-flujo-git
+git pull --ff-only origin tema-y-flujo-git
 git switch -c feature/usuarios-login
 npm ci
 ```
@@ -54,7 +63,7 @@ git push -u origin feature/usuarios-login
 
 Añadir también los archivos de middleware, pruebas y migraciones que esa tarea realmente cambie. No subir `.env`, imágenes privadas ni `node_modules`. Mensajes de commit: `feat:`, `fix:`, `refactor:`, `docs:` o `test:` según el cambio.
 
-Publicar una rama comparte avance, pero no integra sus cambios a `main`.
+Publicar una rama comparte avance, pero no integra sus cambios a `tema-y-flujo-git`.
 
 ## Recibir cambios de los demás
 
@@ -62,7 +71,7 @@ Actualizar la rama de trabajo regularmente y antes de solicitar integración:
 
 ```powershell
 git fetch origin
-git merge origin/main
+git merge origin/tema-y-flujo-git
 npm ci
 npm run check
 npm test
@@ -70,24 +79,24 @@ npm test
 
 Ejecutar estos comandos estando en la rama de la tarea. Si hay conflictos, revisar cada archivo con quien lo modificó, resolver, ejecutar `git add` sobre los resueltos y `git commit` para terminar el merge. `git merge --abort` cancela el intento si no se puede resolver todavía. Evitar `push --force` y reescribir ramas que usa otro compañero.
 
-Cuando Alegría integre el nuevo tema, cada integrante lo recibe al incorporar `origin/main`; no debe copiar esos cambios manualmente a tres ramas.
+Los cambios compartidos se reciben incorporando `origin/tema-y-flujo-git`; no se copian manualmente entre ramas.
 
 ## Pull request e integración
 
-1. Abrir PR desde la rama de tarea hacia `main`.
+1. Abrir PR desde la rama de tarea hacia `tema-y-flujo-git`.
 2. Explicar el comportamiento, cómo comprobarlo y cualquier migración/configuración necesaria. Hay una plantilla en `.github/pull_request_template.md`.
 3. Ejecutar `npm run check` y `npm test`. Demostrar además el flujo específico de la tarea; esas pruebas básicas no prueban funciones todavía pendientes.
 4. Obtener revisión de al menos un compañero; corregir observaciones y resolver conflictos.
-5. Integrar mediante un merge commit. Esta estrategia conserva la historia y permite eliminar la rama local con `git branch -d` cuando `main` ya la contiene.
-6. Actualizar `main` local y borrar únicamente la rama de tarea ya integrada. GitHub permite borrar la rama remota desde el PR.
+5. Integrar mediante un merge commit. Esta estrategia conserva la historia y permite eliminar la rama local con `git branch -d` cuando `tema-y-flujo-git` ya la contiene.
+6. Actualizar `tema-y-flujo-git` local y borrar únicamente la rama de tarea ya integrada. GitHub permite borrar la rama remota desde el PR.
 
 ```powershell
-git switch main
-git pull --ff-only origin main
+git switch tema-y-flujo-git
+git pull --ff-only origin tema-y-flujo-git
 git branch -d feature/usuarios-login
 ```
 
-La revisión es un acuerdo del equipo. Esta guía y la plantilla no activan por sí solas protecciones en GitHub ni verificaciones automáticas. No integrar directamente trabajo funcional a `main` sin la revisión acordada.
+La revisión es un acuerdo del equipo. Esta guía y la plantilla no activan por sí solas protecciones en GitHub ni verificaciones automáticas. No integrar directamente trabajo funcional a `tema-y-flujo-git` ni a `main` sin la revisión acordada.
 
 ## Archivos que requieren coordinación
 
