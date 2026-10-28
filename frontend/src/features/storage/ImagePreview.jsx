@@ -72,6 +72,8 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
             <div><dt>Original</dt><dd>{formatBytes(file.originalSizeBytes)}</dd></div>
             <div><dt>WebP</dt><dd>{formatBytes(file.optimizedSizeBytes)}</dd></div>
             <div><dt>Dimensiones</dt><dd>{dimensions ? `${dimensions[0]} × ${dimensions[1]} px` : '—'}</dd></div>
+            <div><dt>Estado</dt><dd>{file.duplicate ? 'Optimizada · duplicada' : 'Optimizada'}</dd></div>
+            {file.hashPrefix && <div><dt>Huella</dt><dd><code title="Primeros 12 caracteres del SHA-256">{file.hashPrefix}…</code></dd></div>}
             <div className="preview-filename"><dt>Archivo WebP</dt><dd title={webpFilename(file.originalName)}>{webpFilename(file.originalName)}</dd></div>
           </dl>
           </div>

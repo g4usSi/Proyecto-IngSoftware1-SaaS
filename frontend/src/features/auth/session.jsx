@@ -40,7 +40,10 @@ export function SessionProvider({ children }) {
     if (token) await authApi.logout(token).catch(() => {});
   }, [session?.token, clearSession]);
 
-  const value = useMemo(() => ({ session, login, register, logout }), [session, login, register, logout]);
+  // Tras PATCH /auth/me: el nombre nuevo se ve de inmediato sin volver a iniciar sesión.
+  const updateUser = useCallback((user) => setSession((current) => (current ? { ...current, user } : current)), []);
+
+  const value = useMemo(() => ({ session, login, register, logout, updateUser }), [session, login, register, logout, updateUser]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

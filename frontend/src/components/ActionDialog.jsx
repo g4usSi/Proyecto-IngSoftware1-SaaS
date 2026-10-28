@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 /** El diálogo nativo mantiene el foco dentro y lo devuelve al control de origen. */
-export function ActionDialog({ title, children, confirmLabel, onConfirm, onClose, busy, error, disabled }) {
+export function ActionDialog({ title, children, confirmLabel, onConfirm, onClose, busy, error, disabled, busyLabel = 'Guardando…', cancelLabel = 'Cancelar', hideCancel = false }) {
   const dialog = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -16,8 +16,8 @@ export function ActionDialog({ title, children, confirmLabel, onConfirm, onClose
         {children}
         {error && <p className="action-error" role="alert">{error}</p>}
         <div className="action-dialog-buttons">
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancelar</button>
-          <button type="submit" className="btn btn-primary" disabled={busy || disabled}>{busy ? 'Guardando…' : confirmLabel}</button>
+          {!hideCancel && <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>{cancelLabel}</button>}
+          <button type="submit" className="btn btn-primary" disabled={busy || disabled}>{busy ? busyLabel : confirmLabel}</button>
         </div>
       </form>
     </dialog>, document.body,

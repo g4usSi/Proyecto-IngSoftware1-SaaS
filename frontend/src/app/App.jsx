@@ -14,6 +14,11 @@ import { TrashPage } from '../features/storage/TrashPage.jsx';
 import { ChangePasswordPage } from '../features/auth/ChangePasswordPage.jsx';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from '../features/auth/RecoveryPages.jsx';
 import { PlansPage } from '../features/subscriptions/PlansPage.jsx';
+import { PaymentsPage } from '../features/subscriptions/PaymentsPage.jsx';
+import { ProfilePage } from '../features/auth/ProfilePage.jsx';
+import { AdminOverviewPage } from '../features/admin/AdminOverviewPage.jsx';
+import { AdminUsersPage } from '../features/admin/AdminUsersPage.jsx';
+import { AdminAuditPage, AdminJobsPage, AdminSubscriptionsPage, AdminUsagePage } from '../features/admin/AdminListPages.jsx';
 import { Brand } from '../components/Brand.jsx';
 
 const titles = {
@@ -32,7 +37,15 @@ const titles = {
   '/verify-email': 'Verificar correo',
   '/forgot-password': 'Recuperar contraseña',
   '/reset-password': 'Nueva contraseña',
-  '/app/plans': 'Mejorar plan',
+  '/app/plans': 'Planes',
+  '/app/payments': 'Historial de pagos',
+  '/app/profile': 'Mi perfil',
+  '/app/admin': 'Administración',
+  '/app/admin/users': 'Usuarios',
+  '/app/admin/subscriptions': 'Suscripciones',
+  '/app/admin/usage': 'Consumo por cuenta',
+  '/app/admin/jobs': 'Cola de procesamiento',
+  '/app/admin/audit': 'Bitácora',
 };
 
 export function App() {
@@ -64,6 +77,14 @@ export function App() {
           <Route path="trash" element={<TrashPage />} />
           <Route path="security" element={<ChangePasswordPage />} />
           <Route path="plans" element={<PlansPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="admin" element={<AdminOverviewPage />} />
+          <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/subscriptions" element={<AdminSubscriptionsPage />} />
+          <Route path="admin/usage" element={<AdminUsagePage />} />
+          <Route path="admin/jobs" element={<AdminJobsPage />} />
+          <Route path="admin/audit" element={<AdminAuditPage />} />
         </Route>
         <Route path="*" element={
           <main id="main-content" className="not-found">

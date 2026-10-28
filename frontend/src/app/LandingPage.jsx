@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, ArrowUp, Check, Clock3, CloudUpload, CopyCheck, Download, Fingerprint,
+  ArrowRight, ArrowUp, Check, CloudUpload, CopyCheck, Download, Fingerprint,
   FolderClosed, HardDrive, KeyRound, LockKeyhole, MapPinOff, Maximize2, ShieldCheck, Sparkles, Zap,
 } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { useSession } from '../features/auth/session.jsx';
-import { plans } from '../features/subscriptions/plans.data.js';
+import { PLAN_TAGLINES, planFeatures, planPrice, usePlans } from '../features/subscriptions/subscriptions.api.js';
 import { CompressionDemo } from './landing/CompressionDemo.jsx';
 import { Faq } from './landing/Faq.jsx';
 import { HeroShader } from './landing/HeroShader.jsx';
@@ -36,7 +36,7 @@ const benefits = [
   { icon: Maximize2, title: 'Ni un píxel menos', text: 'Convertimos sin redimensionar: el ancho y el alto son los mismos que subiste.' },
   { icon: CopyCheck, title: 'Adiós a los duplicados', text: 'El mismo archivo no ocupa espacio dos veces en el sistema.' },
   { icon: Download, title: 'Descarga en un clic', text: 'Recupera tu WebP cuando lo necesites, con su nombre original.' },
-  { icon: FolderClosed, title: 'Álbumes', text: 'Organiza tus imágenes en carpetas.', soon: true },
+  { icon: FolderClosed, title: 'Álbumes', text: 'Organiza tus imágenes en álbumes sin crear copias ni ocupar espacio extra.' },
 ];
 
 const privacy = [
@@ -150,6 +150,7 @@ export function LandingPage() {
   }, []);
 
   const startTo = session ? '/app' : '/register';
+  const catalog = usePlans();
 
   return (
     <div className="landing" ref={rootRef}>
@@ -251,23 +252,24 @@ export function LandingPage() {
               <span className="eyebrow" data-reveal>PLANES</span>
               <h2 id="plans-title" data-reveal data-reveal-delay="80">Empieza gratis. Crece cuando lo necesites.</h2>
             </div>
+            {catalog.error && <p className="plans-note" role="alert">No pudimos cargar los planes. <button type="button" className="plans-retry" onClick={catalog.retry}>Volver a intentar</button></p>}
+            {catalog.loading && <p className="plans-note" role="status">Cargando planes…</p>}
+            {/* Sin data-reveal: llegan después del montaje y el observador no los vería. */}
             <div className="plans-grid">
-              {plans.map((plan, index) => (
-                <article className={`plan-tile${plan.featured ? ' is-featured' : ''}`} key={plan.name} onPointerMove={trackPointer} data-reveal data-reveal-delay={index * 90}>
+              {catalog.plans.map((plan) => (
+                <article className={`plan-tile is-loaded${plan.code === 'pro' ? ' is-featured' : ''}`} key={plan.code} onPointerMove={trackPointer}>
                   <div className="plan-tile-head">
                     <h3>{plan.name}</h3>
-                    {plan.featured && <span className="plan-chip is-hot">Recomendado</span>}
+                    {plan.code === 'pro' && <span className="plan-chip is-hot">Recomendado</span>}
                   </div>
-                  <p className="plan-price"><strong>{plan.price}</strong><span>/ mes</span></p>
-                  <p className="plan-desc">{plan.description}</p>
-                  <ul>{plan.features.map((item) => <li key={item}><Check strokeWidth={2.4} aria-hidden="true" />{item}</li>)}</ul>
-                  {plan.available
-                    ? <MagneticLink to={startTo} className="button button-orange">{session ? 'Ir a mi biblioteca' : 'Empezar gratis'}<ArrowRight strokeWidth={2} className="icon" /></MagneticLink>
-                    : <span className="plan-soon" title="Los pagos todavía no están habilitados"><Clock3 strokeWidth={2} aria-hidden="true" />{plan.cta} · Próximamente</span>}
+                  <p className="plan-price"><strong>{planPrice(plan)}</strong>{Number(plan.monthlyPrice) > 0 && <span>/ mes</span>}</p>
+                  <p className="plan-desc">{PLAN_TAGLINES[plan.code]}</p>
+                  <ul>{planFeatures(plan).map((item) => <li key={item}><Check strokeWidth={2.4} aria-hidden="true" />{item}</li>)}</ul>
+                  <MagneticLink to={session ? '/app/plans' : '/register'} className="button button-orange">{session ? 'Ver en mi cuenta' : plan.code === 'free' ? 'Empezar gratis' : 'Crear cuenta'}<ArrowRight strokeWidth={2} className="icon" /></MagneticLink>
                 </article>
               ))}
             </div>
-            <p className="plans-note" data-reveal>Precios en quetzales. Hoy puedes crear tu cuenta con el plan Free; la contratación de los planes de pago estará disponible pronto.</p>
+            <p className="plans-note" data-reveal>Precios en dólares (USD). Todas las cuentas empiezan en Free; desde tu cuenta puedes contratar otro plan con pago simulado.</p>
           </div>
         </section>
 

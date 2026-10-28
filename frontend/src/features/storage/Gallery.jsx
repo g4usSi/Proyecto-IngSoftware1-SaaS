@@ -155,6 +155,7 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
               <button type="button" className="img-card-media" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`}>
                 <Thumb file={file} className="is-card" />
                 <SavingBadge file={file} />
+                {file.duplicate && <span className="dup-badge" title="Tienes otra imagen con el mismo contenido; no ocupa espacio extra">Duplicada</span>}
                 <span className="img-card-overlay" aria-hidden="true"><Eye strokeWidth={2} />Ver</span>
               </button>
               <div className="img-card-body">
@@ -185,7 +186,7 @@ export function Gallery({ source, title = 'Todas', onChanged }) {
               </span>
               <span role="cell" className="list-num">{formatBytes(file.originalSizeBytes)}</span>
               <span role="cell" className="list-num">{formatBytes(file.optimizedSizeBytes)}</span>
-              <span role="cell"><SavingBadge file={file} /></span>
+              <span role="cell"><SavingBadge file={file} />{file.duplicate && <span className="dup-badge is-inline">Duplicada</span>}</span>
               <span role="cell" className="list-actions">
                 <FileActions file={file} onChanged={changed} />
                 <button type="button" className="icon-button" onClick={() => setPreviewId(file.id)} aria-label={`Ver ${file.originalName}`} title="Ver"><Eye strokeWidth={2} /></button>

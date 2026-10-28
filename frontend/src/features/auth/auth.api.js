@@ -49,3 +49,12 @@ export function changePassword({ currentPassword, newPassword }, { token, signal
     method: 'POST', token, signal, body: { currentPassword, newPassword },
   });
 }
+
+// Perfil: solo el nombre es editable; el correo es de solo lectura.
+export function getMe({ token, signal }) {
+  return apiRequest('/auth/me', { token, signal });
+}
+
+export function updateMe({ name }, { token, signal }) {
+  return apiRequest('/auth/me', { method: 'PATCH', token, signal, body: { name } });
+}

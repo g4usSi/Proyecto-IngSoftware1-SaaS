@@ -331,6 +331,7 @@
 .is-soon li svg { color: var(--color-text-muted); }
 .plan-tile .button { margin-top: auto; }
 .plan-chip.is-hot { background: var(--color-primary); color: var(--color-dark); }
+.plans-retry { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--color-primary); text-decoration: underline; cursor: pointer; }
 .plan-soon { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: auto; padding: 14px 18px; border-radius: 999px; border: 1px dashed var(--color-border); font-size: 14px; font-weight: 600; color: var(--color-text-muted); }
 .plan-soon svg { width: 16px; height: 16px; }
 .is-featured .plan-soon { border-color: var(--glass-border); color: var(--on-dark); }
