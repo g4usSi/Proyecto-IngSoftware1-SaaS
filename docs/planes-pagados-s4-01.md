@@ -147,7 +147,7 @@ Ejemplo de Enterprise; `id` es el UUID devuelto por PostgreSQL:
 
 Catálogo sin planes activos: `200`, `{ "data": [] }`. Base de datos o migraciones
 no disponibles: `503 DATABASE_UNAVAILABLE`, sin información interna. La guía de
-consumo para Alegría está en [frontend-handoff.md](frontend-handoff.md).
+consumo para Alegría está en [frontend-80-contratos.md](frontend-80-contratos.md).
 
 ## Verificación y cierre de S4-01
 
