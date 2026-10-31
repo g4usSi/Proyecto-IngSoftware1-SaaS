@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { PiggyBank, Scale, Trophy, Weight } from 'lucide-react';
+import { RowsSkeleton } from '../../components/Skeletons.jsx';
 import { formatBytes, formatPercent, savingRatio } from './format.js';
 import { Thumb } from './Gallery.jsx';
 import { useLibrary } from './library.jsx';
@@ -15,7 +16,9 @@ function formatOf(name) {
 
 /** Ahorro: cuánto pesan tus imágenes antes y después, por formato y las que más bajaron. */
 export function InsightsPage() {
-  const { items, stats, nextCursor, refresh } = useLibrary();
+  const { items, loaded, stats, nextCursor, refresh } = useLibrary();
+  // Si el resumen falla no hay cifras: "No disponible", ni un esqueleto eterno ni un 0.
+  const statsSettled = stats.loaded || Boolean(stats.error);
 
   const byFormat = useMemo(() => {
     const groups = new Map();
@@ -32,7 +35,7 @@ export function InsightsPage() {
 
   const top = useMemo(() => items.filter((file) => savingRatio(file) > 0).sort((a, b) => savingRatio(b) - savingRatio(a)).slice(0, 5), [items]);
   const maxBytes = Math.max(1, ...byFormat.flatMap((group) => [group.original, group.webp]));
-  const saved = stats.savedRatio === null ? null : stats.originalBytes - stats.webpBytes;
+  const saved = !stats.loaded || stats.savedRatio === null ? null : stats.originalBytes - stats.webpBytes;
   const grew = saved !== null && saved < 0;
 
   return (
@@ -48,15 +51,15 @@ export function InsightsPage() {
       {stats.error && <div className="gallery-error" role="alert"><p>{stats.error}</p><button type="button" className="btn btn-secondary" onClick={refresh}>Volver a intentar</button></div>}
 
       <div className="stats-grid is-three">
-        <StatCard icon={PiggyBank} label={grew ? 'Espacio adicional' : 'Espacio ahorrado'} value={saved === null ? null : Math.abs(saved)} format={formatBytes} hint={saved === null ? 'falta algún archivo en el servidor' : `${Math.abs(Math.round(stats.savedRatio * 100))} % ${grew ? 'más' : 'menos'} · ${stats.duplicateCount} duplicadas`} ready={stats.loaded} accent={!grew} index={0} />
-        <StatCard icon={Weight} label="Espacio lógico" value={stats.originalBytes} format={formatBytes} hint="lo que cuenta tu plan" ready={stats.loaded} index={1} />
-        <StatCard icon={Scale} label="Espacio físico" value={stats.webpBytes} format={formatBytes} hint="WebP guardado, una vez por contenido" ready={stats.loaded} index={2} />
+        <StatCard icon={PiggyBank} label={grew ? 'Espacio adicional' : 'Espacio ahorrado'} value={saved === null ? null : Math.abs(saved)} format={formatBytes} hint={!stats.loaded ? undefined : saved === null ? 'falta algún archivo en el servidor' : `${Math.abs(Math.round(stats.savedRatio * 100))} % ${grew ? 'más' : 'menos'} · ${stats.duplicateCount} ${stats.duplicateCount === 1 ? 'duplicada' : 'duplicadas'}`} ready={statsSettled} accent={!grew} index={0} />
+        <StatCard icon={Weight} label="Espacio lógico" value={stats.loaded ? stats.originalBytes : null} format={formatBytes} hint="lo que cuenta tu plan" ready={statsSettled} index={1} />
+        <StatCard icon={Scale} label="Espacio físico" value={stats.loaded ? stats.webpBytes : null} format={formatBytes} hint="WebP guardado, una vez por contenido" ready={statsSettled} index={2} />
       </div>
 
       <div className="overview-grid">
         <section className="panel" aria-labelledby="format-title">
           <div className="panel-head"><h2 id="format-title">Por formato de origen{nextCursor ? ' (imágenes cargadas)' : ''}</h2></div>
-          {byFormat.length === 0 ? <p className="panel-muted">Aún no hay datos.</p> : (
+          {!loaded ? <RowsSkeleton rows={2} panel={false} label="Calculando el ahorro por formato…" /> : byFormat.length === 0 ? <p className="panel-muted">Aún no hay datos.</p> : (
             <ul className="format-bars">
               {byFormat.map((group) => (
                 <li key={group.format}>
@@ -75,7 +78,7 @@ export function InsightsPage() {
 
         <section className="panel" aria-labelledby="top-title">
           <div className="panel-head"><h2 id="top-title"><Trophy strokeWidth={2} aria-hidden="true" />Las que más bajaron</h2></div>
-          {top.length === 0 ? <p className="panel-muted">Aún no hay imágenes que reduzcan su peso.</p> : (
+          {!loaded ? <RowsSkeleton rows={3} panel={false} label="Buscando las imágenes que más bajaron…" /> : top.length === 0 ? <p className="panel-muted">Aún no hay imágenes que reduzcan su peso.</p> : (
             <ol className="top-list">
               {top.map((file, index) => (
                 <li key={file.id}>

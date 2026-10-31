@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
+import { TableSkeleton } from '../../components/Skeletons.jsx';
 import { formatBytes, formatFullDate } from '../storage/format.js';
 import { AdminGate, AdminHead, OffsetPager, QueryError, StatusPill, UsageBar } from './AdminShared.jsx';
 import { AUDIT_REASONS, AUDIT_TYPES, JOB_STATES, listAdmin, useAdminQuery } from './admin.api.js';
@@ -45,12 +46,12 @@ function ListBody({ list, columns, empty, renderRow }) {
   return (
     <>
       <QueryError query={query} />
-      {!data && query.loading && <div className="panel" aria-hidden="true"><span className="sk-line" /><span className="sk-line short" /></div>}
+      {!data && query.loading && <TableSkeleton columns={columns} />}
       {data && data.items.length === 0 && <div className="panel panel-empty"><p>{empty}</p></div>}
       {data && data.items.length > 0 && (
         <section className="panel" aria-busy={query.loading}>
           <div className="compare-scroll">
-            <table className="data-table">
+            <table className={`data-table${query.loading ? ' is-refreshing' : ''}`}>
               <thead><tr>{columns.map((column) => <th scope="col" key={column}>{column}</th>)}</tr></thead>
               <tbody>{data.items.map(renderRow)}</tbody>
             </table>

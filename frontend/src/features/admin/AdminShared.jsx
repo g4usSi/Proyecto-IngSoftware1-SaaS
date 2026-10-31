@@ -44,6 +44,9 @@ export function StatusPill({ tone = 'muted', children }) {
   return <span className={`status-pill is-${tone}`}>{children}</span>;
 }
 
+/** Consulta en curso cuando todavía no hay datos que mostrar. */
+export const isFirstLoad = (query) => !query.data && !query.error;
+
 /** Paginación limit/offset; `total` llega como string en estas rutas. */
 export function OffsetPager({ total, limit, offset, onChange, loading }) {
   const count = Number(total);

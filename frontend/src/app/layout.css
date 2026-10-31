@@ -79,6 +79,20 @@
 .kicker { display: block; font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--app-accent-text); }
 .sk-line { display: block; height: 12px; width: 70%; border-radius: 6px; background: linear-gradient(90deg, var(--app-surface-2) 25%, var(--app-surface-3) 50%, var(--app-surface-2) 75%); background-size: 200% 100%; animation: app-shimmer 1.3s linear infinite; }
 .sk-line.short { width: 40%; }
+/* Estados de carga (components/Skeletons.jsx). El retraso evita el parpadeo cuando la respuesta es rápida. */
+.sk-fade, .panel.sk-fade { animation: sk-in .2s ease-out .12s both; }
+@keyframes sk-in { from { opacity: 0; } }
+.sk-table td .sk-line { max-width: 170px; flex: 0 1 55%; }
+.sk-rows { display: grid; gap: 16px; }
+.sk-row { display: flex; align-items: center; gap: 12px; }
+.sk-block { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: var(--app-surface-2); }
+.sk-row-lines { display: grid; flex: 1; gap: 8px; min-width: 0; }
+.sk-detail { display: grid; gap: 14px; padding: 4px 0; }
+.sk-detail > div { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.sk-detail .sk-line { flex: 0 1 45%; }
+.ring-sk { width: 52px; height: 22px; margin: 0 auto 4px; }
+.data-table tbody { transition: opacity .15s ease; }
+.data-table.is-refreshing tbody { opacity: .55; }
 
 /* ── Estructura ───────────────────────────────────────────── */
 .app-shell { display: grid; grid-template-columns: 268px minmax(0, 1fr); min-height: 100vh; background: var(--app-bg); transition: background-color .35s ease; }
@@ -88,13 +102,13 @@
 .sidebar-close { display: none; width: 36px; height: 36px; border: 1px solid var(--app-sidebar-border); border-radius: 10px; background: var(--app-sidebar-2); color: var(--color-white); cursor: pointer; }
 .sidebar-close svg { width: 18px; height: 18px; }
 .sidebar-label { padding: 0 12px; margin-bottom: 6px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, white 45%, var(--brand-navy)); }
-.app-nav { display: grid; gap: 22px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; margin-bottom: 16px; }
+.app-nav { display: grid; gap: 16px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; margin-bottom: 16px; }
 .sidebar-top, .usage-card, .account { flex-shrink: 0; }
 .nav-group { display: grid; gap: 3px; }
 .nav-count { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, white 9%, transparent); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .nav-activity { display: grid; place-items: center; min-width: 20px; height: 20px; margin-left: auto; padding: 0 6px; border-radius: 999px; background: var(--brand-orange); color: var(--app-on-accent); font-size: 12px; font-weight: 700; animation: nav-pulse 1.4s ease-in-out infinite; }
 @keyframes nav-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-orange) 25%, transparent); } }
-.app-nav a { position: relative; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 12px; font-size: 15px; font-weight: 500; transition: background-color .2s ease, color .2s ease; }
+.app-nav a { position: relative; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; font-size: 15px; font-weight: 500; transition: background-color .2s ease, color .2s ease; }
 .app-nav a svg { width: 19px; height: 19px; transition: transform .35s var(--app-spring), color .2s ease; }
 .app-nav a:hover { background: var(--app-sidebar-2); color: var(--color-white); }
 .app-nav a:hover svg { transform: scale(1.1); }
@@ -189,7 +203,7 @@
 .theme-toggle .sun { transform: translateY(28px) rotate(-90deg); opacity: 0; }
 :root[data-theme="dark"] .theme-toggle .moon { transform: translateY(-28px) rotate(90deg); opacity: 0; }
 :root[data-theme="dark"] .theme-toggle .sun { transform: none; opacity: 1; }
-.app-content { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 36px clamp(20px, 3.5vw, 48px) 60px; animation: app-page-in .5s var(--app-ease) both; }
+.app-content { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 36px clamp(20px, 3.5vw, 48px) 60px; animation: app-page-in .22s var(--app-ease) both; }
 .drawer-scrim { display: none; }
 
 /* ── Avisos flotantes ─────────────────────────────────────── */
@@ -216,7 +230,7 @@
 @keyframes app-spin { to { transform: rotate(360deg); } }
 @keyframes app-shimmer { to { background-position: -200% 0; } }
 @keyframes app-grow-y { from { transform: scaleY(0); } }
-@keyframes app-page-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes app-page-in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes app-rise { from { opacity: 0; transform: translateY(16px); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
 @keyframes toast-out { to { opacity: 0; transform: translateX(30px); } }

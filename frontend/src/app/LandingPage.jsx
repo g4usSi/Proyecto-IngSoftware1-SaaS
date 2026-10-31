@@ -253,9 +253,12 @@ export function LandingPage() {
               <h2 id="plans-title" data-reveal data-reveal-delay="80">Empieza gratis. Crece cuando lo necesites.</h2>
             </div>
             {catalog.error && <p className="plans-note" role="alert">No pudimos cargar los planes. <button type="button" className="plans-retry" onClick={catalog.retry}>Volver a intentar</button></p>}
-            {catalog.loading && <p className="plans-note" role="status">Cargando planes…</p>}
             {/* Sin data-reveal: llegan después del montaje y el observador no los vería. */}
-            <div className="plans-grid">
+            <div className="plans-grid" aria-busy={catalog.loading}>
+              {catalog.loading && <span className="sr-only" role="status">Cargando planes…</span>}
+              {catalog.loading && [0, 1, 2, 3].map((key) => (
+                <article className="plan-tile is-loaded is-skeleton" key={key} aria-hidden="true"><span className="sk-line" /><span className="sk-line sk-price" /><span className="sk-line" /><span className="sk-line short" /><span className="sk-line" /></article>
+              ))}
               {catalog.plans.map((plan) => (
                 <article className={`plan-tile is-loaded${plan.code === 'pro' ? ' is-featured' : ''}`} key={plan.code} onPointerMove={trackPointer}>
                   <div className="plan-tile-head">

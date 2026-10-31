@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Download, FileDown, LoaderCircle, Receipt } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FileDown, LoaderCircle, Receipt, Sparkles } from 'lucide-react';
+import { TableSkeleton } from '../../components/Skeletons.jsx';
 import { useToast } from '../../components/Toaster.jsx';
 import { useSession } from '../auth/session.jsx';
-import { formatFullDate, formatMoney } from '../storage/format.js';
+import { formatDateTime, formatFullDate, formatMoney } from '../storage/format.js';
 import { storageErrorMessage } from '../storage/storage.api.js';
 import { downloadAllReceipts, downloadReceipt, listPayments, PAYMENT_STATUS } from './subscriptions.api.js';
 
 const PAGE_SIZE = 10;
+const COLUMNS = ['Fecha', 'Concepto', 'Monto', 'Estado', 'Tarjeta', 'Recibo'];
 
 /** Historial de pagos (GET /payments), separado del historial de subidas. */
 export function PaymentsPage() {
@@ -53,15 +55,18 @@ export function PaymentsPage() {
           <h1>Historial de pagos</h1>
           <p>Tus pagos simulados con su estado y recibo. Solo los pagos aprobados tienen recibo.</p>
         </div>
-        <button type="button" className="btn btn-secondary" onClick={() => download('all')}
-          disabled={Boolean(downloading) || noReceipts || (pagination?.total === 0)} title={noReceipts ? 'Todavía no tienes pagos aprobados' : undefined}>
-          {downloading === 'all' ? <LoaderCircle className="spin" aria-hidden="true" /> : <FileDown aria-hidden="true" />}Descargar todos los recibos
-        </button>
+        <div className="page-actions">
+          <Link className="btn btn-secondary" to="/app/plans"><Sparkles aria-hidden="true" />Ver planes</Link>
+          <button type="button" className="btn btn-secondary" onClick={() => download('all')}
+            disabled={Boolean(downloading) || noReceipts || !pagination || pagination.total === 0} title={noReceipts ? 'Todavía no tienes pagos aprobados' : undefined}>
+            {downloading === 'all' ? <LoaderCircle className="spin" aria-hidden="true" /> : <FileDown aria-hidden="true" />}{downloading === 'all' ? 'Preparando recibos…' : 'Descargar todos los recibos'}
+          </button>
+        </div>
       </header>
 
       {error && <div className="gallery-error" role="alert"><p>{error}</p><button type="button" className="btn btn-secondary" onClick={() => load()}>Volver a intentar</button></div>}
 
-      {!error && loading && !pagination && <div className="panel" aria-hidden="true"><span className="sk-line" /><span className="sk-line short" /></div>}
+      {!error && loading && !pagination && <TableSkeleton columns={COLUMNS} label="Cargando tu historial de pagos…" />}
 
       {!error && pagination?.total === 0 && (
         <div className="panel panel-empty">
@@ -76,15 +81,15 @@ export function PaymentsPage() {
         <section className="panel payments-panel" aria-labelledby="payments-title" aria-busy={loading}>
           <h2 id="payments-title" className="sr-only">Pagos</h2>
           <div className="compare-scroll">
-            <table className="data-table">
+            <table className={`data-table${loading ? ' is-refreshing' : ''}`}>
               <thead><tr><th scope="col">Fecha</th><th scope="col">Concepto</th><th scope="col">Monto</th><th scope="col">Estado</th><th scope="col">Tarjeta</th><th scope="col"><span className="sr-only">Recibo</span></th></tr></thead>
               <tbody>
                 {payments.map((payment) => {
                   const status = PAYMENT_STATUS[payment.status] ?? { label: payment.status, tone: 'muted' };
                   return (
                     <tr key={payment.id}>
-                      <td data-label="Fecha">{formatFullDate(payment.createdAt)}</td>
-                      <td data-label="Concepto">Plan {payment.planName}</td>
+                      <td data-label="Fecha" title={formatFullDate(payment.createdAt)}>{formatDateTime(payment.createdAt)}</td>
+                      <td data-label="Concepto"><span className="payment-concept">Plan {payment.planName}<small className="muted" title={payment.reference}>Ref. {String(payment.reference ?? '').slice(0, 8)}</small></span></td>
                       <td data-label="Monto" className="num">{formatMoney(payment.amount, payment.currency)}</td>
                       <td data-label="Estado"><span className={`status-pill is-${status.tone}`}>{status.label}</span></td>
                       <td data-label="Tarjeta">•••• {payment.cardLast4}</td>

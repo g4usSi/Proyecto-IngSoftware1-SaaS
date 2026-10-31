@@ -405,6 +405,8 @@
 @keyframes ring { 0% { transform: scale(.45); opacity: 1; } 100% { transform: scale(1.35); opacity: 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.plan-tile.is-skeleton { display: grid; align-content: start; gap: 14px; min-height: 360px; }
+.plan-tile.is-skeleton .sk-price { width: 80%; height: 34px; }
 @media (prefers-reduced-motion: reduce) {
   .landing *, .landing *::before, .landing *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
   .hero-copy { transform: none; opacity: 1; }
