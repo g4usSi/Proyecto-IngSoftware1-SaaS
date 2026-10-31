@@ -15,6 +15,10 @@ export function createSmtpMailer({ host, port, user, pass, from }) {
     async sendEmailVerification({ to, name, verifyLink }) {
       await transport.sendMail({ from, to, ...emailVerificationMessage(name, verifyLink) });
     },
+    // message: { subject, text, html, attachments }, armado por el módulo de pagos.
+    async sendInvoice({ to, message }) {
+      await transport.sendMail({ from, to, ...message });
+    },
   };
 }
 
@@ -26,6 +30,9 @@ export function createConsoleMailer() {
     },
     async sendEmailVerification({ to, name, verifyLink }) {
       console.log(`[mailer] Verificación de correo para ${name} <${to}>\nEnlace (vence en 24 horas): ${verifyLink}`);
+    },
+    async sendInvoice({ to, message }) {
+      console.log(`[mailer] Sin SMTP: no se envió "${message.subject}" a <${to}>`);
     },
   };
 }

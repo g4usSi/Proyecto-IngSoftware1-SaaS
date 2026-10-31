@@ -214,6 +214,7 @@ export function PaymentDialog({ mode, plan, subscription, onClose, onDone, onRec
         </div>
       )}
       {receipt.error && <p className="action-error" role="alert">{receipt.error}</p>}
+      {approved && !data.repeated && <p className="compare-note">También enviaremos la factura a tu correo.</p>}
     </ActionDialog>
   );
 }

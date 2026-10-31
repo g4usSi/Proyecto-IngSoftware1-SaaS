@@ -92,8 +92,8 @@ export async function listPayments({ page = 1, limit = 10, ...options } = {}) {
 }
 
 export const downloadReceipt = (payment, options) => downloadAuthorized(`/payments/${encodeURIComponent(payment.id)}/receipt`,
-  { ...options, fallbackName: `recibo-${payment.reference ?? payment.id}.pdf` });
-export const downloadAllReceipts = (options) => downloadAuthorized('/payments/receipts', { ...options, fallbackName: 'recibos-smartstorage.pdf' });
+  { ...options, fallbackName: `factura-${payment.reference ?? payment.id}.pdf` });
+export const downloadAllReceipts = (options) => downloadAuthorized('/payments/receipts', { ...options, fallbackName: 'facturas-smartstorage.pdf' });
 
 export const PAYMENT_STATUS = {
   approved: { label: 'Pagado', tone: 'success' },

@@ -153,11 +153,14 @@ export function createFakeDatabase({ failInsertWith, freePlanActive = true } = {
 export function createFakeMailer() {
   const resets = [];
   const verifications = [];
+  const invoices = [];
   return {
     resets,
     verifications,
+    invoices,
     async sendPasswordReset(message) { resets.push(message); },
     async sendEmailVerification(message) { verifications.push(message); },
+    async sendInvoice(message) { invoices.push(message); },
   };
 }
 

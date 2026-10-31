@@ -68,7 +68,7 @@ export function createApp({
   app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api/admin/users', createUsersAdminRouter(database));
   app.use('/api/admin/audit-events', createAuditRouter(database));
-  app.use('/api', createSubscriptionsRouter(database));
+  app.use('/api', createSubscriptionsRouter(database, { mailer, frontendUrl }));
   app.use(notFound);
   app.use(errorHandler);
   return app;

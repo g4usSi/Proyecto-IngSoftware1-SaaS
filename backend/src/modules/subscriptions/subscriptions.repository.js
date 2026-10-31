@@ -413,7 +413,7 @@ export function createSubscriptionsRepository(database) {
     async listReceiptRows(userId, paymentId = null) {
       const result = await database.query(
         `SELECT p.id, p.reference, p.amount, p.currency, p.status, p.card_last4, p.created_at,
-                pl.name AS plan_name, u.name AS user_name, u.email AS user_email
+                pl.name AS plan_name, pl.capacity_bytes, u.name AS user_name, u.email AS user_email
            FROM payments p
            JOIN plans pl ON pl.id = p.plan_id
            JOIN users u ON u.id = p.user_id
