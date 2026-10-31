@@ -6,9 +6,7 @@ coverage/
 .env.*
 !.env.example
 !.env.*.example
-backend/data/*
-!backend/data/.gitkeep
-!backend/data/README.md
+backend/data/
 /storage/*
 !/storage/README.md
 outputs/

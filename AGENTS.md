@@ -13,14 +13,14 @@ que abra el repositorio. Comunicarse en español.
 | Geovanny | Storage, cuotas, workers, coordinación e integración | `tema-y-flujo-git` | S4-04, S4-08 |
 | Elden | Pagos y suscripciones (backend) | `feature/pagos-planes` | S4-01, S4-02, S4-03 |
 | Andy | Usuarios, perfil, administración y permisos (backend) | `feature/usuarios-login` | S4-05 |
-| Diego Alegría | Todo el frontend | `frontend-80` (PR #7 hacia `tema-y-flujo-git`) | S4-06, S4-07 |
+| Diego Alegría | Todo el frontend | `feature/ui-tema` (`frontend-80` integrada con el PR #7) | S4-06, S4-07 |
 | Equipo | Regresión, documentación y entrega | — | S4-09, S4-10 |
 
 Las tarjetas explican qué hacer, qué endpoints usar y cuándo una tarea está
 terminada: [tablero SmartStorage](https://trello.com/b/uOpp9rO7/smartstorage-proyecto-ing-software-i).
 
 Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **27/10**; regresión **29/10**; entrega **31/10**
-(fechas reprogramadas el 24/10; ver `docs/alegria-80-instrucciones.md`).
+(fechas reprogramadas el 24/10). Estado técnico: `docs/estado-sistemas.md`.
 
 ## Flujo de ramas
 
@@ -39,8 +39,8 @@ Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **2
 ## Reglas técnicas que no se negocian
 
 - **Migraciones:** nunca editar una migración publicada; agregar una nueva y
-  numerada. Reservadas: `010_*` para pagos (Elden) y `011_*` para usuarios
-  (Andy). Avisar en el grupo antes de crear otra.
+  numerada. La última es `014_auth_events.sql`; la siguiente libre es `015_*`.
+  Avisar en el grupo antes de crear otra.
 - **Capas del backend:** rutas → controladores → servicios → repositorios. SQL
   solo en repositorios.
 - **Contrato de la API:** base `/api`; éxito `{ "data": ... }`; error
@@ -50,7 +50,8 @@ Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **2
 - **Precios y planes:** se resuelven en el servidor, nunca desde la interfaz.
   Catálogo aprobado en USD: Free US$0 (2 GB, 10 cargas y 200 MB diarios),
   Estándar US$8 (25 GB, 500 MB diarios), Pro US$15 (100 GB), Enterprise US$40
-  (200 GB incluidos + US$0.20 por GB-mes adicional). No volver a quetzales.
+  (200 GB incluidos; US$0.20 por GB-mes adicional publicado, sin medir ni
+  cobrar). No volver a quetzales.
 - **Cuotas:** la capacidad cuenta originales lógicos (incluida la papelera) más
   reservas pendientes; el día de consumo se calcula en `America/Guatemala`;
   orden de bloqueo trabajo → usuario → objeto; operaciones idempotentes.
@@ -58,6 +59,9 @@ Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **2
   no concede acceso. Nunca publicar `storage/` como contenido estático.
 - **Secretos:** no subir `.env`, contraseñas, tokens, enlaces de recuperación,
   dumps de la base ni datos de usuarios. No copiarlos en documentos o capturas.
+- **Correo:** `backend/.env` puede tener credenciales reales de Brevo. Las pruebas
+  nunca envían correo (`no-real-smtp.js`); al ejecutar la app, cada pago aprobado
+  y cada registro sí envían uno real, así que evita correos ficticios con SMTP activo.
 - **Datos locales:** no usar `docker compose down -v` ni borrar volúmenes.
   Cambiar de rama no revierte el esquema: antes de migrar, respaldar con
   `pg_dump` y guardar el respaldo fuera del repositorio.
@@ -84,7 +88,10 @@ npm run test:frontend       # si tocaste la interfaz
 ```
 
 Detalle en `README.md`, `docs/api.md`, `docs/auth-frontend.md`,
-`docs/storage.md`, `docs/worker-cuotas.md` y `docs/flujo-git.md`.
+`docs/frontend-80-contratos.md`, `docs/storage.md`, `docs/worker-cuotas.md` y
+`docs/flujo-git.md`. `docs/historial/` guarda el registro de entregas pasadas por
+responsable: es historia, no contrato vigente, y no se usa para decidir cómo funciona
+el sistema.
 
 ## Definición de terminado
 

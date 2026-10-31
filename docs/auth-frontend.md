@@ -21,7 +21,7 @@ Convenciones generales (ya cubiertas por `apiRequest()` de `services/api.js`):
 | `PATCH /api/auth/me` (editar perfil) | Implementado (Bloque 4) |
 | `GET /api/admin/users`, `GET /api/admin/users/:id`, `PATCH /api/admin/users/:id/status` | Implementado (Bloque 4), solo `admin` |
 
-Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se envían de verdad. Sin ellas, en desarrollo, el enlace se escribe en la consola del servidor (la terminal de `npm run dev`). El contrato de la API es el mismo en ambos casos.
+Correos: con las variables `SMTP_*` configuradas en `backend/.env` (Brevo), se envían de verdad, incluidas las facturas de pago. Sin ellas, en desarrollo, el enlace se escribe en la consola del servidor (la terminal de `npm run dev`) y las facturas no se envían. El contrato de la API es el mismo en ambos casos.
 
 Pantallas que necesita el frontend:
 
@@ -34,7 +34,7 @@ Pantallas que necesita el frontend:
 - Pantalla "Mi perfil": muestra los datos de `GET /api/auth/me` y permite editar **solo el nombre** con `PATCH /api/auth/me`. El correo se muestra como solo lectura.
 - Solo para `user.role === 'admin'`: pantalla "Usuarios" con buscador, filtro por estado, paginación y un botón para activar o desactivar cada cuenta (ver "Administración de usuarios"). Ocultar el enlace a los clientes es solo cosmética: el servidor responde `403 FORBIDDEN` de todas formas.
 
-Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`) ya exigen el token: sin él responden `401`. Con un token válido, `/api/subscriptions/me` todavía responde `501 SUBSCRIPTIONS_NOT_IMPLEMENTED`.
+Las rutas privadas de otros módulos (`/api/files`, `/api/subscriptions/me`, `/api/payments`) también exigen el token: sin él responden `401`.
 
 ## `POST /api/auth/register`
 
@@ -98,7 +98,7 @@ Debe cumplir todo esto: entre 8 y 128 caracteres, al menos una minúscula, una m
 
 ## Cómo se envía el token
 
-Tras iniciar sesión, guarda `token` y envíalo en **todas** las peticiones privadas:
+Tras iniciar sesión, conserva `token` en memoria y envíalo en **todas** las peticiones privadas:
 
 ```
 Authorization: Bearer <token>
@@ -107,7 +107,7 @@ Authorization: Bearer <token>
 - El token dura lo que indique `expiresAt` (por defecto 1 hora). No hay renovación: al vencer, hay que iniciar sesión de nuevo.
 - Ante cualquier `401` en una ruta privada (`AUTH_REQUIRED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`), borra el token guardado y lleva al usuario a `/login`.
 - El rol (`client` o `admin`) sale del servidor en cada petición. Para decidir qué mostrar, usa `user.role` de la respuesta de login o de `GET /api/auth/me`.
-- `apiRequest()` de `services/api.js` acepta la opción `token` y envía el encabezado Bearer. La pantalla de login todavía debe guardar la sesión y pasar `{ user, accessToken: token }` a `StoragePage`.
+- `apiRequest()` de `services/api.js` acepta la opción `token` y envía el encabezado Bearer. La sesión se conserva solo en memoria (`features/auth/session.jsx`): al recargar hay que iniciar sesión de nuevo.
 
 ## `POST /api/auth/login`
 
@@ -166,7 +166,7 @@ Después, borra el token del cliente. Si se reutiliza, responde `401 TOKEN_INVAL
 
 ## `GET /api/auth/me`
 
-Devuelve el usuario de la sesión actual. **Requiere token.** Útil para restaurar la sesión al recargar la página.
+Devuelve el usuario de la sesión actual. **Requiere token.**
 
 Éxito: `200`, con el mismo objeto `user` que devuelve el login dentro de `data`:
 

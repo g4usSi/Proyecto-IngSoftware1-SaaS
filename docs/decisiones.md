@@ -1,5 +1,11 @@
 # Decisiones de SmartStorage
 
+Aclaraciones directas del equipo. Prevalecen sobre el contexto heredado y los ejemplos del mockup. Los PDF originales no se han modificado.
+
+## Factura por correo del 30/10/2026
+
+Solicitud de Geovanny: el comprobante de pago se presenta como factura de tienda, con logo, y se envía al correo de la cuenta por el SMTP de Andy (Brevo). Sigue siendo un pago simulado sin validez fiscal, sin NIT de emisor ni numeración fiscal. El número `SS-XXXXXXXX` deriva de la referencia del pago, sin migración nueva. El envío no bloquea el pago: si falla, se registra en el log y la factura sigue disponible en el historial. Las rutas conservan `receipt` y los botones de la interfaz dicen «Recibo» para no invalidar las capturas del manual antes de la entrega.
+
 ## Catálogo y cuotas del 14/10/2026
 
 Acuerdo de Geovanny para S4-01: USD; Estándar US$8/mes con 25 GB y 500 MB diarios;
@@ -8,22 +14,19 @@ sin límite diario, más US$0.20 por GB-mes adicional ponderado por tiempo.
 Free mantiene 2 GB, diez subidas y 200 MB diarios. Vigencia pagada: mes calendario;
 Free sin vencimiento periódico. La migración 009 y el
 [contrato del catálogo](planes-pagados-s4-01.md) sustituyen la matriz provisional
-en GTQ y los 500 GB de Enterprise de la 008. No hay cobros ejecutados por publicar
-el catálogo; facturación y renovación corresponden a S4-02/S4-03.
+en GTQ y los 500 GB de Enterprise de la 008. El cargo variable se publica, pero no
+se mide ni se cobra.
 
 ## Organización incorporada el 07/10/2026
 
-El trabajo local sobre `tema-y-flujo-git` añade una papelera manual como protección frente a borrados accidentales, a partir de la solicitud del usuario. Conserva la referencia y el espacio consumido hasta su eliminación definitiva; no reembolsa el consumo diario. Restaurar no crea una nueva subida. Eliminar un álbum conserva sus imágenes y deja sin álbum sus trabajos pendientes. No hay caducidad ni vaciado automático. Ver [contratos y traspaso](organizacion-frontend.md).
+Papelera manual como protección frente a borrados accidentales. Conserva la referencia y el espacio consumido hasta su eliminación definitiva; no reembolsa el consumo diario. Restaurar no crea una nueva subida. Eliminar un álbum conserva sus imágenes y deja sin álbum sus trabajos pendientes. No hay caducidad ni vaciado automático. Ver [API](api.md#álbumes-movimiento-y-papelera).
 
-Este archivo registra las aclaraciones directas del equipo del 21 y 23 de septiembre de 2026. Prevalecen sobre el contexto heredado de otra IA y los ejemplos del mockup. Los PDF originales no se han modificado.
-
-## Base y alcance de esta entrega
+## Base del proyecto (21 y 23 de septiembre de 2026)
 
 - Se construye desde cero. El ZIP de autenticación anterior no se usa ni se considera código verificado.
-- Sobre el esqueleto ejecutable se implementa Storage para el primer avance. El 30 % completo depende también de la integración de autenticación y suscripciones.
 - React + Vite, JavaScript con módulos ES, Node.js + Express, PostgreSQL y acceso SQL con `pg`.
 - Un repositorio, dos paquetes npm: `frontend` y `backend`. Capas dentro de cada módulo: rutas → controladores → servicios → repositorios.
-- La conversión Sharp inicial es síncrona. Cola Redis + BullMQ, worker y recuperación completa tras interrupciones quedan para el siguiente hito.
+- La conversión Sharp empezó siendo síncrona; desde el 50 % la interfaz usa la cola Redis + BullMQ con worker y recuperación tras interrupciones.
 - El HTML de mockups es referencia visual. Sus datos, mensajes, botones y afirmaciones no se consideran funciones implementadas.
 
 ## Almacenamiento aprobado
@@ -61,7 +64,7 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 
 - API bajo `/api`, JSON en camelCase; SQL en inglés y snake_case. Mapeo con los diagramas: `usuario` → `users`, `imagen` → `images`, `objeto_almacenado` → `stored_objects`, `album` → `folders`.
 - Identificadores de usuario e imagen: UUID. Roles: `client` y `admin`.
-- Contrato de autenticación previsto: Bearer JWT; `requireAuth` verificará firma, expiración y estado de la cuenta antes de asignar `req.user = { id, email, role }`. La revocación/cierre de sesión se implementará antes de considerar completo el módulo.
+- Contrato de autenticación: Bearer JWT; `requireAuth` verifica firma, expiración, revocación y estado de la cuenta antes de asignar `req.user = { id, email, role }`.
 - La deduplicación no concede autorización. Las descargas y borrados se resuelven por el ID de imagen y su propietario autenticado, aunque físicamente el objeto sea compartido.
 - Referencias derivadas de `images`, sin contador redundante. La eliminación del último enlace y la creación concurrente deben serializarse bloqueando el objeto en una transacción; la FK sola no coordina operaciones en disco.
 - Capacidad del plan: contabilizar bytes originales por referencia lógica y sumar reservas pendientes. Storage y worker validan capacidad, número de subidas y bytes diarios con la misma conexión y bloqueo por usuario. El día de admisión se calcula en `America/Guatemala`; el consumo se conserva en reservas confirmadas y su agregado diario.
@@ -70,13 +73,6 @@ Esta métrica describe el ahorro de la biblioteca actual frente a guardar cada s
 - La migración 002 precargó Free. S4-01 añadió Estándar, Pro y Enterprise mediante la migración 008; la matriz y su estado de aprobación están en [catálogo y cuotas](planes-pagados-s4-01.md). Esta actualización sustituye la restricción inicial de precargar únicamente Free.
 - `standard` / Estándar es el nombre canónico del nivel que la propuesta académica llamaba Básico. Los clientes deben usar `code` o `id`, nunca el nombre comercial como identificador.
 - Un límite diario `NULL` significa sin límite. La capacidad y el máximo por archivo continúan aplicándose, también a Pro y Enterprise. Las condiciones personalizadas de Enterprise requieren un acuerdo específico; no se deducen de `NULL`.
-
-## Cambios pendientes en documentación académica
-
-- Cambiar RF-03 de Storage de deduplicación por cuenta a global.
-- Cambiar RF-04 y RF-08: no conservar ni descargar el original.
-- Ajustar mockups y requisitos de métricas: ahorro calculado para administrador; retirar métricas persistidas o promesas de descarga original.
-- Actualizar modelo relacional y diagramas al esquema incremental implementado: tokens, trabajos, reservas, consumo diario y limpieza durable ya tienen migraciones. Pagos siguen pendientes.
 
 ## Referencias técnicas verificadas
 

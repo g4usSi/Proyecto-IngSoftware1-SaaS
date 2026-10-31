@@ -18,7 +18,7 @@ cliente en ruta de administrador: `403`; recurso de otra cuenta: `404` (no se re
 | `GET /jobs`, `GET /jobs/:id`, `POST /jobs` | No | Sí, solo lo propio | Sí, solo lo propio | La cola global está en `/admin/jobs` |
 | `GET /quotas/me` | No | Sí | Sí | Plan vigente, capacidad y consumo |
 | `GET /subscriptions/me`, `POST /subscriptions/checkout`, `renew`, `change-plan` | No | Sí | Sí | Precios del servidor; `Idempotency-Key` obligatoria al pagar |
-| `GET /payments`, `GET /payments/receipts`, `GET /payments/:id/receipt` | No | Sí, solo lo propio | Sí, solo lo propio | Recibo solo de pagos aprobados |
+| `GET /payments`, `GET /payments/receipts`, `GET /payments/:id/receipt` | No | Sí, solo lo propio | Sí, solo lo propio | Factura solo de pagos aprobados |
 | `GET /admin/summary`, `/admin/subscriptions`, `/admin/usage` | No | No (403) | Sí | Solo lectura |
 | `GET /admin/jobs` | No | No (403) | Sí | Cola global de procesamiento |
 | `GET /admin/storage/stats` | No | No (403) | Sí | Ahorro global |

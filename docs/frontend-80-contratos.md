@@ -1,7 +1,6 @@
-# Contratos de la API para el frontend del 80 % (S4-06 y S4-07)
+# Contratos de la API para el frontend
 
-Guía para Alegría. Todo lo de aquí **ya está implementado y probado** en el backend integrado; el frontend solo
-debe consumirlo. Base `/api`, JSON UTF-8, éxito `{ "data": ... }`, error `{ "error": { "code", "message", "details"? } }`.
+Guía para mantener las pantallas (responsable: Alegría). Todo lo de aquí **está implementado** y conectado a la interfaz. Base `/api`, JSON UTF-8, éxito `{ "data": ... }`, error `{ "error": { "code", "message", "details"? } }`.
 Los bytes viajan como **strings** decimales (1 GB = 1 000 000 000 bytes) y los precios como string con dos decimales
 (`"8.00"`). Fechas en ISO 8601 UTC; muéstralas en hora de Guatemala (`America/Guatemala`).
 Permisos por ruta: [permisos-api.md](permisos-api.md). Detalle de autenticación y usuarios: [auth-frontend.md](auth-frontend.md).
@@ -10,6 +9,8 @@ Permisos por ruta: [permisos-api.md](permisos-api.md). Detalle de autenticación
 
 - Con `401` cierra la sesión. Con `403` en una ruta `/admin/*` oculta la opción; no es un error de red.
 - **Nunca muestres ceros cuando la API falla**: muestra el estado de error con opción de reintentar.
+- Mientras carga, usa los esqueletos de `components/Skeletons.jsx`; ver [estilos](estilos.md#estados-de-carga).
+- No guardes tokens ni datos de tarjeta en `localStorage`. No envíes precios desde la interfaz: los fija el servidor.
 - Las tres paginaciones del backend son distintas; no las mezcles:
 
 | Endpoint | Parámetros | Respuesta |
@@ -58,7 +59,7 @@ el servidor: no lo envíes.
             "subscription": { "id": "…", "status": "active", "startedAt": "…", "expiresAt": "…" }, "repeated": false } }
 ```
 
-`subscription` es `null` si el pago no fue aprobado. Errores: `400 INVALID_CARD`, `INVALID_TEST_CARD`, `INVALID_IDEMPOTENCY_KEY`,
+`subscription` es `null` si el pago no fue aprobado. Si se aprueba, el servidor envía la factura al correo de la cuenta después de responder; la interfaz no debe esperarla. Errores: `400 INVALID_CARD`, `INVALID_TEST_CARD`, `INVALID_IDEMPOTENCY_KEY`,
 `INVALID_PLAN`; `409 IDEMPOTENCY_CONFLICT` (misma clave con otro plan o tarjeta). Nunca pidas ni muestres CVV ni el número completo.
 
 ### Renovar — `POST /subscriptions/renew`
@@ -67,6 +68,8 @@ Cuerpo `{ "card": { "number": "…" } }` + `Idempotency-Key`. Respuesta igual qu
 al aprobarse, `expiresAt` avanza un mes calendario. Free no se renueva: `400 SUBSCRIPTION_NOT_RENEWABLE` (oculta el botón en ese plan).
 
 ### Cambiar de plan — `POST /subscriptions/change-plan`
+
+Responde siempre `200`, también al subir con un pago rechazado: mira `payment.status`.
 
 - **Subir:** `{ "planCode": "pro", "card": { … } }` + `Idempotency-Key`. Respuesta: `{ changeType: "upgrade", previousPlan, newPlan, payment, subscription, repeated }`. Si el pago no se aprueba, `subscription` es `null`.
 - **Bajar:** `{ "planCode": "standard" }` (sin tarjeta, sin cobro). Respuesta: `{ changeType: "downgrade", previousPlan, newPlan, subscription }`.
@@ -89,9 +92,11 @@ Otros errores: `409 SAME_PLAN`, `400 INVALID_PLAN`, `404 PLAN_NOT_FOUND`.
   "pagination": { "page": 1, "limit": 10, "total": 4, "totalPages": 1 } } }
 ```
 
-Columnas sugeridas: fecha, concepto (`planName`), monto, estado, tarjeta `•••• cardLast4`, recibo. `status` ∈ `approved` (Pagado), `rejected`, `error`.
+Columnas: fecha, concepto (`planName`), monto, estado, tarjeta `•••• cardLast4`, factura. `status` ∈ `approved` (Pagado), `rejected`, `error`.
 
-### Recibos PDF (RF-PAG-03)
+### Facturas PDF (RF-PAG-03)
+
+La interfaz aún rotula estos botones como «Recibo»; el PDF se titula «Factura» y se llama `factura-<referencia>.pdf`. Las rutas conservan `receipt`.
 
 - `GET /payments/:paymentId/receipt` → PDF de un pago **aprobado** propio. `409 RECEIPT_NOT_AVAILABLE` si fue rechazado o con error; `404 PAYMENT_NOT_FOUND`.
 - `GET /payments/receipts` → un PDF con una página por pago aprobado. `404 NO_RECEIPTS` si no hay ninguno (deshabilita el botón).
@@ -136,6 +141,19 @@ Cada imagen ahora incluye, además de lo anterior: `hashPrefix` (primeros 12 car
 `optimizedFormat` (`"webp"`) y `duplicate` (`true` si la misma cuenta tiene otra imagen con el mismo contenido).
 Estados de galería (RF-STO-10): "procesando" sale de `GET /jobs` (`queued`/`processing`), "optimizada" es una imagen con `status: "ready"`,
 "duplicada" es `duplicate: true`. `unavailableItems` lista imágenes cuyo archivo falta (`STORAGE_INTEGRITY_ERROR`).
+
+## Subidas, álbumes y papelera
+
+Las rutas están en [api.md](api.md#álbumes-movimiento-y-papelera). Reglas que deben conservarse al cambiar el diseño:
+
+- `POST /jobs` responde `202`: confirma admisión y reserva, no que la imagen esté lista. Muestra una imagen como disponible solo con `status === 'published' && available && imageId`.
+- La cola (`features/storage/library.jsx`) envía hasta tres archivos a la vez, respeta `nextPollAfterMs` y cancela consultas al cerrar sesión. Cambiar de sección no interrumpe los procesos.
+- Si se pierde la respuesta de admisión, reenvía con el mismo UUID. Un trabajo definitivamente fallido se vuelve a subir con una clave nueva.
+- Refresca `GET /quotas/me` al admitir, publicar, fallar, restaurar o borrar. Si la consulta falla, muestra el error; no aparentes cuota cero.
+- Retira imágenes de la vista solo tras una operación exitosa. La confirmación del borrado definitivo debe permanecer.
+- En papelera no se puede descargar ni mover. Eliminar un álbum conserva sus imágenes, y eliminar una imagen no afecta a otras cuentas.
+
+Antes de entregar cambios de interfaz: `npm run check`, `npm run test:frontend` y `npm run test:organization-browser`, y revisa escritorio, móvil y ambos temas.
 
 ## S4-07 Administración, usuarios y perfil
 

@@ -1,6 +1,6 @@
 # Trabajo en equipo con Git
 
-El cierre de las tarjetas individuales sigue el [acuerdo de cierre por módulo](criterios-cierre-modulos.md)
+El cierre de las tarjetas individuales sigue el [acuerdo de cierre por módulo](estado-sistemas.md#cómo-reportar-un-sistema-listo)
 del 03/10/2026. Cada autor entrega un módulo probado y con contrato compatible;
 Alegría lo acopla después. La revisión para integrar un PR se conserva, pero no
 bloquea el cierre individual mientras otra persona termina su parte.
@@ -9,7 +9,7 @@ Una rama contiene el repositorio completo. La división por módulos se refleja 
 
 ## Ramas y responsables
 
-Actualizado el 27/10/2026. El repositorio tiene dos ramas permanentes:
+El repositorio tiene dos ramas permanentes:
 
 | Rama | Uso |
 | --- | --- |
@@ -22,7 +22,7 @@ Cada tarea sale de `tema-y-flujo-git` y vuelve a ella con un PR. Las ramas de la
 | --- | --- | --- |
 | Andy | `feature/usuarios-login` | `backend/src/modules/auth/`, administración y permisos |
 | Elden | `feature/pagos-planes` | `backend/src/modules/subscriptions/` y pagos |
-| Diego Alegría | `feature/ui-tema` (tarea vigente: `frontend-80`) | Todo el frontend y su integración |
+| Diego Alegría | `feature/ui-tema` (`frontend-80` ya integrada con el PR #7) | Todo el frontend y su integración |
 | Geovanny | `tema-y-flujo-git` | Storage, cuotas, workers, integración y documentación |
 
 Antes de empezar una tarea, cada persona actualiza su rama: `git switch feature/su-rama && git merge --ff-only origin/tema-y-flujo-git` (o crea una rama nueva desde `tema-y-flujo-git`). Una tarea de módulo puede incluir frontend y backend; acordar quién edita cada archivo si participan dos personas.
