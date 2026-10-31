@@ -71,7 +71,7 @@ function JobsList() {
         <div className="segmented" role="group" aria-label="Filtrar procesos">
           {Object.entries(filters).map(([key, { label }]) => (
             <button key={key} type="button" aria-pressed={filter === key} className={filter === key ? 'is-active' : undefined} onClick={() => setFilter(key)}>
-              {label}<span>{counts[key]}</span>
+              {label}<span>{state.loaded ? counts[key] : '–'}</span>
             </button>
           ))}
         </div>

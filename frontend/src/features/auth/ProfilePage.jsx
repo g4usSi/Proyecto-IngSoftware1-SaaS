@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CircleCheckBig, KeyRound, LoaderCircle, Save } from 'lucide-react';
+import { DetailSkeleton } from '../../components/Skeletons.jsx';
 import { formatFullDate } from '../storage/format.js';
 import { authErrorMessage, getMe, updateMe } from './auth.api.js';
 import { useSession } from './session.jsx';
@@ -57,7 +58,7 @@ export function ProfilePage() {
       </header>
 
       {profile.error && <div className="gallery-error" role="alert"><p>{profile.error}</p><button type="button" className="btn btn-secondary" onClick={() => setAttempt((value) => value + 1)}>Volver a intentar</button></div>}
-      {!user && !profile.error && <div className="security-card" aria-hidden="true"><span className="sk-line" /><span className="sk-line short" /></div>}
+      {!user && !profile.error && <div className="security-card"><DetailSkeleton rows={5} label="Cargando tu perfil…" /></div>}
 
       {user && (
         <section className="security-card" aria-label="Datos del perfil">

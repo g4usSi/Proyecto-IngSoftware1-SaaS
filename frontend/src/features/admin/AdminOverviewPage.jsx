@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { Copy, HardDrive, PiggyBank, Users } from 'lucide-react';
 import { formatBytes } from '../storage/format.js';
 import { StatCard } from '../storage/StatCard.jsx';
-import { AdminGate, AdminHead, QueryError, StatusPill } from './AdminShared.jsx';
+import { DetailSkeleton, RowsSkeleton } from '../../components/Skeletons.jsx';
+import { AdminGate, AdminHead, isFirstLoad, QueryError, StatusPill } from './AdminShared.jsx';
 import { getAdminSummary, getStorageStats, JOB_STATES, useAdminQuery } from './admin.api.js';
 
 const n = (value) => Number(value);
@@ -25,12 +26,17 @@ function Overview() {
         loading={loading} onRefresh={() => { summary.reload(); stats.reload(); }} />
 
       <QueryError query={summary} />
+      {isFirstLoad(summary) && (
+        <div className="stats-grid">
+          {[['Cuentas', Users], ['Almacenamiento lógico', HardDrive], ['Deduplicado', Copy], ['Ahorro total', PiggyBank]].map(([label, icon], index) => <StatCard key={label} icon={icon} label={label} value={null} format={String} ready={false} index={index} />)}
+        </div>
+      )}
       {s && (
         <div className="stats-grid">
           <StatCard icon={Users} label="Cuentas" value={n(s.users.total)} format={(v) => String(Math.round(v))} hint={`${s.users.active} activas · ${s.users.admins} admin`} ready index={0} />
           <StatCard icon={HardDrive} label="Almacenamiento lógico" value={n(s.storage.logicalBytes)} format={formatBytes} hint={`${formatBytes(s.storage.reservedBytes)} reservados`} ready index={1} />
           <StatCard icon={Copy} label="Deduplicado" value={n(s.storage.deduplicatedBytes)} format={formatBytes} hint={`${s.storage.deduplicatedPercent} % del lógico`} ready index={2} />
-          <StatCard icon={PiggyBank} label="Ahorro total" value={st ? n(st.savedPercent) : null} format={(v) => `${v.toFixed(1)} %`}
+          <StatCard icon={PiggyBank} label="Ahorro total" value={st && st.savedPercent !== null ? n(st.savedPercent) : null} format={(v) => `${v.toFixed(1)} %`}
             hint={st ? `${formatBytes(st.savedBytes)} ahorrados` : stats.error ? 'no disponible' : undefined} ready={Boolean(st) || Boolean(stats.error)} accent index={3} />
         </div>
       )}
@@ -39,6 +45,7 @@ function Overview() {
         <section className="panel" aria-labelledby="admin-storage-title">
           <div className="panel-head"><h2 id="admin-storage-title">Ahorro de almacenamiento</h2></div>
           <QueryError query={stats} />
+          {isFirstLoad(stats) && <DetailSkeleton rows={5} label="Calculando el ahorro global…" />}
           {st && (
             <dl className="kv-list">
               <div><dt>Tamaño original (todas las referencias)</dt><dd>{formatBytes(st.originalSizeBytes)}</dd></div>
@@ -50,6 +57,7 @@ function Overview() {
           )}
         </section>
 
+        {isFirstLoad(summary) && <section className="panel" aria-label="Suscripciones vigentes"><RowsSkeleton rows={4} panel={false} label="Cargando suscripciones vigentes…" /></section>}
         {s && (
           <section className="panel" aria-labelledby="admin-plans-title">
             <div className="panel-head"><h2 id="admin-plans-title">Suscripciones vigentes</h2><Link className="panel-link" to="/app/admin/subscriptions">Ver todas</Link></div>

@@ -45,6 +45,15 @@ export function planPrice(plan) {
   return value > 0 ? formatMoney(plan.monthlyPrice, plan.currency) : 'Gratis';
 }
 
+/** Si lo usado y reservado no cabe en el plan, los mismos datos que daría 409 PLAN_CAPACITY_EXCEEDED; si cabe, null. */
+export function capacityShortfall(quota, plan) {
+  if (!quota) return null;
+  const committed = BigInt(quota.usedBytes) + BigInt(quota.reservedBytes ?? 0);
+  const capacity = BigInt(plan.capacityBytes);
+  if (committed <= capacity) return null;
+  return { capacityBytes: plan.capacityBytes, usedBytes: quota.usedBytes, reservedBytes: quota.reservedBytes ?? '0', bytesToFree: String(committed - capacity) };
+}
+
 /** Beneficios que salen de los campos reales del plan; nada que el servidor no ofrezca. */
 export function planFeatures(plan) {
   const uploads = plan.dailyUploadLimit === null ? null : Number(plan.dailyUploadLimit);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { ActionDialog } from '../../components/ActionDialog.jsx';
+import { DetailSkeleton, TableSkeleton } from '../../components/Skeletons.jsx';
 import { useToast } from '../../components/Toaster.jsx';
 import { useSession } from '../auth/session.jsx';
 import { formatFullDate } from '../storage/format.js';
@@ -38,13 +39,13 @@ function Users() {
       </form>
 
       <QueryError query={users} />
-      {!data && users.loading && <div className="panel" aria-hidden="true"><span className="sk-line" /><span className="sk-line short" /></div>}
+      {!data && users.loading && <TableSkeleton columns={['Nombre', 'Correo', 'Rol', 'Estado', 'Creada', 'Acciones']} label="Cargando cuentas…" />}
       {data && data.items.length === 0 && <div className="panel panel-empty"><p>No hay cuentas que coincidan con la búsqueda.</p></div>}
 
       {data && data.items.length > 0 && (
         <section className="panel" aria-label="Cuentas" aria-busy={users.loading}>
           <div className="compare-scroll">
-            <table className="data-table">
+            <table className={`data-table${users.loading ? ' is-refreshing' : ''}`}>
               <thead><tr><th scope="col">Nombre</th><th scope="col">Correo</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col">Creada</th><th scope="col"><span className="sr-only">Acciones</span></th></tr></thead>
               <tbody>
                 {data.items.map((user) => (
@@ -103,7 +104,7 @@ function UserDetail({ id, onClose, onChanged }) {
   if (!user) {
     return (
       <ActionDialog title="Detalle de la cuenta" confirmLabel="Cerrar" onConfirm={onClose} onClose={onClose} hideCancel error={detail.error}>
-        {detail.loading && <p role="status">Cargando…</p>}
+        {detail.loading && <DetailSkeleton rows={5} label="Cargando el detalle de la cuenta…" />}
       </ActionDialog>
     );
   }

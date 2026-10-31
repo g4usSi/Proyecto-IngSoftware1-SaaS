@@ -3,6 +3,14 @@ const number = new Intl.NumberFormat('es-GT', { maximumFractionDigits: 1 });
 const fullDate = new Intl.DateTimeFormat('es-GT', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Guatemala' });
 const shortDate = new Intl.DateTimeFormat('es-GT', { dateStyle: 'medium', timeZone: 'America/Guatemala' });
 
+const dateTime = new Intl.DateTimeFormat('es-GT', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Guatemala' });
+
+/** Fecha y hora compactas para filas de tabla. */
+export function formatDateTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? '—' : dateTime.format(date);
+}
+
 export function formatDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? '—' : shortDate.format(date);
@@ -26,6 +34,15 @@ export function formatBytes(value) {
   let scaled = bytes;
   do { scaled /= 1000; index += 1; } while (scaled >= 1000 && index < units.length - 1);
   return `${number.format(scaled)} ${units[index]}`;
+}
+
+/** Como formatBytes, pero redondea hacia arriba: liberar lo que indica debe alcanzar. */
+export function formatBytesCeil(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 1000) return formatBytes(value);
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  const index = Math.min(Math.floor(Math.log10(bytes) / 3) - 1, units.length - 1);
+  return `${number.format(Math.ceil((bytes / 1000 ** (index + 1)) * 10) / 10)} ${units[index]}`;
 }
 
 export function formatFullDate(value) {

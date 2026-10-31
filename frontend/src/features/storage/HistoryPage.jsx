@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CloudUpload, LoaderCircle } from 'lucide-react';
+import { RowsSkeleton } from '../../components/Skeletons.jsx';
 import { formatBytes, formatPercent, savingRatio } from './format.js';
 import { Thumb } from './Gallery.jsx';
 import { useLibrary } from './library.jsx';
@@ -44,6 +45,8 @@ export function HistoryPage() {
           <p>Todo lo que has subido, día por día.</p>
         </div>
       </header>
+
+      {!loaded && <RowsSkeleton rows={4} label="Cargando tu historial…" />}
 
       {loaded && days.length === 0 && (
         <div className="panel panel-empty">

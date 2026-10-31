@@ -39,7 +39,7 @@ function QuotaMeter({ item, index }) {
  * Plan y cuota del usuario según GET /api/quotas/me (S3-08).
  * Las cifras vienen del servidor; no se calculan con la página de la galería.
  */
-export function QuotaSummary({ upgrade = true }) {
+export function QuotaSummary({ upgrade = true, title = 'Tu plan' }) {
   const { quota, refreshQuota } = useLibrary();
   const view = describeQuota(quota.data);
   const day = view ? formatQuotaDay(view.day) : '';
@@ -47,7 +47,7 @@ export function QuotaSummary({ upgrade = true }) {
   return (
     <section className={`panel quota-summary${view ? ` is-${view.level}` : ''}`} aria-labelledby="quota-title" aria-busy={quota.loading}>
       <div className="panel-head">
-        <h2 id="quota-title">Tu plan{view && <span className="quota-plan">{view.plan.name}</span>}</h2>
+        <h2 id="quota-title">{title}{view && <span className="quota-plan">{view.plan.name}</span>}</h2>
         <div className="quota-actions">
           {upgrade && view && <Link className="panel-link" to="/app/plans"><Rocket strokeWidth={2} aria-hidden="true" />Mejorar plan</Link>}
           <button type="button" className="icon-button is-small" onClick={refreshQuota} disabled={quota.loading} aria-label="Actualizar cuota" title="Actualizar cuota">

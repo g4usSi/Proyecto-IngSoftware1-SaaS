@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, LayoutDashboard, ListChecks, Menu, Moon, ScrollText, Sparkles, Sun, Trash2, UserCog, Users, Workflow, X } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, LayoutDashboard, ListChecks, Menu, Moon, Receipt, ScrollText, Sparkles, Sun, Trash2, UserCog, Users, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
@@ -28,6 +28,13 @@ export const navGroups = [
     ],
   },
   { label: 'Análisis', items: [{ to: '/app/insights', label: 'Ahorro', icon: ChartNoAxesColumn }] },
+  {
+    label: 'Tu plan',
+    items: [
+      { to: '/app/plans', label: 'Planes', icon: BadgeCheck },
+      { to: '/app/payments', label: 'Pagos', icon: Receipt },
+    ],
+  },
 ];
 // Solo se muestra a role === 'admin'; el servidor igual responde 403 a un cliente.
 export const adminGroup = {
@@ -41,9 +48,8 @@ export const adminGroup = {
     { to: '/app/admin/audit', label: 'Bitácora', icon: ScrollText },
   ],
 };
-// La tarjeta de almacenamiento ofrece un único acceso visible a los planes en el sidebar.
 const titles = { ...Object.fromEntries([...navGroups, adminGroup].flatMap((group) => group.items.map((item) => [item.to, item.label]))),
-  '/app/plans': 'Planes', '/app/security': 'Cambiar contraseña', '/app/profile': 'Mi perfil', '/app/payments': 'Historial de pagos' };
+  '/app/security': 'Cambiar contraseña', '/app/profile': 'Mi perfil', '/app/payments': 'Historial de pagos' };
 
 export function AppLayout() {
   const { session } = useSession();

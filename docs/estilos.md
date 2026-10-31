@@ -18,6 +18,12 @@ Alegría coordina la presentación y los componentes compartidos. Cada módulo m
 
 Cada archivo incluye sus propias reglas adaptables (`@media`). Los componentes compartidos se importan antes que las pantallas; no duplicar sus reglas en los módulos.
 
+## Estados de carga
+
+Toda pantalla que consulta la API muestra un esqueleto con la forma del contenido final (`frontend/src/components/Skeletons.jsx`: `TableSkeleton`, `RowsSkeleton`, `DetailSkeleton`), nunca ceros ni un estado vacío mientras espera. Aparecen con 120 ms de retraso para no parpadear si la respuesta es rápida y anuncian la carga a lectores de pantalla. Si la consulta falla, se muestra el error con «Volver a intentar» y «No disponible» en las cifras.
+
+Los flujos por pasos dentro de un diálogo usan `stepKey` de `ActionDialog`, que anima el cambio de contenido y mueve el foco a la acción del paso. El pago tiene una ventana de procesamiento propia, de 700 ms como mínimo, que no se puede cerrar hasta conocer el resultado.
+
 ## Cambiar la paleta
 
 Editar las variables de `theme.css`. Las principales son:
