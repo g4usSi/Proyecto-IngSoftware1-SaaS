@@ -33,18 +33,21 @@ Free conserva su capacidad, sus dos límites diarios y la asignación al registr
 - Planes pagados: un **mes calendario**, conservando la hora local en
   `America/Guatemala` y ajustando al último día del mes destino si el día inicial
   no existe. Ejemplos: 31/01/2027 → 28/02/2027; 31/01/2028 → 29/02/2028.
-  Free no tiene vencimiento periódico. La activación y renovación de estas
-  fechas corresponde a S4-02/S4-03; el catálogo publica la regla.
+  Free no tiene vencimiento periódico. La contratación y la renovación aplican
+  esta regla; ver [suscripciones y pagos](api.md#suscripciones-y-pagos-s4-02-y-s4-03).
 
 ## Enterprise
+
+**Estado actual: la tarifa de excedente se publica, pero no se mide ni se cobra.**
+El pago de Enterprise es de US$40 y su capacidad operativa se mantiene en 200 GB.
+Lo que sigue es el contrato acordado por si se implementa.
 
 La base mensual de US$40 incluye los primeros **200 GB**. Sólo el excedente genera
 cargo variable. Medir el almacenamiento lógico publicado por tiempo, sin cobrar
 reservas pendientes ni tráfico acumulado de subida. La papelera conserva consumo
 hasta el borrado definitivo, igual que la cuota actual.
 
-Contrato para S4-02/S4-03: dividir el período mensual en intervalos de consumo
-constante y calcular:
+Fórmula: dividir el período mensual en intervalos de consumo constante y calcular:
 
 ```text
 GB-mes adicionales = suma(max(0, bytes lógicos - 200000000000) × duración del intervalo)
@@ -65,15 +68,13 @@ acumular consumo futuro, sin borrar el consumo ya medido del período.
 | 300 GB durante 3 días; hasta 200 GB los otros 27 | 2.00 | 42.00 |
 | 250 GB durante 15 días; hasta 200 GB los otros 15 | 5.00 | 45.00 |
 
-Estos ejemplos describen el contrato, no recibos ni cobros ejecutados. La medición
-histórica y la facturación corresponden a S4-02/S4-03; el consumo diario de subidas
-no sirve para reconstruir GB-mes almacenados. No utilizar bytes físicos WebP ni
-el total actual de almacenamiento como sustitutos del historial por tiempo.
+Estos ejemplos describen el contrato, no cobros ejecutados. El consumo diario de
+subidas no sirve para reconstruir GB-mes almacenados. No utilizar bytes físicos
+WebP ni el total actual de almacenamiento como sustitutos del historial por tiempo.
 
 El paquete base conserva un límite operativo de 200 GB. Admitir almacenamiento
-adicional requiere implementar y autorizar una ampliación por suscripción en
-S4-03, con la medición anterior y un límite acordado. Publicar una tarifa de
-excedentes no habilita cobros ni expansión automática en el módulo actual.
+adicional requiere implementar y autorizar una ampliación por suscripción, con la
+medición anterior y un límite acordado.
 Las condiciones personalizadas requieren un acuerdo aparte. SDK por nivel,
 prioridad de procesamiento y soporte son propuestas de alcance posterior; no
 se publican como permisos ni prestaciones ya implementados. La API autenticada
@@ -147,19 +148,8 @@ Ejemplo de Enterprise; `id` es el UUID devuelto por PostgreSQL:
 
 Catálogo sin planes activos: `200`, `{ "data": [] }`. Base de datos o migraciones
 no disponibles: `503 DATABASE_UNAVAILABLE`, sin información interna. La guía de
-consumo para Alegría está en [frontend-80-contratos.md](frontend-80-contratos.md).
+consumo está en [frontend-80-contratos.md](frontend-80-contratos.md).
 
-## Verificación y cierre de S4-01
-
-- Prueba HTTP del contrato y de indisponibilidad en `paid-plans.test.js`.
-- PostgreSQL real en `paid-plans.integration.test.js`: actualización desde el
-  esquema previo y desde la 008, conservación de Free/suscripciones/consumo,
-  reejecución, rollback y reintento, USD, tarifa Enterprise, planes inactivos,
-  catálogo vacío y fronteras de cuotas reales.
-- Regresión del backend con PostgreSQL/Redis y compilación con `npm run check`.
-  Consultar [evidencia de esta revisión](evidencias/2026-10-14-s4-01/resultado.json).
-
-La matriz y el contrato quedan definidos para revisar el cierre propio de
-S4-01. Pagos e historial (S4-02), renovación/cambio (S4-03), interfaz (S4-06) y
-regresión conjunta (S4-09) conservan sus criterios independientes. Las pruebas
-de catálogo no acreditan cobros, renovación ni una entrega académica.
+Pruebas: `paid-plans.test.js` (contrato HTTP e indisponibilidad) y
+`paid-plans.integration.test.js` (PostgreSQL real). Registro de la revisión:
+[historial de Elden](historial/elden.md#catálogo-en-usd-s4-01-14102026).

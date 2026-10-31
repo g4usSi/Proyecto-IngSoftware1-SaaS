@@ -1,6 +1,6 @@
 # Contratos de API
 
-Álbumes, movimiento y papelera: [contratos de organización](organizacion-frontend.md#api-de-organización). La migración 007 añade `folderId`/`deletedAt` a los DTO y oculta de la biblioteca/descarga las imágenes en papelera. `DELETE /files/:id` conserva el borrado definitivo por compatibilidad.
+Referencia de todas las rutas. Guía orientada a las pantallas: [frontend-80-contratos.md](frontend-80-contratos.md). Autenticación y usuarios en detalle: [auth-frontend.md](auth-frontend.md). Permisos: [permisos-api.md](permisos-api.md).
 
 Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code": "CODIGO", "message": "Mensaje" } }`. No se devuelven trazas internas ni hashes de contraseña.
 
@@ -18,12 +18,22 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | POST   | `/auth/forgot-password`     | `200`, `{ data: { message } }`; `{ email }`, respuesta neutral sin revelar si existe la cuenta                                                                 |
 | POST   | `/auth/reset-password`      | `200`, `{ data: { reset: true } }`; `{ token, password }`, token de un solo uso, vence en 1 h                                                                  |
 | GET    | `/auth/me`                  | `200`, `{ data: user }`; requiere Bearer JWT                                                                                                                   |
+| PATCH  | `/auth/me`                  | `200`, usuario actualizado; solo se edita `name`; Bearer JWT                                                                                                   |
+| POST   | `/auth/change-password`     | `200`, `{ data: { changed: true } }`; `{ currentPassword, newPassword }`; Bearer JWT                                                                           |
 | POST   | `/auth/logout`              | `200`, `{ data: { loggedOut: true } }`; revoca el JWT actual                                                                                                   |
 | GET    | `/dev/storage-demo`         | `200`, `{ data: { enabled, accounts } }`; apagada no devuelve identidades                                                                                      |
 | GET    | `/files`                    | `200`, listado paginado privado; necesita autenticación o demo local explícita                                                                                 |
 | POST   | `/files`                    | `201`, recibe una imagen y confirma cuando el WebP está listo                                                                                                  |
 | GET    | `/files/:fileId/download`   | `200`, descarga WebP del propietario; recurso ajeno o inexistente: `404`                                                                                       |
-| DELETE | `/files/:fileId`            | `200`, elimina la referencia propia; conserva consumo diario y objetos compartidos                                                                             |
+| GET    | `/files/summary`            | `200`, consumo lógico frente a físico y ahorro de la cuenta; Bearer JWT                                                                                        |
+| PATCH  | `/files/:fileId`            | `200`, mueve la imagen: `{ folderId: UUID o null }`                                                                                                            |
+| POST   | `/files/:fileId/trash`      | `200`, envía a la papelera                                                                                                                                     |
+| POST   | `/files/:fileId/restore`    | `200`, restaura desde la papelera                                                                                                                              |
+| DELETE | `/files/:fileId`            | `200`, borrado definitivo de la referencia propia; conserva consumo diario y objetos compartidos                                                               |
+| GET    | `/albums`                   | `200`, álbumes propios con su contador de imágenes                                                                                                             |
+| POST   | `/albums`                   | `201`, crea un álbum: `{ name }`                                                                                                                               |
+| PATCH  | `/albums/:albumId`          | `200`, renombra: `{ name }`                                                                                                                                    |
+| DELETE | `/albums/:albumId`          | `200`, elimina el álbum y conserva sus imágenes                                                                                                                |
 | GET    | `/jobs`                     | `200`, trabajos propios paginados; Bearer JWT; `limit` y `cursor`                                                                                              |
 | GET    | `/jobs/:jobId`              | `200`, estado persistente privado; ajeno/inexistente: `404`                                                                                                    |
 | POST   | `/jobs`                     | `202`, admite multipart, reserva cuota y entrega el trabajo privado; Bearer JWT                                                                                |
@@ -34,13 +44,17 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET | `/admin/usage` | `200`, consumo por cuenta (lógico, reservado, disponible); requiere rol `admin` |
 | GET | `/admin/jobs` | `200`, cola global de procesamiento paginada (RF-STO-14); requiere rol `admin` |
 | GET | `/admin/audit-events` | `200`, bitácora de autenticación y cuentas (RF-AUT-12); requiere rol `admin` |
-| GET | `/files/summary` | `200`, consumo lógico frente a físico y ahorro de la cuenta; Bearer JWT |
+| GET | `/admin/users`, `/admin/users/:id` | `200`, lista y detalle de cuentas; requiere rol `admin` |
+| PATCH | `/admin/users/:id/status` | `200`, activa o desactiva una cuenta; requiere rol `admin` |
+| GET | `/subscriptions/me` | `200`, plan y suscripción vigentes; Bearer JWT |
+| POST | `/subscriptions/checkout` | `201`, contrata con pago simulado; `Idempotency-Key`; Bearer JWT |
+| POST | `/subscriptions/renew` | `201`, renueva con pago simulado; `Idempotency-Key`; Bearer JWT |
+| POST | `/subscriptions/change-plan` | `200`, sube con pago o baja sin cobro; Bearer JWT |
+| GET | `/payments` | `200`, historial paginado propio; Bearer JWT |
 | GET | `/payments/:paymentId/receipt` | `200`, factura PDF de un pago aprobado propio; Bearer JWT |
 | GET | `/payments/receipts` | `200`, PDF con una factura por pago aprobado; Bearer JWT |
 
 Cada pago aprobado de `checkout`, `renew` o `change-plan` envía además la factura en PDF al correo de la cuenta, por el mismo SMTP de los correos de autenticación (Brevo). El envío ocurre después de confirmar el pago y no bloquea la respuesta: si falla, se registra en el log del servidor, el pago se conserva y la factura sigue disponible en estas rutas. Un reintento con la misma `Idempotency-Key` no la reenvía. Sin variables `SMTP_*` no se envía nada. La factura es de un pago simulado y no tiene validez fiscal.
-
-Contratos para el frontend del 80 %: [frontend-80-contratos.md](frontend-80-contratos.md). Matriz de permisos: [permisos-api.md](permisos-api.md).
 
 Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimales para no perder precisión. Los contadores diarios limitados son enteros o `null`.
 
@@ -48,13 +62,13 @@ Los tamaños BIGINT y precios NUMERIC del catálogo viajan como strings decimale
 
 El catálogo describe capacidades; consultarlo no contrata ni activa una suscripción. Los precios, la vigencia y el alcance de Enterprise se documentan en [S4-01](planes-pagados-s4-01.md). Los beneficios de SDK, prioridad y soporte no son permisos implementados por este endpoint.
 
-Desde la migración 009, `monthlyPrice` y `currency` representan el importe mensual (USD), `billingPeriod` su vigencia y `pricingModel` el modelo de precio. Enterprise devuelve `monthlyPrice: "40.00"`, `capacityBytes: "200000000000"`, `includedStorageBytes: "200000000000"`, `storagePricePerGbMonth: "0.20"` y `storageBillingBasis: "time_weighted_excess"`: sólo se cobra el excedente de los 200 GB incluidos, ponderado por tiempo. La ampliación de capacidad y la medición para facturación corresponden a S4-02/S4-03. `monthlyPriceGtq` queda deprecado y devuelve `null` para dólares. La respuesta mantiene los límites diarios y el resto de campos anteriores. Ejecutar las migraciones antes de usar este contrato.
+Desde la migración 009, `monthlyPrice` y `currency` representan el importe mensual (USD), `billingPeriod` su vigencia y `pricingModel` el modelo de precio. Enterprise devuelve `monthlyPrice: "40.00"`, `capacityBytes: "200000000000"`, `includedStorageBytes: "200000000000"`, `storagePricePerGbMonth: "0.20"` y `storageBillingBasis: "time_weighted_excess"`. Esa tarifa de excedente se publica, pero no se mide ni se cobra, y la capacidad operativa se mantiene en 200 GB. `monthlyPriceGtq` queda deprecado y devuelve `null` para dólares. La respuesta mantiene los límites diarios y el resto de campos anteriores. Ejecutar las migraciones antes de usar este contrato.
 
-El login devuelve el campo **`token`**, no `accessToken`. El frontend lo envía con `Authorization: Bearer <token>` en las rutas privadas. `GET /auth/me` devuelve el usuario directamente dentro de `data`, no `{ data: { user } }`. Ver [contrato detallado de autenticación](auth-frontend.md) y [traspaso al frontend](frontend-handoff.md).
+El login devuelve el campo **`token`**, no `accessToken`. El frontend lo envía con `Authorization: Bearer <token>` en las rutas privadas. `GET /auth/me` devuelve el usuario directamente dentro de `data`, no `{ data: { user } }`. Ver [contrato detallado de autenticación](auth-frontend.md).
 
 ## Storage
 
-Para estados de procesamiento y recuperación, ver [entrega S3-05 a Alegría](s3-05-handoff.md) y [OpenAPI de trabajos](contracts/jobs.openapi.json). `converted` no equivale a imagen disponible; solo `published` puede habilitar descarga. La carga síncrona siguiente sigue vigente.
+Para estados de procesamiento y recuperación, ver [worker y cuotas](worker-cuotas.md) y [OpenAPI de trabajos](contracts/jobs.openapi.json). `converted` no equivale a imagen disponible; solo `published` puede habilitar descarga. La carga síncrona siguiente sigue vigente, aunque la interfaz web usa `POST /jobs`.
 
 `POST /files` recibe `multipart/form-data`, un único campo de archivo `file` y `folderId` opcional. No acepta un propietario suministrado en el cuerpo. Admite imágenes estáticas JPG, PNG o WebP de hasta 25,000,000 bytes y 40 millones de píxeles; el servidor valida el contenido real. Convierte a WebP calidad 80, aplica orientación y elimina EXIF/GPS. No persiste el original.
 
@@ -85,9 +99,28 @@ Si falta un archivo físico o su referencia no es válida, el listado sigue devo
 
 `DELETE /files/:fileId` devuelve `{ data: { deleted: true, imageId: "UUID" } }`. Un ID ajeno, inexistente o ya borrado responde `404`. Libera la capacidad de esa referencia, pero conserva el evento de consumo diario. El último enlace elimina el objeto lógico y programa la limpieza física durable; un WebP aún compartido se conserva. Si el archivo ya faltaba, también permite eliminar la referencia propia.
 
+## Álbumes, movimiento y papelera
+
+Todas las rutas requieren identidad autenticada.
+
+| Ruta | Entrada y respuesta dentro de `data` |
+| --- | --- |
+| `GET /albums` | `{ items: [{ id, name, createdAt, imageCount }] }`; `imageCount` cuenta imágenes activas, como string. |
+| `POST /albums` | `{ name }` → `201 { album }`. |
+| `PATCH /albums/:albumId` | `{ name }` → `{ album }`. |
+| `DELETE /albums/:albumId` | `{ deleted: true, albumId }`; conserva imágenes y deja sin álbum los procesos pendientes. |
+| `PATCH /files/:fileId` | `{ folderId: UUID o null }` → `{ imageId, folderId }`; `null` significa sin álbum. |
+| `GET /files` | Admite además `folderId=UUID`, `folderId=none` y `trash=true`; por defecto solo imágenes activas. |
+| `POST /files/:fileId/trash` | `{ trashed: true, imageId, deletedAt }`. |
+| `POST /files/:fileId/restore` | `{ restored: true, imageId }`. |
+
+Los DTO de imagen incluyen `folderId`, `deletedAt`, `hashPrefix` (12 caracteres; la API no expone el hash completo), `optimizedFormat` y `duplicate`. Nombres de álbum de 1–120 caracteres tras recortar espacios; un nombre repetido responde `409 ALBUM_NAME_CONFLICT`. Mover a un álbum ajeno o inexistente responde `404 FOLDER_NOT_FOUND`; actuar sobre uno ajeno o inexistente, `404 ALBUM_NOT_FOUND`; mover una imagen en papelera, `409 FILE_IN_TRASH`. Filtrar por un álbum ajeno devuelve una lista vacía. Enviar o restaurar repetidamente es idempotente mientras exista la referencia.
+
+Una imagen en papelera no se descarga y conserva su capacidad hasta el borrado definitivo; su proceso sigue `published`, con `available=false` y `downloadUrl=null`. Restaurar recupera el álbum si todavía existe. No hay caducidad ni vaciado automático.
+
 ## Admisión asíncrona y cuotas
 
-`POST /jobs` recibe el mismo multipart `file`/`folderId`, exige JWT y acepta `Idempotency-Key: UUID` opcional. Alegría debe generar una clave por entrada y conservarla al reintentar un envío incierto. Repetir propietario, clave, contenido, nombre y carpeta devuelve el mismo trabajo; cambiar esos datos responde `409 IDEMPOTENCY_CONFLICT`. Una clave ajena devuelve `404`. Para volver a intentar un trabajo terminal fallido, crear una clave nueva.
+`POST /jobs` recibe el mismo multipart `file`/`folderId`, exige JWT y acepta `Idempotency-Key: UUID` opcional. El cliente genera una clave por entrada y la conserva al reintentar un envío incierto. Repetir propietario, clave, contenido, nombre y carpeta devuelve el mismo trabajo; cambiar esos datos responde `409 IDEMPOTENCY_CONFLICT`. Una clave ajena devuelve `404`. Para volver a intentar un trabajo terminal fallido, crear una clave nueva.
 
 El `202` devuelve `{ data: ImageJob }` con `Location: /api/jobs/:jobId`. La admisión y la reserva ya están confirmadas en PostgreSQL; un fallo de entrega a Redis mantiene el trabajo recuperable y también devuelve `202`. No equivale a archivo disponible: consultar su estado y habilitar descarga sólo si `status === "published" && available`. El worker convierte, publica la referencia privada y confirma la cuota en la misma transacción. Los errores de formato pueden aparecer después como un trabajo `failed`; el rechazo HTTP previo cubre archivo ausente/vacío, tamaño, carpeta, identidad y cuotas.
 
@@ -114,9 +147,9 @@ El `202` devuelve `{ data: ImageJob }` con `Location: /api/jobs/:jobId`. La admi
 }
 ```
 
-Bytes y consumo viajan como strings decimales; `uploadLimit` es entero o `null` y `bytesLimit` es string o `null`. La capacidad incluye referencias sin archivo y reservas pendientes de cualquier fecha. El consumo diario y las reservas diarias corresponden al día de **admisión** en Guatemala, incluso si se confirma después de medianoche. Refrescar cuotas tras admisión, publicación, fallo y borrado. Una suscripción futura, vencida o un plan inactivo responde `403 NO_ACTIVE_SUBSCRIPTION`.
+Bytes y consumo viajan como strings decimales; `uploadLimit` es entero o `null` y `bytesLimit` es string o `null`. La capacidad incluye referencias sin archivo y reservas pendientes de cualquier fecha. El consumo diario y las reservas diarias corresponden al día de **admisión** en Guatemala, incluso si se confirma después de medianoche. Refrescar cuotas tras admisión, publicación, fallo y borrado. Una suscripción de pago vencida por fecha aplica los límites de Free; una suscripción futura, una no activa o un plan inactivo responde `403 NO_ACTIVE_SUBSCRIPTION`.
 
-Ambas rutas de subida siguen vigentes y comparten límites; usar sólo una por entrada del frontend. Ver [guía pendiente de Alegría](frontend-auth-jobs-handoff.md), [lifecycle y recuperación](worker-cuotas.md) y [OpenAPI](contracts/jobs.openapi.json).
+Ambas rutas de subida siguen vigentes y comparten límites; usar sólo una por entrada del frontend. Ver [lifecycle y recuperación](worker-cuotas.md) y [OpenAPI](contracts/jobs.openapi.json).
 
 Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inválida; `413 FILE_TOO_LARGE`; `415` formato o animación no admitidos; `403` capacidad o suscripción no válida; `429` cualquiera de los límites diarios; `503 STORAGE_INTEGRITY_ERROR` en descarga, deduplicación o estadísticas si falta un objeto que la BD declara disponible. El listado informa esos objetos mediante `unavailableItems`.
 
@@ -124,7 +157,7 @@ Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inváli
 
 ## Consultas administrativas (S4-04)
 
-Las tres rutas exigen `Authorization: Bearer <token>` de una cuenta activa con rol `admin`: sin sesión `401`, cliente `403 FORBIDDEN`. Son de solo lectura, responden `Cache-Control: private, no-store` y no usan columnas de precio, por lo que funcionan con el esquema hasta la migración 007 y con el de pagos (009). Los bytes y contadores viajan como strings decimales (1 GB = 1 000 000 000 bytes). Un parámetro desconocido, repetido o fuera de rango responde `400 INVALID_ADMIN_QUERY`.
+Estas rutas exigen `Authorization: Bearer <token>` de una cuenta activa con rol `admin`: sin sesión `401`, cliente `403 FORBIDDEN`. Son de solo lectura y responden `Cache-Control: private, no-store`. `GET /admin/jobs` y `GET /admin/audit-events` usan la misma paginación; sus formatos están en [frontend-80-contratos.md](frontend-80-contratos.md). Los bytes y contadores viajan como strings decimales (1 GB = 1 000 000 000 bytes). Un parámetro desconocido, repetido o fuera de rango responde `400 INVALID_ADMIN_QUERY`.
 
 Paginación común: `limit` (1–100, por defecto 20) y `offset` (por defecto 0). Las listas responden `{ items, total, limit, offset }`, con `total` como string. `search` (hasta 100 caracteres) busca por correo o nombre sin distinguir mayúsculas; `%` y `_` se tratan como texto.
 
@@ -168,15 +201,7 @@ Una cuenta sin suscripción vigente devuelve `plan: null`, `availableBytes: null
 
 ## Suscripciones y pagos (S4-02 y S4-03)
 
-Las siguientes rutas están implementadas y requieren autenticación mediante JWT.
-
-| Método | Ruta                             | Descripción                                   |
-| ------ | -------------------------------- | --------------------------------------------- |
-| GET    | `/api/subscriptions/me`          | Consulta el plan y la suscripción del usuario |
-| POST   | `/api/subscriptions/checkout`    | Contrata un plan mediante pago simulado       |
-| GET    | `/api/payments`                  | Consulta el historial de pagos del usuario    |
-| POST   | `/api/subscriptions/renew`       | Renueva la suscripción por un mes calendario  |
-| POST   | `/api/subscriptions/change-plan` | Permite subir o bajar de plan                 |
+Estas rutas requieren autenticación mediante JWT; ver la tabla de operaciones disponibles.
 
 ### Reglas de pagos
 
@@ -185,6 +210,7 @@ Las siguientes rutas están implementadas y requieren autenticación mediante JW
 - Las solicitudes de pago utilizan la cabecera `Idempotency-Key` para evitar cobros duplicados.
 - No se almacena el número completo de la tarjeta ni el CVV.
 - El historial de pagos pertenece únicamente al usuario autenticado.
+- Cada pago aprobado genera una factura, descargable y enviada por correo.
 
 ### Reglas de suscripciones
 
@@ -330,5 +356,7 @@ Errores actuales relevantes: `400` validación, `401` sesión inválida, `403` p
 - `image_processing_jobs`: admisión, estado, reintentos y referencia publicada.
 - `quota_reservations`/`quota_daily_usage`: reserva y consumo diario persistentes, independientes del borrado.
 - `storage_cleanup_tasks`: limpieza física durable después de borrar la última referencia.
+- `payments`: cada intento de pago simulado, con idempotencia y solo los últimos cuatro dígitos de la tarjeta.
+- `auth_events`: bitácora de autenticación y gestión de cuentas.
 
-La revocación usa `003_revoked_tokens.sql`, recuperación `004_password_resets.sql`, verificación `005_email_verification_tokens.sql`, trabajos `004_image_processing_jobs.sql`/`005_image_job_recovery.sql`, reservas `005_quota_reservations.sql` y el lifecycle compartido `006_shared_quota_lifecycle.sql`. Aplicar todas con `npm run db:migrate`; no modificar migraciones ya publicadas. Pagos y administración de suscripciones siguen pendientes.
+La revocación usa `003_revoked_tokens.sql`, recuperación `004_password_resets.sql`, verificación `005_email_verification_tokens.sql`, trabajos `004_image_processing_jobs.sql`/`005_image_job_recovery.sql`, reservas `005_quota_reservations.sql`, el lifecycle compartido `006_shared_quota_lifecycle.sql`, álbumes y papelera `007_albums_and_trash.sql`, el catálogo `008` y `009`, pagos `010` a `013` y la bitácora `014_auth_events.sql`. Aplicar todas con `npm run db:migrate`; no modificar migraciones ya publicadas.

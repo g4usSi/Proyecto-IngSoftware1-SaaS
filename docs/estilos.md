@@ -13,7 +13,9 @@ Alegría coordina la presentación y los componentes compartidos. Cada módulo m
 | `frontend/src/app/landing.css` | Portada, ilustración conceptual y explicación del producto |
 | `frontend/src/features/auth/auth.css` | Registro e inicio de sesión |
 | `frontend/src/features/storage/storage.css` | Reglas exclusivas de Storage |
+| `frontend/src/features/storage/organization.css`, `quota.css` | Álbumes, papelera y medidores de cuota |
 | `frontend/src/features/subscriptions/subscriptions.css` | Catálogo y pantallas de planes/pagos |
+| `frontend/src/features/admin/admin.css` | Panel de administración |
 | `frontend/src/styles/index.css` | Orden de importación; lo carga `main.jsx` una sola vez |
 
 Cada archivo incluye sus propias reglas adaptables (`@media`). Los componentes compartidos se importan antes que las pantallas; no duplicar sus reglas en los módulos.
@@ -26,22 +28,23 @@ Los flujos por pasos dentro de un diálogo usan `stepKey` de `ActionDialog`, que
 
 ## Cambiar la paleta
 
-Editar las variables de `theme.css`. Las principales son:
+Solo se eligen a mano los colores base de `theme.css`, que siguen la [guía de marca](../frontend/src/assets/brand/GUIA-DE-USO.md):
 
 ```css
 :root {
-  --color-primary: #fb7a3c;
-  --color-primary-hover: #ff9563;
-  --color-secondary: #8b5cf6;
-  --color-ink: #171325;
-  --color-dark: #0e0b18;
-  --color-paper: #fdf3ea;
-  --color-text-muted: #71697b;
-  --color-border: #e9e3ec;
+  --brand-orange: #fb7a3c; /* Acento y pieza inferior del símbolo */
+  --brand-navy: #1b304a;   /* Pieza superior y fondos oscuros */
+  --brand-ink: #171325;    /* Texto sobre fondo claro */
+  --brand-paper: #fdf3ea;  /* Fondo claro cálido */
+  --brand-white: #ffffff;
+  --brand-muted: #5f6b7a;  /* Texto secundario */
+  --color-status-online: #2f7d5b;
+  --color-status-offline: #a16a33;
+  --color-status-error: #c2413a;
 }
 ```
 
-Los tonos secundarios y transparencias también están centralizados, con nombres como `--color-sidebar-active-start`, `--color-auth-notice-surface` o `--color-illustration-sky`. Conservan los valores originales y se ajustan explícitamente: cambiar el acento principal no recalcula automáticamente todos sus tonos ni el color de una ilustración.
+Los demás tonos, como `--color-primary-hover` o `--color-sidebar-active-start`, se derivan con `color-mix`: al cambiar un color base cambian también sus variantes. El panel agrega sus propias variables `--app-*` en `app/layout.css`, con un juego para cada tema mediante `[data-theme="dark"]`.
 
 En las reglas usar `var(--color-...)`. Agregar un nuevo color a `theme.css` antes de usarlo; evitar hexadecimales, RGB o colores literales en JSX o en los CSS de módulos. `transparent`, `currentColor` y `inherit` expresan comportamiento, no otra paleta.
 
@@ -62,5 +65,3 @@ El logo React ya usa el acento del tema. Dos recursos del navegador son independ
 2. Revisar un ancho de escritorio y uno de móvil, texto legible, foco de teclado y estados deshabilitados/error.
 3. Ejecutar `npm run check` antes del pull request.
 4. Adjuntar capturas del cambio y solicitar revisión del integrante que mantiene la pantalla.
-
-Esta separación conserva la apariencia inicial; no implementa autenticación, carga ni pagos.
