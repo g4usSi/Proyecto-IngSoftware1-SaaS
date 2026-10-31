@@ -1,9 +1,44 @@
 import { createHash, randomUUID } from "node:crypto";
 import { AppError } from "../../lib/app-error.js";
-import { buildPdf, receiptLines } from "./receipt-pdf.js";
+import { invoiceEmail } from "./invoice-email.js";
+import { buildPdf, invoiceDetails, invoicePage } from "./receipt-pdf.js";
 
-export function createSubscriptionsService(repository) {
-  return {
+const invoiceFilename = (row) => `factura-${row.reference.slice(0, 8)}.pdf`;
+
+export function createSubscriptionsService(
+  repository,
+  { mailer, frontendUrl = "http://localhost:5173" } = {},
+) {
+  async function deliverInvoice(userId, { payment, subscription }) {
+    const [row] = await repository.listReceiptRows(userId, payment.id);
+    if (!row) return;
+
+    await mailer.sendInvoice({
+      to: row.user_email,
+      message: invoiceEmail({
+        invoice: invoiceDetails(row),
+        pdf: buildPdf([invoicePage(row)]),
+        filename: invoiceFilename(row),
+        expiresAt: subscription?.expiresAt ?? subscription?.expires_at,
+        paymentsUrl: `${frontendUrl.replace(/\/$/, "")}/app/payments`,
+      }),
+    });
+  }
+
+  // El correo sale después de confirmar la transacción y sin bloquear la respuesta: si Brevo falla,
+  // el pago sigue siendo válido y la factura se puede descargar desde el historial. Un reintento
+  // con la misma Idempotency-Key (repeated) no vuelve a enviarla.
+  function sendInvoiceOnce(userId, result) {
+    if (mailer?.sendInvoice && !result.repeated && result.payment?.status === "approved") {
+      deliverInvoice(userId, result).catch((error) => {
+        console.error(`[mailer] No se pudo enviar la factura del pago ${result.payment.id}: ${error.message}`);
+      });
+    }
+
+    return result;
+  }
+
+  const service = {
     async listPlans() {
       let plans;
 
@@ -784,8 +819,8 @@ export function createSubscriptionsService(repository) {
       }
 
       return {
-        filename: `recibo-${row.reference.slice(0, 8)}.pdf`,
-        pdf: buildPdf([receiptLines(row)]),
+        filename: invoiceFilename(row),
+        pdf: buildPdf([invoicePage(row)]),
       };
     },
 
@@ -797,7 +832,7 @@ export function createSubscriptionsService(repository) {
         throw new AppError(404, "NO_RECEIPTS", "Todavía no tienes pagos aprobados.");
       }
 
-      return { filename: "recibos-smartstorage.pdf", pdf: buildPdf(rows.map(receiptLines)) };
+      return { filename: "facturas-smartstorage.pdf", pdf: buildPdf(rows.map(invoicePage)) };
     },
 
     async getPaymentHistory(userId, page = 1, limit = 10) {
@@ -868,5 +903,12 @@ export function createSubscriptionsService(repository) {
         },
       };
     },
+  };
+
+  return {
+    ...service,
+    checkout: async (input) => sendInvoiceOnce(input.userId, await service.checkout(input)),
+    renew: async (input) => sendInvoiceOnce(input.userId, await service.renew(input)),
+    changePlan: async (input) => sendInvoiceOnce(input.userId, await service.changePlan(input)),
   };
 }

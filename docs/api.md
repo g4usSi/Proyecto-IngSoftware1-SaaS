@@ -35,8 +35,10 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET | `/admin/jobs` | `200`, cola global de procesamiento paginada (RF-STO-14); requiere rol `admin` |
 | GET | `/admin/audit-events` | `200`, bitácora de autenticación y cuentas (RF-AUT-12); requiere rol `admin` |
 | GET | `/files/summary` | `200`, consumo lógico frente a físico y ahorro de la cuenta; Bearer JWT |
-| GET | `/payments/:paymentId/receipt` | `200`, recibo PDF de un pago aprobado propio; Bearer JWT |
-| GET | `/payments/receipts` | `200`, PDF con un recibo por pago aprobado; Bearer JWT |
+| GET | `/payments/:paymentId/receipt` | `200`, factura PDF de un pago aprobado propio; Bearer JWT |
+| GET | `/payments/receipts` | `200`, PDF con una factura por pago aprobado; Bearer JWT |
+
+Cada pago aprobado de `checkout`, `renew` o `change-plan` envía además la factura en PDF al correo de la cuenta, por el mismo SMTP de los correos de autenticación (Brevo). El envío ocurre después de confirmar el pago y no bloquea la respuesta: si falla, se registra en el log del servidor, el pago se conserva y la factura sigue disponible en estas rutas. Un reintento con la misma `Idempotency-Key` no la reenvía. Sin variables `SMTP_*` no se envía nada. La factura es de un pago simulado y no tiene validez fiscal.
 
 Contratos para el frontend del 80 %: [frontend-80-contratos.md](frontend-80-contratos.md). Matriz de permisos: [permisos-api.md](permisos-api.md).
 

@@ -1,8 +1,9 @@
-// RF-PAG-03: recibos PDF individuales y masivos, y forma pública de las respuestas de pago.
+// RF-PAG-03: facturas PDF individuales y masivas, envío por correo y forma pública de las respuestas de pago.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import test from 'node:test';
+import { createFakeMailer } from './helpers/fake-auth-database.js';
 import { fixture as workerFixture } from './helpers/worker-fixture.js';
 import { createApp } from '../src/app.js';
 import { createTokenService } from '../src/modules/auth/token.js';
@@ -21,7 +22,7 @@ async function setup(t) {
 }
 
 async function withApi(f, run) {
-  const server = createApp({ ...f, storageDemo: false, jwtSecret: SECRET, enqueueJob: async () => {} }).listen(0, '127.0.0.1');
+  const server = createApp({ ...f, mailer: f.mailer ?? createFakeMailer(), storageDemo: false, jwtSecret: SECRET, enqueueJob: async () => {} }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}/api`;
   const call = async (user, route, { method = 'GET', body, key } = {}) => {
@@ -51,7 +52,71 @@ function assertValidPdf(buffer) {
   return text;
 }
 
-test('RF-PAG-03: recibo individual en PDF para un pago aprobado propio', options, async (t) => {
+async function waitFor(condition) {
+  for (let i = 0; i < 100; i += 1) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.fail('La condición no se cumplió a tiempo.');
+}
+
+test('RF-PAG-03: cada pago aprobado envía una sola factura al correo de la cuenta', options, async (t) => {
+  const f = await setup(t);
+  f.mailer = createFakeMailer();
+  const [a] = f.users;
+  await withApi(f, async ({ json }) => {
+    const key = randomUUID();
+    const first = await json(a, '/subscriptions/checkout', { method: 'POST', body: { planCode: 'standard', card: OK }, key });
+    assert.equal(first.status, 201);
+    await waitFor(() => f.mailer.invoices.length === 1);
+
+    const [sent] = f.mailer.invoices;
+    assert.equal(sent.to, 'a@worker.test');
+    assert.match(sent.message.subject, /^Tu factura de SmartStorage SS-[0-9A-F]{8}$/);
+    const [pdf, logo] = sent.message.attachments;
+    assert.equal(pdf.contentType, 'application/pdf');
+    assert.match(pdf.filename, /^factura-[0-9a-f]{8}\.pdf$/);
+    assert.ok(assertValidPdf(pdf.content).includes('USD 8.00'));
+    assert.equal(logo.cid, 'smartstorage-logo');
+    assert.ok(sent.message.html.includes('cid:smartstorage-logo'));
+    assert.ok(sent.message.html.includes('USD 8.00'));
+    assert.ok(sent.message.html.includes('simulado'));
+    assert.ok(!`${sent.message.html}${sent.message.text}`.includes('4242424242424242'), 'nunca el número completo de la tarjeta');
+
+    const repeated = await json(a, '/subscriptions/checkout', { method: 'POST', body: { planCode: 'standard', card: OK }, key });
+    assert.equal(repeated.body.data.repeated, true);
+    await pay(json, a, 'pro', DENIED);
+    await json(a, '/subscriptions/change-plan', { method: 'POST', body: { planCode: 'free' }, key: randomUUID() });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(f.mailer.invoices.length, 1, 'ni el reintento, ni el rechazo, ni bajar de plan envían factura');
+
+    await pay(json, a, 'standard');
+    await waitFor(() => f.mailer.invoices.length === 2);
+    await json(a, '/subscriptions/renew', { method: 'POST', body: { card: OK }, key: randomUUID() });
+    await waitFor(() => f.mailer.invoices.length === 3);
+    await json(a, '/subscriptions/change-plan', { method: 'POST', body: { planCode: 'pro', card: OK }, key: randomUUID() });
+    await waitFor(() => f.mailer.invoices.length === 4);
+    assert.ok(f.mailer.invoices[3].message.html.includes('plan Pro'), 'renovar y mejorar de plan también envían factura');
+  });
+});
+
+test('RF-PAG-03: si falla el correo, el pago se conserva y la factura se puede descargar', options, async (t) => {
+  const f = await setup(t);
+  const [a] = f.users;
+  const logged = [];
+  t.mock.method(console, 'error', (line) => { logged.push(String(line)); });
+  f.mailer = { ...createFakeMailer(), async sendInvoice() { throw new Error('smtp caido'); } };
+  await withApi(f, async ({ call, json }) => {
+    const paid = await pay(json, a, 'standard');
+    assert.equal(paid.status, 201);
+    assert.equal(paid.body.data.payment.status, 'approved');
+    await waitFor(() => logged.some((line) => line.includes('smtp caido')));
+    const receipt = await call(a, `/payments/${paid.body.data.payment.id}/receipt`);
+    assert.equal(receipt.status, 200);
+  });
+});
+
+test('RF-PAG-03: factura individual en PDF para un pago aprobado propio', options, async (t) => {
   const f = await setup(t);
   const [a, b] = f.users;
   await withApi(f, async ({ call, json }) => {
@@ -61,10 +126,11 @@ test('RF-PAG-03: recibo individual en PDF para un pago aprobado propio', options
     const response = await call(a, `/payments/${approved.id}/receipt`);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('content-type'), 'application/pdf');
-    assert.match(response.headers.get('content-disposition'), /^attachment; filename="recibo-[0-9a-f]{8}\.pdf"$/);
+    assert.match(response.headers.get('content-disposition'), /^attachment; filename="factura-[0-9a-f]{8}\.pdf"$/);
     assert.equal(response.headers.get('cache-control'), 'private, no-store');
     const text = assertValidPdf(Buffer.from(await response.arrayBuffer()));
-    for (const expected of ['Recibo de pago', `Referencia: ${approved.reference}`, 'plan Est', 'USD 8.00', 'Estado: Pagado', '4242', 'a@worker.test']) {
+    const number = `SS-${approved.reference.slice(0, 8).toUpperCase()}`;
+    for (const expected of ['FACTURA', `No. ${number}`, approved.reference, 'plan Est', 'USD 8.00', 'PAGADO', '**** 4242', 'a@worker.test', 'validez fiscal']) {
       assert.ok(text.includes(expected), `el PDF debe incluir "${expected}"`);
     }
     assert.ok(!text.includes('4242424242424242'), 'nunca el número completo de la tarjeta');

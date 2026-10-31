@@ -4,10 +4,10 @@ import { createSubscriptionsRepository } from "./subscriptions.repository.js";
 import { createSubscriptionsService } from "./subscriptions.service.js";
 import { createSubscriptionsController } from "./subscriptions.controller.js";
 
-export function createSubscriptionsRouter(database) {
+export function createSubscriptionsRouter(database, { mailer, frontendUrl } = {}) {
   const router = Router();
   const repository = createSubscriptionsRepository(database);
-  const service = createSubscriptionsService(repository);
+  const service = createSubscriptionsService(repository, { mailer, frontendUrl });
   const controller = createSubscriptionsController(service);
 
   router.get("/plans", controller.listPlans);
