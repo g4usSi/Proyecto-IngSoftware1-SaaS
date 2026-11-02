@@ -19,7 +19,7 @@ bloquea únicamente los campos afectados; continuar el resto.
 | GitHub | https://github.com/g4usSi/Proyecto-IngSoftware1-SaaS | Código publicado, PR, revisiones y checks |
 | Git local | Este proyecto, remoto `origin` | Avance local, separado de lo publicado |
 | Drive | Carpeta `SmartStorage — Proyecto Ing. Software I` | Excel canónico y documentación |
-| Excel | `SmartStorage_Cronograma_Gantt.xlsm`, ID `1SMecjxIJ115mBqpsUEtE4nrUZ0JpXjf-` | Planificación y evidencia por ID |
+| Excel | `SmartStorage_Cronograma_Gantt.xlsm`, ID `1JhEX_6Sa90r3Dhu0SUcJ7GUlOmXF6S5C` | Planificación y evidencia por ID |
 | Trello | https://trello.com/b/uOpp9rO7/smartstorage-proyecto-ing-software-i | Seguimiento operativo |
 
 Copia local conocida:
@@ -28,8 +28,8 @@ No sustituye al Excel de Drive. Resolver y guardar ID/URL del archivo remoto
 antes de escribir; si existen candidatos indistinguibles, pedir solo esa
 identificación. No convertir el archivo a Sheets ni crear otra copia canónica.
 
-Archivo canónico confirmado el 30/09/2026:
-https://drive.google.com/file/d/1SMecjxIJ115mBqpsUEtE4nrUZ0JpXjf-/view
+Archivo canónico (ID vigente desde el 21/10/2026; antes `1SMecjxIJ115mBqpsUEtE4nrUZ0JpXjf-`):
+https://drive.google.com/file/d/1JhEX_6Sa90r3Dhu0SUcJ7GUlOmXF6S5C/view
 Es Excel `.xlsm`, no una hoja nativa de Google Sheets. Preservar su formato y
 contenido de macros, si existe, al actualizar los bytes del mismo ID.
 

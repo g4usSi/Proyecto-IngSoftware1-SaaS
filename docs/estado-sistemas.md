@@ -1,59 +1,50 @@
 # Estado de sistemas
 
-## Versión actual: v0.2.0 — 50%, 09/10/2026
+Estado técnico del proyecto. El avance de cada tarjeta se lleva en Trello y en el Excel de Drive; este archivo no los reemplaza. El registro de cortes anteriores está en [historial](historial/geovanny.md).
 
-El alcance técnico del 50% y la revisión conjunta S3-11 están completos según la evidencia publicada y la confirmación del usuario del 09/10. La segunda versión incorpora las cuentas de Andy, cuotas de Elden, Storage/worker/organización de Geovanny e interfaz de Alegría. Consultar [alcance y aceptación del 50%](avance-50.md) para novedades y resultados de validación de la release. La publicación en main es distinta de la entrega académica: S3-12 permanece lista para entregar, sin constancia de presentación. S2-14/S2-16 conservan sus pendientes históricos.
+## Avance del 80 %, versión `v0.3.0` publicada el 01/11/2026
 
-## Primera versión v0.1.0 (corte histórico)
+`main` integra `tema-y-flujo-git` hasta el cierre técnico del avance del 80 %.
+La fecha planeada de entrega académica fue el 31/10/2026; esta versión de
+software no confirma por sí sola que S4-10 se haya presentado al curso.
 
-Este documento conserva el corte histórico del 01/10/2026. Para el backend incorporado el 07/10, consultar [S3-08/S3-11](s3-11-handoff.md) y la [guía vigente del frontend](frontend-auth-jobs-handoff.md).
-
-Corte del 01/10/2026 desde `7c7f397d6eb8278dc7339d605205222086a1e45c`, conservando los cambios de `main`. El alcance del 30% es la propuesta funcional del equipo descrita en [avance-30](avance-30.md), no una rúbrica calculada contando tarjetas. `v0.1.0` identifica este primer avance; `v1.0.0` se reserva para el alcance final aceptado.
-
-## Sistemas listos para este corte
-
-| Sistema / tareas | Estado y alcance comprobado | Evidencia |
+| Módulo | Responsable | Estado |
 | --- | --- | --- |
-| Base y esquema — S2-01 | Listo: esqueleto, migraciones y compilación | Migraciones sobre PostgreSQL temporal; `npm run check` |
-| Usuarios — S2-02, S2-03 | Listo: registro, scrypt, login JWT, protección y aislamiento | Pruebas backend e integración real; registro/login en navegador |
-| Free y cuotas — S2-04 a S2-06 | Listo: catálogo, asignación atómica de Free, capacidad y límites diarios del flujo síncrono | PostgreSQL: límites exactos, concurrencia y cambio de día |
-| Storage — S2-07 a S2-10 | Listo: JPG/PNG/WebP estáticos hasta 25 MB, SHA-256, conversión, deduplicación global, galería y descarga privadas | Pruebas con dos cuentas, disco real, rollback y reinicio de API |
-| Interfaz — S2-11, S2-12 | Lista: formularios, errores y recorrido real conectado | 10 escenarios Edge con API y PostgreSQL; capturas móvil/escritorio |
-| Ahorro administrativo — S2-13 | Listo en API: bytes originales lógicos menos WebP físicos únicos; permisos y aumento de tamaño | Pruebas HTTP/SQL/disco; caso 38 B → 44 B. Panel visual pendiente del 80% |
-| Aceptación — S2-15 | Lista para el recorrido definido | 44/44 pruebas backend y 10/10 escenarios históricos; ver [resultado](evidencias/2026-09-30/resultado.json) y [comandos](aceptacion-30.md) |
-| Sesiones — S3-03 | Listas: revocación y logout integrados; expiración probada en backend | Logout/relogin en navegador. Vencimiento por tiempo en navegador sin ejercitar |
+| Storage, cuotas y worker | Geovanny | Implementado; el detalle de imagen es parcial (RF-STO-11) |
+| Pagos y suscripciones | Elden | Implementado, con pago simulado y factura por correo |
+| Usuarios, perfil, administración y permisos | Andy | Implementado |
+| Frontend | Diego Alegría | Integrado con el PR #7 (`627b3cb`) y ajustes del 30/10 (`e8cb7d0`) |
 
-Revisión de compañero: el usuario informa el 01/10/2026 que Alegría revisa cada módulo cuando integra su frontend. Esta declaración cubre los módulos ya integrados arriba; no se extiende al nuevo worker. Es revisión reportada, no un review formal registrado en GitHub. Las pruebas de publicación se registran en el PR con su fecha y resultado; no confundirlas con la evidencia histórica.
+**Requisitos al 30/10/2026:** de 58, 45 implementados, 5 parciales, 6 por validar y 2 pendientes.
 
-## Pendientes que se conservan
+**Última verificación:**
 
-- S2-14: Trello declara requisitos/diagramas terminados por el equipo; el Excel los mantiene en revisión. Conservar ambas declaraciones hasta localizar y conciliar los diagramas. Esta matriz documenta el estado técnico, pero no sustituye esos entregables.
-- S2-16: el PR acredita publicación e integración al fusionarse. La constancia de presentación académica permanece pendiente y atrasada con su fecha original.
-- 50% (09/10): correo, recuperación/cambio de contraseña, admisión asíncrona y reservas, recuperación completa, borrado, álbumes y sus pantallas/regresión. El worker parcial `e590ae8` queda fuera de esta versión.
-- No se acredita despliegue, ejecución de Docker, caída abrupta del sistema ni aceptación final del proyecto.
+| Comando | Resultado | Commit |
+| --- | --- | --- |
+| `npm run test:storage` con PostgreSQL y Redis reales | 202/202 | `a91b84f` |
+| `npm run test:frontend` (API simulada) | Aprobado, 24 recorridos | `a91b84f` |
+| `npm run check` | Aprobado | `a91b84f` |
+| `npm run test:organization-browser` | 12 recorridos | `e8cb7d0`; no se repitió después |
+
+## Lo que falta o no está comprobado
+
+- **Correo real por Brevo:** se comprobó la autenticación y el contenido con un SMTP local, pero no la llegada de una factura a un buzón.
+- **HTTPS y despliegue público** (RNF-STO-02): la aplicación corre en local por HTTP. El enunciado pide demostrar despliegue en ambientes productivos; conviene confirmar el alcance con la docente.
+- **SDK y claves de API** (CU-14, RNF-STO-03): pendientes.
+- **Rendimiento y disponibilidad** (RNF-AUT-03, RNF-AUT-04, RNF-STO-01, RNF-STO-05, RNF-PAG-02, RNF-PAG-04): sin medición.
+- **Enterprise:** la tarifa por GB-mes adicional se publica, pero no se mide ni se cobra.
+- **Sin implementar:** cancelación manual y cambio de método de pago.
+- **Entrega S4-10:** debe registrarse la constancia en su tarjeta.
 
 ## Cómo reportar un sistema listo
 
-El [acuerdo de cierre por módulo del 03/10/2026](criterios-cierre-modulos.md)
-separa la entrega individual del acoplamiento posterior de Alegría. Una tarjeta
-Hecha acredita la parte del responsable; la integración y la aceptación del
-recorrido completo se informan en sus propias tareas.
+Cada integrante termina su módulo de forma independiente (acuerdo del 03/10/2026). Una tarjeta pasa a Hecho cuando su parte está implementada, sus pruebas comprueban el comportamiento y su contrato permite acoplarla. No se espera a las pantallas, a otro integrante ni a `main`. Un defecto que incumple el criterio propio sí impide el cierre. La revisión conjunta se registra en las tareas de integración.
 
-1. Referenciar el ID del Excel/Trello, alcance y criterio de aceptación; conservar dueño y fecha del plan.
-2. Registrar commit o PR publicado, comando/escenario, fecha y resultado. Indicar pruebas omitidas y limitaciones.
-3. Registrar el contrato que consumen los demás módulos y los resultados de pruebas propias. La revisión de compañero se registra al realizar la revisión conjunta o la integración, indicando quién y cómo; una declaración no se convierte en aprobación formal.
-4. Con la parte del responsable completa, pruebas propias aprobadas y contrato compatible, marcar `Hecha` en Excel y mover la tarjeta a `Hecho`, con evidencia y límites en el bloque de sincronización. No esperar frontend, revisión/acoplamiento de Alegría ni integración en `main`. Defectos que incumplen el criterio propio sí impiden el cierre. S3-09/S3-10 acreditan acoplamiento y S3-11 revisión/regresión conjunta.
-5. Para tareas parciales, mantener `Parcial` / `En progreso` y enumerar qué falta. Para entregas académicas, exigir constancia de entrega antes del cierre.
+1. Referenciar el ID del Excel o Trello, el alcance y el criterio de aceptación; conservar dueño y fecha del plan.
+2. Registrar commit o PR publicado, comando, fecha y resultado. Indicar pruebas omitidas y limitaciones.
+3. Registrar el contrato que consumen los demás. Distinguir lo probado con servicios reales de lo simulado; una declaración no se convierte en aprobación formal.
+4. Para tareas parciales, mantener `Parcial` / `En progreso` y enumerar qué falta. Para entregas académicas, exigir constancia antes del cierre.
 
-Formato de evidencia: `SmartStorage:S2-09 | Hecha | alcance: deduplicación global privada | pruebas: PostgreSQL y navegador, fecha/resultados | revisión: Alegría, reportada por usuario 01/10 | publicación: PR/commit | límites: sin worker asíncrono`.
+Formato de evidencia: `SmartStorage:S2-09 | Hecha | alcance: deduplicación global privada | pruebas: PostgreSQL y navegador, fecha/resultados | revisión: quién y cómo | publicación: PR/commit | límites: …`.
 
-Ejemplo de módulo cerrado sin frontend: `SmartStorage:S3-01 | Hecha como backend
-de Andy | publicación: feature/usuarios-login, a8dd16b | pruebas: 8/8 con
-BD/correo simulados, 03/10 | contrato: docs/auth-frontend.md | límites: SMTP
-real/PostgreSQL no verificados por el asistente | acoplamiento: S3-09 pendiente`.
-
-El archivo canónico de Drive y Trello se concilian con [Sincroniza SmartStorage](sincronizacion-smartstorage.md). El Gantt guardado en Git es histórico; no sustituye al Excel canónico. Se conserva también el Gantt original de `main` del 23/09 para evitar perder esa versión al integrar.
-
-## Validación del corte el 01/10/2026
-
-`npm run check` aprobado; `npm run test:storage`: 44/44, cero omisiones; `npm run test:browser`: 10/10 en Edge con PostgreSQL real. Docker confirmado: `smartstorage-postgres-1`, imagen `postgres:17`, estado healthy, PostgreSQL 17.11 en localhost:5433. Las dos suites se repitieron después de verificar el contenedor. Base temporal creada y eliminada por ejecución, conservando las bases existentes. Ver [resultado nuevo](evidencias/2026-10-01/resultado.json), iniciado 15:45 UTC. Redis y el worker no forman parte de este corte ni de esta validación.
+El Excel de Drive y Trello se concilian con [Sincroniza SmartStorage](sincronizacion-smartstorage.md). El Gantt guardado en Git es histórico y no sustituye al Excel canónico.

@@ -4,11 +4,12 @@ const API_BASE = '/api';
 export const UNAUTHORIZED_EVENT = 'smartstorage:unauthorized';
 
 export class ApiError extends Error {
-  constructor(message, code, status) {
+  constructor(message, code, status, details = null) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -45,6 +46,7 @@ async function throwResponseError(response) {
     typeof payload?.error?.message === 'string' ? payload.error.message : 'No se pudo completar la solicitud.',
     typeof payload?.error?.code === 'string' ? payload.error.code : 'REQUEST_FAILED',
     response.status,
+    payload?.error?.details ?? null,
   );
 }
 
@@ -67,4 +69,22 @@ export async function apiBlobRequest(path, options = {}) {
   const response = await request(path, options, 'image/webp');
   if (!response.ok) await throwResponseError(response);
   return response.blob();
+}
+
+/** Descarga autenticada que respeta el nombre de Content-Disposition (p. ej. recibos PDF). */
+export async function downloadAuthorized(path, { fallbackName, accept = 'application/pdf', ...options } = {}) {
+  const response = await request(path, options, accept);
+  if (!response.ok) await throwResponseError(response);
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(disposition);
+  const filename = match ? decodeURIComponent(match[1] ?? match[2]) : fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  return filename;
 }

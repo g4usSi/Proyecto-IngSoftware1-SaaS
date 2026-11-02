@@ -1,6 +1,6 @@
 {
   "name": "@smartstorage/backend",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,7 +12,7 @@
     "worker:images": "node src/workers/image-worker.js",
     "worker:recover": "node src/workers/recover-once.js",
     "check": "node scripts/check-syntax.js",
-    "test": "node --test",
+    "test": "node --import ./tests/helpers/no-real-smtp.js --test",
     "db:migrate": "node scripts/migrate.js",
     "db:seed:demo": "node scripts/seed-demo.js"
   },

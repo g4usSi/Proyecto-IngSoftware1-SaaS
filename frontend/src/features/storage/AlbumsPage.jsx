@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronRight, Folder, FolderOpen, FolderPlus, Images, MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { ActionDialog } from '../../components/ActionDialog.jsx';
+import { RowsSkeleton } from '../../components/Skeletons.jsx';
 import { useToast } from '../../components/Toaster.jsx';
 import { useSession } from '../auth/session.jsx';
 import { createAlbum, deleteAlbum, listAlbums, moveFile, renameAlbum, storageErrorMessage } from './storage.api.js';
@@ -109,7 +110,7 @@ export function AlbumsPage() {
     if (event.target.closest('input, button, select, a')) return;
     context(event);
   }}>
-    <header className="page-head"><div><span className="kicker">Biblioteca</span><h1>Álbumes</h1><p>Un lugar para cada imagen. Organiza por proyectos, viajes o ideas.</p></div><div className="organization-buttons"><button className="btn btn-secondary" type="button" onClick={loadAlbums} disabled={loading || busy || moving}><RefreshCw aria-hidden="true" />Actualizar álbumes</button><button className="btn btn-primary" type="button" onClick={() => open('create')}><FolderPlus aria-hidden="true" />Crear álbum</button></div></header>
+    <header className="page-head"><div><span className="kicker">Biblioteca</span><h1>Álbumes</h1><p>Un lugar para cada imagen. Organiza por proyectos, viajes o ideas.</p></div><div className="organization-buttons"><button className="btn btn-secondary" type="button" onClick={loadAlbums} disabled={loading || busy || moving}><RefreshCw className={loading ? 'spin' : undefined} aria-hidden="true" />Actualizar álbumes</button><button className="btn btn-primary" type="button" onClick={() => open('create')}><FolderPlus aria-hidden="true" />Crear álbum</button></div></header>
     <section className="album-browser" aria-label="Elegir álbum" aria-busy={loading}>
       <div className="album-section-head"><h2>Tus álbumes</h2><span>Abre un álbum o arrastra una imagen sobre él.</span></div>
       <p className="album-help">Cuenta: {session.user.email}</p>
@@ -126,7 +127,7 @@ export function AlbumsPage() {
       </div>}
       <p className="album-help">Funcionan como carpetas de un solo nivel: cada imagen puede estar en un solo álbum. Moverla no crea una copia. Usa clic derecho o los botones de acciones.</p>
       {moving && <p role="status">Moviendo imagen…</p>}
-      {loading && <p role="status">Cargando álbumes…</p>}
+      {loading && !loaded && <RowsSkeleton rows={3} panel={false} label="Cargando álbumes…" />}
       {error && <div role="alert"><p>No se pudo actualizar la lista de álbumes. {error}{loaded ? ' Se conserva la última lista consultada.' : ''}</p><button type="button" className="link-button" onClick={loadAlbums}>Reintentar</button></div>}
       {loaded && !loading && !error && !albums.length && <p className="album-help">Todavía no tienes álbumes en esta cuenta.</p>}
     </section>

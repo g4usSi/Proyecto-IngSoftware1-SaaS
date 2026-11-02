@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileImage, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { ActionDialog } from '../../components/ActionDialog.jsx';
+import { RowsSkeleton } from '../../components/Skeletons.jsx';
 import { useToast } from '../../components/Toaster.jsx';
 import { useSession } from '../auth/session.jsx';
 import { deleteFile, restoreFile, storageErrorMessage } from './storage.api.js';
@@ -35,10 +36,10 @@ export function TrashPage() {
     finally { if (!request.signal.aborted) setBusy(false); }
   }
   return <div className="page">
-    <header className="page-head"><div><span className="kicker">Biblioteca</span><h1>Papelera</h1><p>Restaura imágenes o elimínalas definitivamente para liberar espacio.</p></div><button type="button" className="btn btn-secondary" onClick={files.refresh} disabled={files.loading || busy}><RefreshCw aria-hidden="true" />Actualizar</button></header>
+    <header className="page-head"><div><span className="kicker">Biblioteca</span><h1>Papelera</h1><p>Restaura imágenes o elimínalas definitivamente para liberar espacio.</p></div><button type="button" className="btn btn-secondary" onClick={files.refresh} disabled={files.loading || busy}><RefreshCw className={files.loading ? 'spin' : undefined} aria-hidden="true" />Actualizar</button></header>
     <p className="gallery-unavailable">Las imágenes permanecen aquí hasta que las elimines definitivamente y siguen ocupando espacio. El borrado no devuelve el límite diario de subidas.</p>
     {(files.error || (!selected && error)) && <p role="alert" className="gallery-error">{files.error || error}</p>}
-    {files.loading && <p role="status">Cargando papelera…</p>}
+    {files.loading && !files.loaded && <RowsSkeleton rows={3} label="Cargando papelera…" />}
     {files.loaded && !files.error && !entries.length && <div className="panel panel-empty"><Trash2 aria-hidden="true" className="panel-empty-icon" /><h2>La papelera está vacía</h2><p>Las imágenes que retires de tu biblioteca aparecerán aquí.</p></div>}
     <ul className="trash-list">{entries.map((file) => <li className="panel trash-item" key={file.id}>
       <FileImage className="trash-file-icon" aria-hidden="true" /><div className="trash-file-info"><strong>{file.originalName}</strong><p>{formatBytes(file.originalSizeBytes)} · En papelera desde {formatFullDate(file.deletedAt)}</p></div>

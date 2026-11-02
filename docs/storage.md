@@ -1,10 +1,10 @@
-# Storage: entrega inicial de Geovanny
+# Storage
 
-El alcance inicial siguiente se conserva como contexto. Desde el 07/10/2026 también están implementados el borrado privado, la admisión asíncrona y las cuotas compartidas: ver [contratos actuales](api.md) y [worker](worker-cuotas.md).
+Responsable: Geovanny. Contratos: [API](api.md). Cola, recuperación y cuotas: [worker](worker-cuotas.md).
 
 ## Alcance implementado
 
-Subida individual → validación de imagen estática → SHA-256 del original → WebP calidad 80 → referencia privada en PostgreSQL → listado y descarga. La conversión termina antes del `201`; no se anuncia una cola ni progreso porcentual ficticio.
+Subida → validación de imagen estática → SHA-256 del original → WebP calidad 80 → referencia privada en PostgreSQL → listado y descarga. Hay dos rutas con las mismas validaciones y cuotas: `POST /api/jobs` (asíncrona, la que usa la interfaz) y `POST /api/files` (síncrona, termina antes del `201`).
 
 - Formatos de entrada: JPG, PNG y WebP. Máximo 25,000,000 bytes (25 MB decimales).
 - Límite de decodificación: 40 millones de píxeles, para acotar memoria durante esta conversión síncrona. El rechazo se comunica antes de crear una referencia.
@@ -13,7 +13,8 @@ Subida individual → validación de imagen estática → SHA-256 del original �
 - El original se elimina tras el procesamiento. Solo permanece el WebP.
 - Deduplicación global de **bytes originales idénticos**, no de imágenes visualmente parecidas.
 - Listado paginado y descargas por ID de imagen y propietario, sin exponer hashes ni rutas físicas.
-- Borrado, álbumes en la interfaz, cola y panel administrativo visual quedan fuera de este corte.
+- Álbumes de un solo nivel, movimiento de imágenes, papelera, restauración y borrado definitivo.
+- La papelera conserva la referencia y su capacidad hasta el borrado definitivo; no tiene caducidad automática. Eliminar un álbum conserva sus imágenes.
 
 ## Datos y archivos
 
@@ -63,7 +64,7 @@ El modo demo admite únicamente las dos identidades reservadas, peticiones local
 
 ## Cuotas y concurrencia
 
-Storage consulta la suscripción activa y vigente, y exige usuario y plan activos. Usa la capacidad lógica documentada: suma de tamaños originales por referencia, aunque el archivo ya exista físicamente. Free aplica 2 GB, 10 subidas y 200 MB diarios; el día comienza a medianoche de Guatemala.
+Storage consulta la suscripción vigente y exige usuario y plan activos; si una suscripción de pago venció, aplica los límites de Free sin borrar imágenes. Usa la capacidad lógica documentada: suma de tamaños originales por referencia, aunque el archivo ya exista físicamente. Los límites de cada plan están en el [catálogo](planes-pagados-s4-01.md); el día comienza a medianoche de Guatemala.
 
 Cada subida bloquea primero el usuario y después el hash del objeto dentro de una transacción. Así dos solicitudes simultáneas no pueden saltarse una cuota ni crear dos objetos físicos para el mismo original. El WebP se publica completo y la referencia se confirma junto con sus metadatos. Los temporales se limpian también en los errores controlados.
 
@@ -73,7 +74,7 @@ El worker conserva el WebP temporal hasta confirmar SQL y reconcilia los trabajo
 
 ## Ahorro administrativo
 
-`GET /api/admin/storage/stats` requiere un usuario autenticado con rol `admin`. Las dos cuentas demo son clientes. No se añade aún el panel visual.
+`GET /api/admin/storage/stats` requiere un usuario autenticado con rol `admin` y alimenta el panel de administración. Las dos cuentas demo son clientes. Cada cliente consulta su propio ahorro con `GET /api/files/summary`.
 
 Suma tamaños originales por referencia (`B`), por objeto único (`U`) y bytes físicos únicos (`P`). Devuelve `B - P` y su porcentaje; `B - U` y `U - P` permiten explicar deduplicación y conversión. El resultado puede ser negativo para originales que se expandan al convertir. Un archivo ausente devuelve un error de integridad, nunca un ahorro inventado.
 
@@ -99,6 +100,6 @@ Incluye autenticación real con PostgreSQL, asignación Free, subida con JWT, co
 ## Edición e integración
 
 - **Andy:** mantener el contrato `req.user`; las identidades demo no se convierten en credenciales reales.
-- **Elden:** la asignación Free ya ocurre de forma atómica durante el registro; coordinar la estrategia de bloqueo al modificar planes/suscripciones y el consumo diario antes del borrado.
+- **Elden:** la asignación Free ocurre de forma atómica durante el registro; coordinar la estrategia de bloqueo al modificar planes o suscripciones.
 - **Alegría:** componentes en `frontend/src/features/storage/`; reglas locales en `storage.css`, colores en `styles/theme.css`. El cliente de API recibe credenciales; no persiste tokens ni decide identidad.
 - **Geovanny:** servicio, repositorio y manejo de archivos en `backend/src/modules/storage/`. Nuevas migraciones se añaden; no editar las ya aplicadas.

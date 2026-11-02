@@ -6,14 +6,13 @@ coverage/
 .env.*
 !.env.example
 !.env.*.example
-backend/data/*
-!backend/data/.gitkeep
-!backend/data/README.md
+backend/data/
 /storage/*
 !/storage/README.md
 outputs/
 output/
 tmp/
+temp/
 outputs/smartstorage-sync/
 .DS_Store
 Thumbs.db
