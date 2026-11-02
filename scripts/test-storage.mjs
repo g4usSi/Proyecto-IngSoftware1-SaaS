@@ -49,7 +49,8 @@ try {
   testExitCode = await new Promise((resolve, reject) => {
     child = spawn(process.execPath, command, {
       cwd: root,
-      env: { ...process.env, TEST_DATABASE_URL: testUrl.toString() },
+      // Sin SMTP: las pruebas y recorridos de navegador nunca envían correo real por Brevo.
+      env: { ...process.env, TEST_DATABASE_URL: testUrl.toString(), SMTP_HOST: '', SMTP_PORT: '', SMTP_USER: '', SMTP_PASS: '', SMTP_FROM: '' },
       stdio: 'inherit',
       windowsHide: true,
     });

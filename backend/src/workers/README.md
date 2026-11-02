@@ -4,4 +4,4 @@
 
 API, consumidor y recuperador usan createManagedImageJobs y comparten PostgreSQL, Redis y STORAGE_ROOT. Aplicar migraciones con esos procesos detenidos. POST /api/jobs devuelve 202; POST /api/files conserva la ruta síncrona con cuotas compartidas.
 
-Operación, bloqueos y pruebas: [worker-cuotas.md](../../../docs/worker-cuotas.md). Contratos pendientes de frontend: [guía de Alegría](../../../docs/frontend-auth-jobs-handoff.md).
+Operación, bloqueos y pruebas: [worker-cuotas.md](../../../docs/worker-cuotas.md). Contratos para el frontend: [frontend-80-contratos.md](../../../docs/frontend-80-contratos.md).

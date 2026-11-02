@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '../../components/Toaster.jsx';
 import { ApiError } from '../../services/api.js';
-import { downloadFile, listFiles, storageErrorMessage, validateImage, webpFilename } from './storage.api.js';
+import { downloadFile, getFilesSummary, listFiles, storageErrorMessage, validateImage, webpFilename } from './storage.api.js';
 import { ACTIVE_JOB_STATUSES, getImageJob, getMyQuota, isJobReady, jobFailureMessage, listImageJobs, submitImageJob } from './jobs.api.js';
 
 const LibraryContext = createContext(null);
@@ -23,6 +23,8 @@ export function LibraryProvider({ authorization, children }) {
   const [gallery, setGallery] = useState(() => ({ ...initialList(), unavailableItems: [] }));
   const [jobs, setJobs] = useState(initialList);
   const [quota, setQuota] = useState({ data: null, loading: true, error: null, loaded: false });
+  const [summary, setSummary] = useState({ data: null, error: null });
+  const summaryRequest = useRef(null);
   const [queue, setQueue] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
   const listRequest = useRef(null);
@@ -50,8 +52,23 @@ export function LibraryProvider({ authorization, children }) {
   }, []);
   const track = (controller) => { controllers.current.add(controller); return () => controllers.current.delete(controller); };
 
+  // Totales de toda la cuenta (GET /files/summary): no dependen de la página cargada de la galería.
+  const refreshSummary = useCallback(async () => {
+    if (!authorization) return;
+    summaryRequest.current?.abort();
+    const controller = new AbortController();
+    summaryRequest.current = controller;
+    try {
+      const data = await getFilesSummary({ ...authorization, signal: controller.signal });
+      if (summaryRequest.current === controller) setSummary({ data, error: null });
+    } catch (error) {
+      if (summaryRequest.current === controller && !controller.signal.aborted) setSummary((current) => ({ ...current, error: storageErrorMessage(error) }));
+    }
+  }, [authorization]);
+
   const load = useCallback(async (cursor = null) => {
     if (!authorization) return;
+    if (!cursor) refreshSummary();
     listRequest.current?.abort();
     const controller = new AbortController();
     listRequest.current = controller;
@@ -69,7 +86,7 @@ export function LibraryProvider({ authorization, children }) {
       if (listRequest.current !== controller || (controller.signal.aborted && controller.signal.reason !== 'timeout')) return;
       setGallery((current) => ({ ...current, loading: false, loaded: true, error: controller.signal.aborted ? 'El listado tardó demasiado. Vuelve a intentarlo.' : storageErrorMessage(error) }));
     } finally { clearTimeout(timeout); }
-  }, [authorization]);
+  }, [authorization, refreshSummary]);
 
   const refreshQuota = useCallback(async () => {
     if (!authorization) return;
@@ -140,6 +157,7 @@ export function LibraryProvider({ authorization, children }) {
       listRequest.current?.abort();
       jobsRequest.current?.abort();
       quotaRequest.current?.abort();
+      summaryRequest.current?.abort();
       allPolls.forEach((entry) => { clearTimeout(entry.timer); entry.controller?.abort(); });
       allPolls.clear();
       allControllers.forEach((controller) => controller.abort());
@@ -353,14 +371,16 @@ export function LibraryProvider({ authorization, children }) {
     } finally { untrack(); if (generation.current === epoch) setDownloadingId(null); }
   }, [authorization, toast]);
 
+  // savedRatio es null cuando el servidor no puede calcular el ahorro (falta algún archivo): nunca se inventa un 0.
   const stats = useMemo(() => {
-    const originalBytes = gallery.items.reduce((sum, file) => sum + Number(file.originalSizeBytes || 0), 0);
-    const webpBytes = gallery.items.reduce((sum, file) => sum + Number(file.optimizedSizeBytes || 0), 0);
-    return { count: gallery.items.length, originalBytes, webpBytes,
-      quotaBytes: quota.data ? Number(quota.data.usedBytes) : null,
-      savedRatio: originalBytes > 0 ? (originalBytes - webpBytes) / originalBytes : 0,
-      complete: gallery.loaded && !gallery.nextCursor, loaded: gallery.loaded && !gallery.error };
-  }, [gallery, quota.data]);
+    const data = summary.data;
+    if (!data) return { count: 0, originalBytes: 0, webpBytes: 0, savedRatio: null, duplicateCount: 0, unavailableCount: 0,
+      complete: true, loaded: false, error: summary.error };
+    return { count: Number(data.imageCount), originalBytes: Number(data.logicalBytes), webpBytes: Number(data.physicalBytes),
+      savedBytes: Number(data.savedBytes), savedRatio: data.savedPercent === null ? null : Number(data.savedPercent) / 100,
+      duplicateCount: Number(data.duplicateCount), trashCount: Number(data.trashCount), unavailableCount: Number(data.unavailableObjectCount),
+      complete: true, loaded: true, error: summary.error };
+  }, [summary]);
 
   const value = useMemo(() => ({ enabled: Boolean(authorization), ...gallery, stats, queue, quota, jobs, downloadingId,
     refresh, refreshQuota, refreshJobs, loadMoreJobs: () => refreshJobs(jobs.nextCursor),

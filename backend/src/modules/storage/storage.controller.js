@@ -39,6 +39,9 @@ export function createStorageController(service) {
     async restore(req, res) {
       res.json({ data: await service.restoreFile(req.user.id, req.params.fileId) });
     },
+    async summary(req, res) {
+      res.json({ data: await service.summary(req.user.id) });
+    },
     async stats(_req, res) {
       res.json({ data: await service.stats() });
     },
