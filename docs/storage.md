@@ -9,6 +9,7 @@ Subida → validación de imagen estática → SHA-256 del original → WebP cal
 - Formatos de entrada: JPG, PNG y WebP. Máximo 25,000,000 bytes (25 MB decimales).
 - Límite de decodificación: 40 millones de píxeles, para acotar memoria durante esta conversión síncrona. El rechazo se comunica antes de crear una referencia.
 - Se conserva el tamaño en píxeles, aplicando la orientación. Se eliminan EXIF/GPS.
+- Se registra el formato real del original (JPEG, PNG o WebP), detectado por su firma, en `stored_objects.original_format` (migración 015). Las imágenes anteriores lo completan si se vuelven a subir.
 - Una animación se rechaza con un error; no se destruyen silenciosamente sus fotogramas.
 - El original se elimina tras el procesamiento. Solo permanece el WebP.
 - Deduplicación global de **bytes originales idénticos**, no de imágenes visualmente parecidas.
@@ -33,7 +34,7 @@ PostgreSQL conserva dos conceptos separados:
 
 | Tabla | Responsabilidad |
 | --- | --- |
-| `stored_objects` | Hash del original, tamaño original, clave relativa WebP, estado y fechas. Una fila por original único global. |
+| `stored_objects` | Hash del original, tamaño y formato originales, clave relativa WebP, estado y fechas. Una fila por original único global. |
 | `images` | ID privado, propietario, nombre recibido, carpeta opcional y referencia al objeto. Cada subida aceptada crea una referencia. |
 
 El tamaño WebP se lee del archivo con `stat`. No se guarda otra copia de metadatos en JSON, ni porcentajes o contadores de ahorro. Respaldar PostgreSQL **y** `storage/` como una biblioteca coordinada.

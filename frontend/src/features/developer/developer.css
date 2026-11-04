@@ -1,0 +1,23 @@
+/* Claves de API y SDK. Colores solo con tokens del tema (styles/theme.css, app/layout.css). */
+.key-prefix { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 13px; color: var(--app-text); }
+.data-table tr.is-revoked td { color: var(--app-muted); }
+.data-table tr.is-revoked .key-prefix { color: var(--app-muted); text-decoration: line-through; }
+.keys-suspended { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--app-accent-soft); color: var(--app-accent-text); font-size: 14px; }
+
+/* El único momento llamativo: la clave se ve completa una sola vez. */
+.key-reveal { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px dashed color-mix(in srgb, var(--brand-orange) 55%, transparent); border-radius: 14px; background: var(--app-accent-soft); }
+.key-secret { flex: 1; min-width: 0; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 15px; font-weight: 600; letter-spacing: .02em; color: var(--app-text); overflow-wrap: anywhere; user-select: all; }
+.key-warning { margin: 12px 0 18px; font-size: 14px; font-weight: 600; color: var(--app-accent-text); }
+.key-snippet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 13px; color: var(--app-muted); }
+
+/* min-width: 0 impide que el ancho natural del código estire la cuadrícula de la página en móvil. */
+.sdk-usage { margin-top: 20px; min-width: 0; }
+.sdk-usage h2 { font-size: 18px; margin-bottom: 6px; }
+.sdk-usage p { color: var(--app-muted); font-size: 14px; margin-bottom: 14px; }
+.sdk-usage p code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; color: var(--app-text); }
+.sdk-snippet { max-width: 100%; margin: 0; padding: 16px 18px; overflow-x: auto; border-radius: 12px; background: var(--app-sidebar); color: var(--app-sidebar-text); font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 13px; line-height: 1.7; }
+.sdk-snippet code { white-space: pre; }
+
+@media (max-width: 560px) {
+  .key-reveal { flex-direction: column; align-items: stretch; }
+}

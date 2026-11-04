@@ -54,6 +54,8 @@ try {
   const payments = [];
   const paidKeys = new Map();
   const receipts = [];
+  const apiKeys = [];
+  let keySecret = null;
   let capacityExceeded = false;
   let adminSummaryFails = false;
   const adminUsers = [{ ...user, active: true, createdAt: date },
@@ -102,6 +104,21 @@ try {
       const result = { payment, subscription: status === 'approved' ? subscription : null, repeated: false };
       paidKeys.set(key, result);
       return ok(result, 201);
+    }
+    // ── CU-14: claves de API del SDK ──
+    if (url.pathname === '/api/keys' && request.method() === 'GET') {
+      return ok({ items: apiKeys, eligible: accountPlan.code !== 'free', maxActive: 5 });
+    }
+    if (url.pathname === '/api/keys' && request.method() === 'POST') {
+      keySecret = `ss_${'k'.repeat(29)}abc`;
+      const key = { id: `key-${apiKeys.length}`, name: request.postDataJSON().name, prefix: keySecret.slice(0, 11), createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null };
+      apiKeys.unshift(key);
+      return ok({ key, secret: keySecret }, 201);
+    }
+    if (url.pathname.startsWith('/api/keys/') && request.method() === 'DELETE') {
+      const key = apiKeys.find((item) => item.id === url.pathname.split('/').pop());
+      key.revokedAt = new Date().toISOString();
+      return ok(key);
     }
     if (url.pathname === '/api/payments') {
       const page = Number(url.searchParams.get('page')); const limit = Number(url.searchParams.get('limit'));
@@ -552,6 +569,30 @@ try {
     await dialog.getByRole('heading', { name: 'Pago aprobado' }).waitFor();
     await dialog.getByRole('button', { name: 'Listo' }).click();
     assert.ok(Date.parse(subscription.expiresAt) > Date.parse(before));
+  });
+  await step('Claves de API: se revela una sola vez, no se lista completa y se revoca', async () => {
+    await page.locator('.app-nav a[href="/app/api-keys"]').click();
+    await page.getByRole('heading', { name: 'Claves de API', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Todavía no tienes claves' }).waitFor();
+    await page.getByRole('button', { name: 'Crear clave' }).first().click();
+    await page.getByRole('textbox', { name: 'Nombre' }).fill('Respaldo nocturno');
+    await page.locator('dialog.action-dialog').getByRole('button', { name: 'Crear clave' }).click();
+    await page.locator('.key-secret').filter({ hasText: keySecret }).waitFor();
+    assert.match(await page.locator('dialog.action-dialog .sdk-snippet').innerText(), new RegExp(keySecret), 'El ejemplo usa la clave recién creada.');
+    await screenshot('api-key-reveal.png', true);
+    await page.getByRole('button', { name: 'Ya la guardé' }).click();
+    const row = page.locator('.data-table tbody tr').filter({ hasText: 'Respaldo nocturno' });
+    await row.waitFor();
+    assert.ok(!(await page.locator('main').innerText()).includes(keySecret), 'La clave completa no vuelve a mostrarse.');
+    await row.getByRole('button', { name: 'Revocar' }).click();
+    await page.locator('dialog.action-dialog').getByRole('button', { name: 'Revocar clave' }).click();
+    await row.getByText('Revocada').waitFor();
+    await screenshot('api-keys.png', true);
+    await page.setViewportSize({ width: 375, height: 812 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Las claves no desbordan el móvil.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.app-nav a[href="/app/plans"]').click();
+    await page.getByRole('heading', { name: 'Planes y suscripción' }).waitFor();
   });
   await step('Historial de pagos: estados reales y recibo descargado con la sesión', async () => {
     await page.getByRole('link', { name: 'Historial de pagos' }).click();

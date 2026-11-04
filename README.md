@@ -13,9 +13,10 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - **Planes y pagos simulados:** catálogo en USD, contratación, renovación y cambio de plan con tarjetas de prueba, historial y facturas PDF, descargables y enviadas por correo.
 - **Consumo y ahorro:** espacio lógico frente a físico, ahorro acumulado e imágenes duplicadas.
 - **Administración:** métricas globales, usuarios, suscripciones, consumo por cuenta, cola de procesamiento y bitácora.
+- **SDK:** cliente de Node.js en `sdk/` con claves de API desde el plan Estándar; ver [SDK y claves de API](docs/sdk.md).
 - **Interfaz:** React con tema claro y oscuro, adaptable a móvil y con estados de carga.
 
-Pendiente: SDK y claves de API, HTTPS y despliegue público, y medición de rendimiento y disponibilidad. Enterprise publica una tarifa por GB-mes adicional que no se mide ni se cobra.
+Fuera del alcance acordado: despliegue público y HTTPS (la docente aceptó la demostración local). Enterprise publica una tarifa por GB-mes adicional que no se mide ni se cobra.
 
 ## Arranque rápido
 
@@ -52,7 +53,7 @@ docker compose --profile worker up -d --wait postgres redis
 npm run db:migrate
 ```
 
-Compose espera a que los servicios estén listos. PostgreSQL se expone en **5433** y Redis en **6379**, sólo en localhost. El comando aplica todas las migraciones pendientes, hasta `014_auth_events.sql`, y conserva el historial. No modificar migraciones ya aplicadas.
+Compose espera a que los servicios estén listos. PostgreSQL se expone en **5433** y Redis en **6379**, sólo en localhost. El comando aplica todas las migraciones pendientes, hasta `016_api_keys.sql`, y conserva el historial. No modificar migraciones ya aplicadas.
 
 ### 3. Ejecutar la aplicación en dos terminales
 
@@ -125,6 +126,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run test:browser` | Recorrido histórico del 30%, anterior a verificación obligatoria y subidas asíncronas; para la interfaz actual usar `test:organization-browser` |
 | `npm run test:frontend` | Regresiones de sesión, formularios, arrastre, procesos, planes, pagos, perfil y administración con API simulada; usa Edge en Windows o `E2E_BROWSER_CHANNEL`, sin tocar la BD |
 | `npm run worker:images` | BullMQ/Sharp, publicación privada y recuperación automática; requiere Redis y todas las migraciones; ver [cuotas](docs/worker-cuotas.md) |
+| `npm run bench` | Mide inicio de sesión, lecturas de pagos, optimización de imágenes de 10 MB y disponibilidad en una base temporal; guarda el resultado en `docs/evidencias/` |
 | `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
@@ -152,16 +154,17 @@ frontend/src/
   app/                     Navegación, estructura visual y portada
   styles/                  Tema, reglas globales y componentes compartidos
   components/              Componentes compartidos
-  features/                admin, auth, storage, subscriptions; estilos propios por módulo
+  features/                admin, auth, developer, storage, subscriptions; estilos propios por módulo
   services/                Cliente HTTP
 backend/
   src/
     config/                Entorno y PostgreSQL
     middleware/            Autenticación y errores
-    modules/               admin, audit, auth, quotas, storage, subscriptions, users
+    modules/               admin, apikeys, audit, auth, quotas, storage, subscriptions, users
     workers/               Conversión, reconciliación y limpieza de trabajos
   assets/                  Logo PNG para correos
   migrations/              Esquema y datos iniciales versionados
+sdk/                       Cliente de Node.js para la API, con ejemplo
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
 storage/                   WebP privados y .tmp/; datos ignorados por Git
@@ -189,6 +192,7 @@ Cada módulo del backend sigue rutas → controladores → servicios → reposit
 | [Autenticación](docs/auth-frontend.md) y [permisos](docs/permisos-api.md) | Cuentas, errores y matriz de acceso |
 | [Storage](docs/storage.md) y [worker y cuotas](docs/worker-cuotas.md) | Almacenamiento, cola, recuperación y cuotas |
 | [Catálogo de planes](docs/planes-pagados-s4-01.md) | Precios, vigencia y Enterprise |
+| [SDK y claves de API](docs/sdk.md) | Cliente de Node.js, claves y demostración |
 | [Decisiones](docs/decisiones.md) | Acuerdos del equipo y cálculo del ahorro |
 | [Estilos](docs/estilos.md) | Tema, colores y componentes |
 | [Flujo de Git](docs/flujo-git.md) | Ramas y pull requests |

@@ -8,16 +8,18 @@ export function createMailer(smtp) {
 export function createSmtpMailer({ host, port, user, pass, from }) {
   // El puerto 465 usa TLS desde el inicio; los demás (587) lo activan con STARTTLS.
   const transport = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  // Sin nombre visible, Gmail muestra la parte local del correo (p. ej. «andyml2639»).
+  const sender = /<.+>/.test(from) ? from : { name: 'SmartStorage', address: from };
   return {
     async sendPasswordReset({ to, name, resetLink }) {
-      await transport.sendMail({ from, to, ...passwordResetMessage(name, resetLink) });
+      await transport.sendMail({ from: sender, to, ...passwordResetMessage(name, resetLink) });
     },
     async sendEmailVerification({ to, name, verifyLink }) {
-      await transport.sendMail({ from, to, ...emailVerificationMessage(name, verifyLink) });
+      await transport.sendMail({ from: sender, to, ...emailVerificationMessage(name, verifyLink) });
     },
     // message: { subject, text, html, attachments }, armado por el módulo de pagos.
     async sendInvoice({ to, message }) {
-      await transport.sendMail({ from, to, ...message });
+      await transport.sendMail({ from: sender, to, ...message });
     },
   };
 }

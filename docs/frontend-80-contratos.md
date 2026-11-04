@@ -142,6 +142,16 @@ Cada imagen ahora incluye, además de lo anterior: `hashPrefix` (primeros 12 car
 Estados de galería (RF-STO-10): "procesando" sale de `GET /jobs` (`queued`/`processing`), "optimizada" es una imagen con `status: "ready"`,
 "duplicada" es `duplicate: true`. `unavailableItems` lista imágenes cuyo archivo falta (`STORAGE_INTEGRITY_ERROR`).
 
+## Claves de API (CU-14)
+
+Pantalla `/app/api-keys`, en el grupo «Desarrolladores» del menú. Usa `GET/POST /keys` y `DELETE /keys/:id` ([SDK](sdk.md)).
+
+- Si `eligible` es `false`, invita a ver los planes; las claves existentes se muestran como suspendidas.
+- La clave completa (`secret`) solo se muestra en el diálogo posterior a crearla, con botón para copiarla y un ejemplo del SDK. No se guarda en el estado de la página ni se vuelve a pedir.
+- Revocar pide confirmación y no se puede deshacer.
+
+El detalle de una imagen muestra además el álbum (`folderName`) y el formato original (`originalFormat`).
+
 ## Subidas, álbumes y papelera
 
 Las rutas están en [api.md](api.md#álbumes-movimiento-y-papelera). Reglas que deben conservarse al cambiar el diseño:

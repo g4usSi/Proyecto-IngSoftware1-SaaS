@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, BadgeCheck, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, LayoutDashboard, ListChecks, Menu, Moon, Receipt, ScrollText, Sparkles, Sun, Trash2, UserCog, Users, Workflow, X } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, ChartNoAxesColumn, CloudUpload, FolderOpen, HardDrive, History, House, Images, KeyRound, LayoutDashboard, ListChecks, Menu, Moon, Receipt, ScrollText, Sparkles, Sun, Trash2, UserCog, Users, Workflow, X } from 'lucide-react';
 import { Brand } from '../components/Brand.jsx';
 import { ServiceStatus } from '../components/ServiceStatus.jsx';
 import { ToastProvider } from '../components/Toaster.jsx';
@@ -35,6 +35,7 @@ export const navGroups = [
       { to: '/app/payments', label: 'Pagos', icon: Receipt },
     ],
   },
+  { label: 'Desarrolladores', items: [{ to: '/app/api-keys', label: 'Claves de API', icon: KeyRound }] },
 ];
 // Solo se muestra a role === 'admin'; el servidor igual responde 403 a un cliente.
 export const adminGroup = {
