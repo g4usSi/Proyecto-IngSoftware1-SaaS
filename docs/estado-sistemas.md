@@ -9,7 +9,7 @@ Rama `tema-y-flujo-git`. `main` está en `v0.3.0`, la versión del 80 %.
 | Módulo | Responsable | Estado |
 | --- | --- | --- |
 | Storage, cuotas y worker | Geovanny | Implementado, con formato original y álbum en el detalle (RF-STO-11) |
-| SDK y claves de API | Geovanny | Implementado: `sdk/`, pantalla «Claves de API» y migración 016 |
+| SDK y claves de API | Geovanny | Implementado: SDK de Python con la tienda de demostración Pulso (`sdk-python/`), SDK de Node.js (`sdk/`), pantalla «Claves de API» y migración 016 |
 | Pagos y suscripciones | Elden | Implementado, con factura por correo verificada en un buzón real |
 | Usuarios, perfil, administración y permisos | Andy | Implementado |
 | Frontend | Diego Alegría | Implementado |
@@ -26,6 +26,8 @@ Rama `tema-y-flujo-git`. `main` está en `v0.3.0`, la versión del 80 %.
 | --- | --- |
 | `npm run test:storage` con PostgreSQL y Redis reales | 205/205 |
 | `npm run test:frontend` en Edge y en Chrome | 25 recorridos en cada navegador |
+| Pruebas del SDK de Python (`sdk-python`) | 7/7 |
+| Tienda Pulso con API, worker, Redis y PostgreSQL reales | 8 productos sembrados con el SDK y alta de una foto de 4,0 MB servida en WebP de 647 KB |
 | `npm run check` | Aprobado |
 | Recorrido real de pagos con Brevo | 21/21; las 3 facturas y la verificación llegaron a Gmail |
 | `npm run bench` | Ver tabla siguiente |
@@ -43,9 +45,18 @@ Es una medición local: no representa un servidor público ni un período largo,
 
 ## Lo que falta
 
-- Evaluación de usabilidad con usuarios reales (RNF-AUT-07).
-- Ensayo de la exposición y prueba del entorno en un segundo equipo.
-- Constancias de entrega de S4-10 y S5-08.
+Lo que depende del resto del equipo está en issues de GitHub:
+
+| Issue | Tarea | Responsables |
+| --- | --- | --- |
+| #8 | Evaluación de usabilidad con usuarios (RNF-AUT-07) | Diego, Andy |
+| #9 | Instalar y probar la demostración en un segundo equipo | Elden |
+| #10 | Preparar y ensayar la exposición de cada módulo | Diego, Elden, Andy |
+| #11 | Revisar los cambios del cierre en pagos y autenticación | Elden, Andy |
+| #12 | Actualizar el manual de usuario con las claves de API y el SDK | Diego |
+| #13 | Pulir la tienda de demostración Pulso | Diego |
+
+Además: constancias de entrega de S4-10 y S5-08. La documentación técnica del 100 % (`Documentacion Tecnica 100%.docx` y su PDF) está en la carpeta del curso, fuera del repositorio.
 
 ## Cómo reportar un sistema listo
 
