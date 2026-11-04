@@ -5,13 +5,13 @@ export const listApiKeys = ({ token, signal } = {}) => apiRequest('/keys', { tok
 export const createApiKey = (name, { token } = {}) => apiRequest('/keys', { method: 'POST', body: { name }, token });
 export const revokeApiKey = (id, { token } = {}) => apiRequest(`/keys/${encodeURIComponent(id)}`, { method: 'DELETE', token });
 
-/** Ejemplo listo para copiar con la clave recién creada o un marcador. */
+/** Ejemplo en Python listo para copiar, con la clave recién creada o un marcador. */
 export function sdkSnippet(secret = 'ss_tu_clave') {
   return [
-    "import { SmartStorageClient } from './sdk/src/index.js';",
+    'from smartstorage import SmartStorageClient',
     '',
-    `const client = new SmartStorageClient({ apiKey: '${secret}' });`,
-    "const job = await client.uploadImage('foto.jpg');",
-    "await client.downloadImageTo(job.imageId, 'foto.webp');",
+    `client = SmartStorageClient(api_key="${secret}")`,
+    'job = client.upload_image("foto.jpg")',
+    'client.download_image_to(job["imageId"], "foto.webp")',
   ].join('\n');
 }

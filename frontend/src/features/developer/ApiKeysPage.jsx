@@ -146,7 +146,7 @@ export function ApiKeysPage() {
       {!error && data?.eligible && (
         <section className="panel sdk-usage" aria-labelledby="sdk-usage-title">
           <h2 id="sdk-usage-title">Usar el SDK</h2>
-          <p>El SDK está en la carpeta <code>sdk/</code> del repositorio. Funciona con Node.js 18 o superior y no instala dependencias.</p>
+          <p>El SDK de Python está en <code>sdk-python/</code> (Python 3.9 o superior, sin dependencias), junto con una tienda de demostración. También hay uno de Node.js en <code>sdk/</code>.</p>
           <pre className="sdk-snippet"><code>{sdkSnippet()}</code></pre>
         </section>
       )}

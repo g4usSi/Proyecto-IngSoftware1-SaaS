@@ -4,7 +4,7 @@ Responsable: Geovanny. Cubre CU-14 (subir o consultar imágenes mediante SDK) y 
 
 ## Qué es
 
-`sdk/` contiene un cliente de Node.js (18 o superior) sin dependencias. Permite usar la biblioteca desde código: subir imágenes y esperar a que se publiquen, listarlas, descargarlas, organizarlas en álbumes y consultar la cuota y el ahorro. Se autentica con una **clave de API**, no con usuario y contraseña.
+Hay dos clientes sin dependencias con los mismos métodos: **Python** en `sdk-python/` (el de la demostración, ver su [README](../sdk-python/README.md)) y **Node.js** en `sdk/`. Permite usar la biblioteca desde código: subir imágenes y esperar a que se publiquen, listarlas, descargarlas, organizarlas en álbumes y consultar la cuota y el ahorro. Se autentica con una **clave de API**, no con usuario y contraseña.
 
 ## Claves de API
 
@@ -38,7 +38,19 @@ Requieren sesión iniciada (JWT); una clave de API no puede crear ni revocar cla
 
 Errores: `400 VALIDATION_ERROR` (nombre), `403 PLAN_REQUIRED`, `409 API_KEY_LIMIT`, `404 API_KEY_NOT_FOUND`. Con una clave: `401 API_KEY_INVALID` si no existe o fue revocada.
 
-## Uso
+## Uso desde Python
+
+```python
+from smartstorage import SmartStorageClient
+
+client = SmartStorageClient.from_env()                  # lee SMARTSTORAGE_API_KEY
+job = client.upload_image("foto.jpg")                   # espera a que se publique
+client.download_image_to(job["imageId"], "foto.webp")
+```
+
+La demostración principal es **Pulso**, una tienda deportiva ficticia en `sdk-python/tienda/`: sus fotos de producto se suben con el SDK, se optimizan a WebP y se sirven desde la biblioteca de la tienda. Pasos en el [README del SDK de Python](../sdk-python/README.md).
+
+## Uso desde Node.js
 
 ```js
 import { SmartStorageClient } from './sdk/src/index.js';
@@ -62,7 +74,7 @@ console.log(await client.quota());
 
 Los errores de la API llegan como `SmartStorageError`, con `status`, `code` y `details`.
 
-## Demostración
+## Demostración con Node.js
 
 Con la aplicación en marcha (`npm run dev` y `npm run worker:images`) y una clave creada en una cuenta con plan Estándar o superior:
 
@@ -75,4 +87,4 @@ El ejemplo muestra la cuota, sube la imagen y espera su publicación, compara el
 
 ## Pruebas
 
-`backend/tests/api-keys-sdk.integration.test.js` usa el SDK contra la API y PostgreSQL reales: requisito de plan, huella sin clave en claro, límite de claves, subida y descarga, álbumes, privacidad entre cuentas, rutas prohibidas, revocación y suspensión al bajar a Free. Corre con `npm run test:storage`.
+`sdk-python/tests/test_cliente.py` prueba el cliente de Python con un servidor simulado (`python -m unittest discover -s tests` desde `sdk-python`). `backend/tests/api-keys-sdk.integration.test.js` usa el SDK contra la API y PostgreSQL reales: requisito de plan, huella sin clave en claro, límite de claves, subida y descarga, álbumes, privacidad entre cuentas, rutas prohibidas, revocación y suspensión al bajar a Free. Corre con `npm run test:storage`.
