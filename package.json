@@ -17,6 +17,7 @@
     "test:browser": "node scripts/test-storage.mjs --browser",
     "test:organization-browser": "node scripts/test-storage.mjs --organization-browser",
     "test:frontend": "node scripts/test-frontend.mjs",
+    "bench": "node scripts/test-storage.mjs --bench",
     "worker:images": "npm run worker:images --workspace=@smartstorage/backend",
     "worker:recover": "npm run worker:recover --workspace=@smartstorage/backend",
     "db:migrate": "npm run db:migrate --workspace=@smartstorage/backend",

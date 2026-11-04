@@ -25,7 +25,7 @@ Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **2
 ## Flujo de ramas
 
 - `tema-y-flujo-git` es la rama base compartida (“rama padre”). `main` guarda
-  releases del curso (v0.1.0 = 30 %, v0.2.0 = 50 %, v0.3.0 = 80 %).
+  releases del curso (v0.1.0 = 30 %, v0.2.0 = 50 %, v0.3.0 = 80 %; v1.0.0 = 100 %).
 - Cada quien trabaja en su rama. **Nadie integra a `tema-y-flujo-git` ni a
   `main`**: Geovanny integra cuando el módulo está terminado y probado.
 - Traer cambios de la base a tu rama con frecuencia (`git merge
@@ -39,7 +39,7 @@ Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **2
 ## Reglas técnicas que no se negocian
 
 - **Migraciones:** nunca editar una migración publicada; agregar una nueva y
-  numerada. La última es `014_auth_events.sql`; la siguiente libre es `015_*`.
+  numerada. La última es `016_api_keys.sql`; la siguiente libre es `017_*`.
   Avisar en el grupo antes de crear otra.
 - **Capas del backend:** rutas → controladores → servicios → repositorios. SQL
   solo en repositorios.
@@ -88,8 +88,8 @@ npm run test:frontend       # si tocaste la interfaz
 ```
 
 Detalle en `README.md`, `docs/api.md`, `docs/auth-frontend.md`,
-`docs/frontend-80-contratos.md`, `docs/storage.md`, `docs/worker-cuotas.md` y
-`docs/flujo-git.md`. `docs/historial/` guarda el registro de entregas pasadas por
+`docs/frontend-80-contratos.md`, `docs/sdk.md`, `docs/storage.md`,
+`docs/worker-cuotas.md` y `docs/flujo-git.md`. `docs/historial/` guarda el registro de entregas pasadas por
 responsable: es historia, no contrato vigente, y no se usa para decidir cómo funciona
 el sistema.
 

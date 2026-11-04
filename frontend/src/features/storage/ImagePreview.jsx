@@ -6,6 +6,9 @@ import { useLibrary } from './library.jsx';
 import { webpFilename } from './storage.api.js';
 
 /** Vista previa grande con detalles; ← → navega, Esc cierra. */
+// RF-STO-11: formato real del original, detectado por su contenido al subirlo.
+const FORMAT_NAMES = { jpeg: 'JPEG', png: 'PNG', webp: 'WebP' };
+
 export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
   const { getThumbnail, download, downloadingId } = useLibrary();
   const [url, setUrl] = useState(null);
@@ -69,9 +72,10 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
           </div>
 
           <dl className="preview-details">
-            <div><dt>Original</dt><dd>{formatBytes(file.originalSizeBytes)}</dd></div>
+            <div><dt>Original</dt><dd>{formatBytes(file.originalSizeBytes)}{file.originalFormat ? ` · ${FORMAT_NAMES[file.originalFormat] ?? file.originalFormat}` : ''}</dd></div>
             <div><dt>WebP</dt><dd>{formatBytes(file.optimizedSizeBytes)}</dd></div>
             <div><dt>Dimensiones</dt><dd>{dimensions ? `${dimensions[0]} × ${dimensions[1]} px` : '—'}</dd></div>
+            <div><dt>Álbum</dt><dd>{file.folderName ?? 'Sin álbum'}</dd></div>
             <div><dt>Estado</dt><dd>{file.duplicate ? 'Optimizada · duplicada' : 'Optimizada'}</dd></div>
             {file.hashPrefix && <div><dt>Huella</dt><dd><code title="Primeros 12 caracteres del SHA-256">{file.hashPrefix}…</code></dd></div>}
             <div className="preview-filename"><dt>Archivo WebP</dt><dd title={webpFilename(file.originalName)}>{webpFilename(file.originalName)}</dd></div>

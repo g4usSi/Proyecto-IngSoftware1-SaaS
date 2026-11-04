@@ -1,6 +1,6 @@
 import express from 'express';
 import { AppError } from '../lib/app-error.js';
-import { requireAuth } from '../middleware/require-auth.js';
+import { requireAuthOrApiKey } from '../middleware/require-auth.js';
 
 // Identidades reservadas para la demostración. Nunca se aceptan UUID arbitrarios.
 export const DEMO_ACCOUNTS = Object.freeze([
@@ -43,7 +43,7 @@ export function createStorageDemo({ database, enabled = false }) {
 
   async function authenticate(req, res, next) {
     const id = req.get('X-Storage-Demo-User');
-    if (!enabled || !id) return requireAuth(req, res, next);
+    if (!enabled || !id) return requireAuthOrApiKey(req, res, next);
     try {
       requireLocalRequest(req);
       if (req.get('Authorization') || !DEMO_ACCOUNTS.some((account) => account.id === id)) {

@@ -1,0 +1,14 @@
+{
+  "name": "@smartstorage/sdk",
+  "version": "1.0.0",
+  "description": "Cliente de Node.js para la API de SmartStorage, autenticado con claves de API.",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "demo": "node examples/demo.mjs"
+  }
+}

@@ -20,6 +20,8 @@ function imageDto(row, optimizedBytes) {
     // RF-STO-10/11: huella corta (nunca el hash completo), formato publicado y duplicado dentro de la misma cuenta.
     hashPrefix: row.hash_sha256.slice(0, 12),
     optimizedFormat: 'webp',
+    originalFormat: row.original_format ?? null,
+    folderName: row.folder_name ?? null,
     duplicate: Boolean(row.has_duplicate),
   };
 }
@@ -73,6 +75,7 @@ export function createStorageService({ database, storageRoot }) {
             if (BigInt(object.original_size_bytes) !== BigInt(prepared.originalSizeBytes)) {
               throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'Los metadatos del contenido almacenado son inconsistentes.');
             }
+            await repository.noteObjectFormat(connection, prepared.hash, prepared.originalFormat);
           } else {
             published = await publishImage(prepared.optimizedPath, storageRoot, prepared.hash);
             object = {
@@ -85,6 +88,7 @@ export function createStorageService({ database, storageRoot }) {
               hash: prepared.hash,
               originalSizeBytes: prepared.originalSizeBytes,
               storageKey: published.storageKey,
+              originalFormat: prepared.originalFormat,
             });
           }
           const stored = await inspectStoredFile(storageRoot, object);
@@ -132,22 +136,21 @@ export function createStorageService({ database, storageRoot }) {
       return repository.withImageTransaction(ownerId, imageId, async (connection, image) => {
         if (image.deleted_at) throw new AppError(409, 'FILE_IN_TRASH', 'Restaura la imagen antes de cambiar su álbum.');
         await repository.assertFolderOwner(connection, ownerId, folderId);
-        await connection.query('UPDATE images SET folder_id=$3 WHERE id=$1 AND user_id=$2', [imageId, ownerId, folderId]);
+        await repository.setImageFolder(connection, ownerId, imageId, folderId);
         return { imageId, folderId };
       });
     },
     async trashFile(ownerId, imageId) {
       validateImageId(imageId);
       return repository.withImageTransaction(ownerId, imageId, async (connection) => {
-        const { rows: [image] } = await connection.query(`UPDATE images SET deleted_at=COALESCE(deleted_at,now())
-          WHERE id=$1 AND user_id=$2 RETURNING deleted_at`, [imageId, ownerId]);
-        return { trashed: true, imageId, deletedAt: new Date(image.deleted_at).toISOString() };
+        const deletedAt = await repository.trashImage(connection, ownerId, imageId);
+        return { trashed: true, imageId, deletedAt: new Date(deletedAt).toISOString() };
       });
     },
     async restoreFile(ownerId, imageId) {
       validateImageId(imageId);
       return repository.withImageTransaction(ownerId, imageId, async (connection) => {
-        await connection.query('UPDATE images SET deleted_at=NULL WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
+        await repository.restoreImage(connection, ownerId, imageId);
         return { restored: true, imageId };
       });
     },
@@ -240,13 +243,7 @@ export function createStorageService({ database, storageRoot }) {
       let object;
       const result = await repository.withImageTransaction(ownerId, imageId, async (connection, image) => {
         object = image;
-        await connection.query('DELETE FROM images WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
-        const remaining = await connection.query('SELECT id FROM images WHERE object_hash=$1 LIMIT 1', [image.hash_sha256]);
-        if (!remaining.rows.length) {
-          await connection.query('DELETE FROM stored_objects WHERE hash_sha256=$1', [image.hash_sha256]);
-          await connection.query(`INSERT INTO storage_cleanup_tasks(hash_sha256,storage_key)
-            VALUES ($1,$2) ON CONFLICT (hash_sha256) DO NOTHING`, [image.hash_sha256, image.storage_key]);
-        }
+        await repository.deleteImageReference(connection, ownerId, imageId, image);
         return { deleted: true, imageId };
       });
       // Releer después de COMMIT bajo bloqueo evita borrar un objeto adoptado

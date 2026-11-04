@@ -43,11 +43,13 @@ export function createImageLifecycle({ database, storageRoot }) {
       if (needsPublication) {
         const published = await publishImage(payload.resultPath, storageRoot, payload.originalHash, { preserveSource: true });
         if (!object) {
-          await storage.insertObject(client, { hash: payload.originalHash, originalSizeBytes: payload.originalSizeBytes, storageKey: published.storageKey });
+          await storage.insertObject(client, { hash: payload.originalHash, originalSizeBytes: payload.originalSizeBytes,
+            storageKey: published.storageKey, originalFormat: payload.originalFormat });
           object = { hash_sha256: payload.originalHash, storage_key: published.storageKey };
         }
       }
       await inspectStoredFile(storageRoot, object);
+      await storage.noteObjectFormat(client, payload.originalHash, payload.originalFormat);
       const image = await storage.insertImage(client, { ownerId: payload.userId, hash: payload.originalHash,
         originalName: payload.originalName, folderId });
       await quotas.confirm(client, payload.jobId, payload.userId, image.id);

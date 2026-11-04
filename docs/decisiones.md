@@ -2,6 +2,14 @@
 
 Aclaraciones directas del equipo. Prevalecen sobre el contexto heredado y los ejemplos del mockup. Los PDF originales no se han modificado.
 
+## Cierre del 100 % (03/11/2026)
+
+- **Despliegue:** la docente confirmó que no se requiere despliegue público ni HTTPS; la demostración es local. RNF-STO-02 queda fuera del alcance acordado.
+- **SDK:** disponible desde el plan Estándar, como prometía la propuesta del 28/08/2026. Cliente en JavaScript, sin dependencias, en `sdk/`. Las claves solo sirven para la biblioteca propia; nunca para pagos, cuenta ni administración. Ver [SDK](sdk.md).
+- **Administrador y archivos ajenos (RNF-STO-04):** se prioriza la privacidad. El administrador ve metadatos agregados, no las imágenes de otras cuentas.
+- **Gestionar suscripción (CU-17):** cancelar equivale a bajar a Free desde Planes (sin reembolso; conserva imágenes y aplica la validación de capacidad). No existe «cambiar método de pago» porque la tarjeta no se guarda: se indica en cada pago.
+- **Enterprise:** la tarifa por GB-mes adicional se publica pero no se mide ni se cobra; queda como ampliación futura.
+
 ## Factura por correo del 30/10/2026
 
 Solicitud de Geovanny: el comprobante de pago se presenta como factura de tienda, con logo, y se envía al correo de la cuenta por el SMTP de Andy (Brevo). Sigue siendo un pago simulado sin validez fiscal, sin NIT de emisor ni numeración fiscal. El número `SS-XXXXXXXX` deriva de la referencia del pago, sin migración nueva. El envío no bloquea el pago: si falla, se registra en el log y la factura sigue disponible en el historial. Las rutas conservan `receipt` y los botones de la interfaz dicen «Recibo» para no invalidar las capturas del manual antes de la entrega.

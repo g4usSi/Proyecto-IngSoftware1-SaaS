@@ -47,6 +47,12 @@ export async function removeTemporary(filename) {
   }
 }
 
+// Formato real por la firma de los primeros bytes; null si no es JPG, PNG ni WebP.
+export async function detectImageFormat(filename) {
+  try { return await signatureFormat(filename); }
+  catch (error) { if (error.code === 'UNSUPPORTED_IMAGE') return null; throw error; }
+}
+
 async function signatureFormat(filename) {
   const file = await open(filename, 'r');
   try {
@@ -119,7 +125,7 @@ export async function prepareImage(file, storageRoot) {
     }
     // Aplica EXIF sin redimensionar. Sharp elimina metadatos por defecto.
     await image.rotate().webp({ quality: 80 }).toFile(optimizedPath);
-    return { hash: hash.digest('hex'), originalSizeBytes: originalSize.toString(), optimizedPath };
+    return { hash: hash.digest('hex'), originalSizeBytes: originalSize.toString(), originalFormat: detected, optimizedPath };
   } catch (error) {
     await removeTemporary(optimizedPath);
     if (error instanceof AppError) throw error;

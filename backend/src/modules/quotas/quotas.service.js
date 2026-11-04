@@ -89,5 +89,30 @@ export function createQuotasService(repository) {
         repository.release(connection, reservationKey, userId),
       );
     },
+
+    // GET /api/quotas/me: plan vigente, capacidad y consumo diario, leídos en una sola transacción.
+    async getMyQuota(userId) {
+      return repository.withUserTransaction(userId, async (client) => {
+        const plan = await repository.getActivePlan(client, userId);
+        const usage = await repository.getUsage(client, userId);
+        const available = BigInt(plan.capacity_bytes) - BigInt(usage.used_bytes) - BigInt(usage.pending_bytes);
+        return {
+          plan: { code: plan.code, name: plan.name },
+          capacityBytes: String(plan.capacity_bytes),
+          usedBytes: usage.used_bytes,
+          reservedBytes: usage.pending_bytes,
+          availableBytes: (available > 0n ? available : 0n).toString(),
+          daily: {
+            date: usage.usage_date,
+            uploadLimit: plan.daily_upload_limit,
+            uploadsUsed: usage.daily_count,
+            uploadsReserved: usage.pending_daily_count,
+            bytesLimit: plan.daily_bytes_limit,
+            bytesUsed: usage.daily_bytes,
+            bytesReserved: usage.pending_daily_bytes,
+          },
+        };
+      });
+    },
   };
 }

@@ -8,5 +8,6 @@
 @import '../features/auth/auth.css';
 @import '../features/storage/storage.css';
 @import '../features/subscriptions/subscriptions.css';
+@import '../features/developer/developer.css';
 
 /* Entrada única de CSS. Cada módulo mantiene sus reglas y media queries en su archivo. */
