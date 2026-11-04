@@ -54,7 +54,7 @@ Lo que depende del resto del equipo está en issues de GitHub:
 | #10 | Preparar y ensayar la exposición de cada módulo | Diego, Elden, Andy |
 | #11 | Revisar los cambios del cierre en pagos y autenticación | Elden, Andy |
 | #12 | Actualizar el manual de usuario con las claves de API y el SDK | Diego |
-| #13 | Pulir la tienda de demostración Pulso | Diego |
+| #13 | Pulir la tienda de demostración Pulso (guía: [`sdk-python/tienda/AGENTS.md`](../sdk-python/tienda/AGENTS.md)) | Diego |
 
 Además: constancias de entrega de S4-10 y S5-08. La documentación técnica del 100 % (`Documentacion Tecnica 100%.docx` y su PDF) está en la carpeta del curso, fuera del repositorio.
 

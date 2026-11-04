@@ -49,6 +49,8 @@ python -m tienda             # abre http://127.0.0.1:8080
 - **Agregar un producto** (`/admin`): la foto se sube con el SDK y el producto aparece al terminar la optimización.
 - La bolsa es solo de demostración: no hay compras ni pagos reales.
 
+Para pulir su interfaz, ver [tienda/AGENTS.md](tienda/AGENTS.md).
+
 `tienda/catalogo.json` se genera al sembrar y no se versiona. Para empezar de cero, bórralo y vuelve a sembrar.
 
 ## Pruebas
