@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: avance funcional del 80 %, publicado en `main` como `v0.3.0`.** Estado detallado y pendientes: [estado de sistemas](docs/estado-sistemas.md). La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
+**Estado: cierre del 100 % en curso en `tema-y-flujo-git`; entrega final el 06/11/2026.** El avance del 80 % está publicado en `main` como `v0.3.0`. Estado detallado y pendientes: [estado de sistemas](docs/estado-sistemas.md). La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 
@@ -164,10 +164,13 @@ backend/
     workers/               Conversión, reconciliación y limpieza de trabajos
   assets/                  Logo PNG para correos
   migrations/              Esquema y datos iniciales versionados
-sdk/                       Cliente de Node.js para la API, con ejemplo
-sdk-python/                Cliente de Python y tienda de demostración «Pulso»
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
+sdk/                       Cliente de Node.js para la API, con ejemplo
+sdk-python/
+  smartstorage/            SDK de Python (solo biblioteca estándar)
+  tienda/                  Tienda de demostración «Pulso»; guía para pulirla en tienda/AGENTS.md
+  tests/                   Pruebas del SDK con un servidor simulado
 storage/                   WebP privados y .tmp/; datos ignorados por Git
 docs/                      Contratos, decisiones, guías y historial por responsable
 ```
@@ -193,7 +196,8 @@ Cada módulo del backend sigue rutas → controladores → servicios → reposit
 | [Autenticación](docs/auth-frontend.md) y [permisos](docs/permisos-api.md) | Cuentas, errores y matriz de acceso |
 | [Storage](docs/storage.md) y [worker y cuotas](docs/worker-cuotas.md) | Almacenamiento, cola, recuperación y cuotas |
 | [Catálogo de planes](docs/planes-pagados-s4-01.md) | Precios, vigencia y Enterprise |
-| [SDK y claves de API](docs/sdk.md) | Cliente de Node.js, claves y demostración |
+| [SDK y claves de API](docs/sdk.md) | Clientes de Python y Node.js, claves y demostración |
+| [Tienda Pulso](sdk-python/tienda/AGENTS.md) | Dónde está la demostración del SDK y cómo pulir su interfaz |
 | [Decisiones](docs/decisiones.md) | Acuerdos del equipo y cálculo del ahorro |
 | [Estilos](docs/estilos.md) | Tema, colores y componentes |
 | [Flujo de Git](docs/flujo-git.md) | Ramas y pull requests |

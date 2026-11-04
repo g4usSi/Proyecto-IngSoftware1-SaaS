@@ -6,21 +6,25 @@ plan y suscripciones con pago simulado. Este archivo resume cómo trabajamos.
 Aplica a cada integrante y a cualquier agente de IA (Codex, Claude, Copilot…)
 que abra el repositorio. Comunicarse en español.
 
-## Equipo, ramas y tareas del 80 %
+## Equipo, ramas y tareas del cierre del 100 %
 
 | Persona | Módulo | Rama de trabajo | Tarjetas de Trello |
 | --- | --- | --- | --- |
-| Geovanny | Storage, cuotas, workers, coordinación e integración | `tema-y-flujo-git` | S4-04, S4-08 |
-| Elden | Pagos y suscripciones (backend) | `feature/pagos-planes` | S4-01, S4-02, S4-03 |
-| Andy | Usuarios, perfil, administración y permisos (backend) | `feature/usuarios-login` | S4-05 |
-| Diego Alegría | Todo el frontend | `feature/ui-tema` (`frontend-80` integrada con el PR #7) | S4-06, S4-07 |
-| Equipo | Regresión, documentación y entrega | — | S4-09, S4-10 |
+| Geovanny | Storage, cuotas, workers, SDK, coordinación e integración | `tema-y-flujo-git` | S5-03, EX02 |
+| Elden | Pagos y suscripciones (backend) | `feature/pagos-planes` | S5-02 · issues #9, #11 |
+| Andy | Usuarios, perfil, administración y permisos (backend) | `feature/usuarios-login` | S5-01 · issues #8, #11 |
+| Diego Alegría | Todo el frontend, manual de usuario y tienda Pulso | `feature/ui-tema` | S5-04 · issues #8, #12, #13 |
+| Equipo | Pruebas integrales, entorno de demo, ensayo y entrega | — | S5-05 a S5-08 · issue #10 |
 
 Las tarjetas explican qué hacer, qué endpoints usar y cuándo una tarea está
 terminada: [tablero SmartStorage](https://trello.com/b/uOpp9rO7/smartstorage-proyecto-ing-software-i).
 
-Fechas: backend de pagos y usuarios **19/10** (integrado el 23/10); frontend **27/10**; regresión **29/10**; entrega **31/10**
-(fechas reprogramadas el 24/10). Estado técnico: `docs/estado-sistemas.md`.
+Fechas: el 80 % se presentó el 31/10 (`v0.3.0` en `main`). Cierre del 100 %: revisiones y pulido de
+interfaz hasta el **05/11**; entrega final el **06/11/2026**. No hay despliegue: la demostración es local.
+Estado técnico e issues pendientes: `docs/estado-sistemas.md`.
+
+La demostración del SDK es la tienda **Pulso**, en Python, en `sdk-python/tienda/`. Quien trabaje en
+su interfaz debe leer antes [`sdk-python/tienda/AGENTS.md`](sdk-python/tienda/AGENTS.md).
 
 ## Flujo de ramas
 
@@ -88,7 +92,7 @@ npm run test:frontend       # si tocaste la interfaz
 ```
 
 Detalle en `README.md`, `docs/api.md`, `docs/auth-frontend.md`,
-`docs/frontend-80-contratos.md`, `docs/sdk.md`, `docs/storage.md`,
+`docs/frontend-80-contratos.md`, `docs/sdk.md`, `sdk-python/README.md`, `docs/storage.md`,
 `docs/worker-cuotas.md` y `docs/flujo-git.md`. `docs/historial/` guarda el registro de entregas pasadas por
 responsable: es historia, no contrato vigente, y no se usa para decidir cómo funciona
 el sistema.
@@ -103,7 +107,8 @@ Un defecto propio sí impide el cierre.
 
 ## Instrucciones para agentes de IA
 
-1. Leer este archivo y `README.md`; después, la tarjeta de Trello de la tarea.
+1. Leer este archivo y `README.md`; después, la tarjeta de Trello o el issue de la tarea. Si la
+   carpeta tiene su propio `AGENTS.md` (por ejemplo `sdk-python/tienda/`), leerlo también.
 2. Ejecutar `git status` y confirmar la rama antes de editar. Conservar los
    cambios locales de la persona; no descartar trabajo ajeno.
 3. Trabajar solo dentro del alcance de la tarea pedida y del módulo de su

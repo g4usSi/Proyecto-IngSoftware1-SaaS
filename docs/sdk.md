@@ -48,7 +48,7 @@ job = client.upload_image("foto.jpg")                   # espera a que se publiq
 client.download_image_to(job["imageId"], "foto.webp")
 ```
 
-La demostración principal es **Pulso**, una tienda deportiva ficticia en `sdk-python/tienda/`: sus fotos de producto se suben con el SDK, se optimizan a WebP y se sirven desde la biblioteca de la tienda. Pasos en el [README del SDK de Python](../sdk-python/README.md).
+La demostración principal es **Pulso**, una tienda deportiva ficticia en `sdk-python/tienda/`: sus fotos de producto se suben con el SDK, se optimizan a WebP y se sirven desde la biblioteca de la tienda. Pasos en el [README del SDK de Python](../sdk-python/README.md); la guía para pulir su interfaz está en [sdk-python/tienda/AGENTS.md](../sdk-python/tienda/AGENTS.md).
 
 ## Uso desde Node.js
 
