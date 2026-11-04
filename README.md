@@ -13,7 +13,7 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - **Planes y pagos simulados:** catálogo en USD, contratación, renovación y cambio de plan con tarjetas de prueba, historial y facturas PDF, descargables y enviadas por correo.
 - **Consumo y ahorro:** espacio lógico frente a físico, ahorro acumulado e imágenes duplicadas.
 - **Administración:** métricas globales, usuarios, suscripciones, consumo por cuenta, cola de procesamiento y bitácora.
-- **SDK:** cliente de Node.js en `sdk/` con claves de API desde el plan Estándar; ver [SDK y claves de API](docs/sdk.md).
+- **SDK:** clientes de Python (`sdk-python/`, con la tienda de demostración Pulso) y de Node.js (`sdk/`), con claves de API desde el plan Estándar; ver [SDK y claves de API](docs/sdk.md).
 - **Interfaz:** React con tema claro y oscuro, adaptable a móvil y con estados de carga.
 
 Fuera del alcance acordado: despliegue público y HTTPS (la docente aceptó la demostración local). Enterprise publica una tarifa por GB-mes adicional que no se mide ni se cobra.
@@ -165,6 +165,7 @@ backend/
   assets/                  Logo PNG para correos
   migrations/              Esquema y datos iniciales versionados
 sdk/                       Cliente de Node.js para la API, con ejemplo
+sdk-python/                Cliente de Python y tienda de demostración «Pulso»
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
 storage/                   WebP privados y .tmp/; datos ignorados por Git
