@@ -2,7 +2,9 @@
 
 Estado técnico del proyecto. El avance de cada tarjeta se lleva en Trello y en el Excel de Drive; este archivo no los reemplaza. El registro de cortes anteriores está en [historial](historial/geovanny.md).
 
-## Cierre del 100 %, entrega el 06/11/2026
+## Cierre del 100 %, entrega el 11/11/2026
+
+Los issues del equipo vencen el **viernes 06/11/2026** (milestone «Cierre de tareas del equipo»).
 
 Rama `tema-y-flujo-git`. `main` está en `v0.3.0`, la versión del 80 %.
 
@@ -42,6 +44,16 @@ Rama `tema-y-flujo-git`. `main` está en `v0.3.0`, la versión del 80 %.
 | RNF-AUT-04, RNF-STO-05 y RNF-PAG-04 disponibilidad | 99 % y 99,9 % | 100 % de 6.868 sondeos en 10,4 minutos |
 
 Es una medición local: no representa un servidor público ni un período largo, pero cubre el entorno en que se hará la demostración.
+
+## Verificación del 06/11/2026
+
+Cambios del cierre: correos de verificación y recuperación con logo incrustado y diseño común; factura PDF con resumen de capacidad, cargas diarias, vigencia e IVA del pago simulado. Sin cambios de endpoints ni migraciones.
+
+- `npm run check`: aprobado (Node 24.14.0).
+- Pruebas específicas de factura y verificación de correo: 13/13, sin SMTP real.
+- `npm test`: 87 aprobadas, 0 fallos y 119 omitidas de 206, sin PostgreSQL/Redis reales.
+- `npm run test:storage`: no pudo iniciarse; PostgreSQL local en 5433 rechazó la conexión. No se modificó la base del equipo. Los 205/205 del 03/11 son evidencia histórica.
+
 
 ## Lo que falta
 

@@ -5,7 +5,7 @@ Las reglas generales del proyecto están en el [`AGENTS.md` de la raíz](../../A
 solo agrega lo propio de la tienda. Comunicarse en español.
 
 - **Tarea:** [issue #13](https://github.com/g4usSi/Proyecto-IngSoftware1-SaaS/issues/13), tarjeta S5-04.
-- **Fecha límite:** miércoles 05/11/2026; la entrega final del proyecto es el 06/11.
+- **Fecha límite:** viernes 06/11/2026; la entrega final del proyecto es el miércoles 11/11.
 - **Rama:** partir de `tema-y-flujo-git` (commit `868fa2a` o posterior) y trabajar en `feature/ui-tema`
   o en una rama propia. No integrar a `tema-y-flujo-git` ni a `main`: Geovanny integra.
 
