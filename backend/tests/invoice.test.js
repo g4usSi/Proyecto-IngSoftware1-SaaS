@@ -27,6 +27,17 @@ test('La factura incluye logo vectorial, número, cliente, detalle y aviso de pa
   assert.equal((text.match(/ S Q/g) ?? []).length, 12, 'las doce letras del logo');
 });
 
+test('La factura resume los límites del plan y el IVA del pago simulado', () => {
+  const pro = invoicePage(row()).toString('latin1');
+  assert.ok(pro.includes('TU PLAN PRO INCLUYE'));
+  assert.ok(pro.includes('100 GB'));
+  assert.equal((pro.match(/\(Sin l\xedmite\) Tj/g) ?? []).length, 2, 'Pro no limita subidas ni carga diaria');
+  assert.ok(pro.includes('IVA \\(0 %, pago simulado\\)'));
+  const free = invoicePage(row({ plan_name: 'Free', capacity_bytes: '2000000000', daily_upload_limit: 10, daily_bytes_limit: '200000000' }))
+    .toString('latin1');
+  for (const expected of ['(2 GB) Tj', '(10) Tj', '(200 MB) Tj']) assert.ok(free.includes(expected), `falta "${expected}"`);
+});
+
 test('La factura escapa paréntesis y no corrompe textos fuera de WinAnsi', () => {
   const text = invoicePage(row({ user_name: 'Ana (\\prueba) 李' })).toString('latin1');
   assert.ok(text.includes('Ana \\(\\\\prueba\\) ?'));

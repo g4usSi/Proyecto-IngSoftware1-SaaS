@@ -20,7 +20,8 @@ Las tarjetas explican qué hacer, qué endpoints usar y cuándo una tarea está
 terminada: [tablero SmartStorage](https://trello.com/b/uOpp9rO7/smartstorage-proyecto-ing-software-i).
 
 Fechas: el 80 % se presentó el 31/10 (`v0.3.0` en `main`). Cierre del 100 %: revisiones y pulido de
-interfaz hasta el **05/11**; entrega final el **06/11/2026**. No hay despliegue: la demostración es local.
+issues del equipo hasta el **viernes 06/11**; entrega final el **miércoles 11/11/2026**. La demostración corre en la PC de
+Geovanny y se expone con un túnel gratuito de Cloudflare.
 Estado técnico e issues pendientes: `docs/estado-sistemas.md`.
 
 La demostración del SDK es la tienda **Pulso**, en Python, en `sdk-python/tienda/`. Quien trabaje en
