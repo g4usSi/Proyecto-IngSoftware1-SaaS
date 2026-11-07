@@ -6,7 +6,7 @@
   "workspaces": ["frontend", "backend"],
   "engines": { "node": ">=24 <25", "npm": ">=11" },
   "scripts": {
-    "dev": "concurrently --kill-others --names api,web --prefix-colors magenta,cyan \"npm run dev --workspace=@smartstorage/backend\" \"npm run dev --workspace=@smartstorage/frontend\"",
+    "dev": "concurrently --kill-others --names api,web,worker --prefix-colors magenta,cyan,yellow \"npm run dev --workspace=@smartstorage/backend\" \"npm run dev --workspace=@smartstorage/frontend\" \"npm run worker:images --workspace=@smartstorage/backend\"",
     "dev:api": "npm run dev --workspace=@smartstorage/backend",
     "dev:web": "npm run dev --workspace=@smartstorage/frontend",
     "dev:demo": "node scripts/dev-demo.mjs",
