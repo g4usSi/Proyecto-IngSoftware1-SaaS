@@ -67,16 +67,18 @@ def pagina(titulo: str, cuerpo: str, actual: str = "") -> str:
 <title>{e(titulo)} | Pulso</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;1,800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="icon" href="data:,">
+<meta name="description" content="Pulso: zapatillas de running, trail y urbanas. Tienda de demostración del SDK de SmartStorage.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23111%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-family=%27Arial%27 font-style=%27italic%27 font-weight=%27900%27 font-size=%2720%27 fill=%27%23fff%27 text-anchor=%27middle%27%3EP%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/estatico/tienda.css"></head>
 <body>
+<a class="saltar" href="#contenido">Saltar al contenido</a>
 <p class="aviso">Envío gratis en compras desde US$50. Tienda de demostración: no se procesan compras reales.</p>
 <header class="cabecera">
   <a class="marca" href="/" aria-label="Pulso, inicio">PULSO</a>
   <nav class="menu" aria-label="Categorías"><a href="/"{" aria-current=page" if actual == "inicio" else ""}>Novedades</a>{enlaces}</nav>
-  <a class="bolsa" href="#" aria-label="Bolsa de compras">Bolsa <span data-bolsa>0</span></a>
+  <p class="bolsa" aria-live="polite">Bolsa <span data-bolsa>0</span><span class="oculto"> artículos</span></p>
 </header>
-<main>{cuerpo}</main>
+<main id="contenido">{cuerpo}</main>
 <footer class="pie">
   <div><strong>Pulso</strong><p>Tienda ficticia creada para demostrar el SDK de SmartStorage.</p></div>
   <div><strong>Fotos de producto</strong><p>Se suben con el SDK de Python, se convierten a WebP y se sirven desde la biblioteca privada de la tienda.</p></div>
@@ -116,13 +118,19 @@ def inicio(productos: list, categoria: str | None) -> str:
     destacado = productos[0]
     grid = "".join(tarjeta(p, nuevo=i < 2 and not categoria) for i, p in enumerate(lista)) or "<p>No hay productos en esta categoría.</p>"
     portada = "" if categoria else f"""<section class="portada">
-  <img src="/img/{e(destacado['imageId'])}" alt="{e(destacado['nombre'])}" width="1200" height="1200">
+  <img src="/img/{e(destacado['imageId'])}" alt="{e(destacado['nombre'])} en {e(destacado['color'].lower())}" width="1200" height="1200">
   <div class="portada-texto">
     <h1>Corre<br>más ligero</h1>
     <p>{e(destacado['nombre'])}: amortiguación para todos tus kilómetros, desde US${e(destacado['precio'])}.</p>
     <div class="acciones"><a class="boton" href="/producto/{e(destacado['slug'])}">Comprar</a><a class="boton boton-claro" href="/?cat=Trail">Ver trail</a></div>
   </div>
 </section>"""
+    if not categoria:
+        mosaicos = "".join(
+            f'''<a class="mosaico" href="/?cat={quote(c)}"><img src="/img/{e(x['imageId'])}" alt="" width="600" height="600" loading="lazy">
+  <span><strong>{c}</strong><span class="boton boton-blanco">Comprar</span></span></a>'''
+            for c in CATEGORIAS for x in [next((y for y in productos if y["categoria"] == c), None)] if x)
+        portada += f'<section class="seccion"><h2>Compra por categoría</h2><div class="mosaicos">{mosaicos}</div></section>'
     titulo = categoria or "Lo más nuevo"
     return pagina(titulo, f"""{portada}<section class="seccion"><h2>{e(titulo)}</h2><div class="rejilla">{grid}</div></section>""",
                   actual=categoria or "inicio")
@@ -130,23 +138,31 @@ def inicio(productos: list, categoria: str | None) -> str:
 
 def detalle(p: dict, productos: list) -> str:
     tallas = "".join(f'<label><input type="radio" name="talla" value="{t}"><span>{t}</span></label>' for t in TALLAS)
-    hermanos = [x for x in productos if x["nombre"] == p["nombre"] and x["slug"] != p["slug"]]
-    colores = "".join(f'<a href="/producto/{e(x["slug"])}"><img src="/img/{e(x["imageId"])}" alt="{e(x["color"])}" width="72" height="72"></a>'
-                      for x in hermanos)
+    variantes = [x for x in productos if x["nombre"] == p["nombre"]]
+    colores = "".join(f'<a href="/producto/{e(x["slug"])}"{" aria-current=true" if x["slug"] == p["slug"] else ""}>'
+                      f'<img src="/img/{e(x["imageId"])}" alt="{e(x["color"])}" width="72" height="72"></a>'
+                      for x in variantes) if len(variantes) > 1 else ""
     formato = (p.get("formatoOriginal") or "original").upper()
     return pagina(f"{p['nombre']} {p['color']}", f"""<article class="producto">
   <img class="producto-foto" src="/img/{e(p['imageId'])}" alt="{e(p['nombre'])} en {e(p['color'].lower())}" width="1200" height="1200">
   <div class="producto-info">
-    <p class="producto-categoria">{e(p['categoria'])}</p>
+    <nav class="migas" aria-label="Ruta"><a href="/">Inicio</a> / <a href="/?cat={quote(p['categoria'])}">{e(p['categoria'])}</a></nav>
     <h1>{e(p['nombre'])}</h1>
     <p class="producto-color">{e(p['color'])}</p>
     <strong class="producto-precio">US${e(p['precio'])}</strong>
-    {f'<div class="colores" aria-label="Otros colores">{colores}</div>' if colores else ''}
+    {f'<div class="colores" role="group" aria-label="Colores disponibles">{colores}</div>' if colores else ''}
     <fieldset class="tallas"><legend>Elige tu talla (EU)</legend>{tallas}</fieldset>
     <p class="tallas-aviso" role="alert" hidden>Elige una talla para agregarla a la bolsa.</p>
     <button type="button" class="boton boton-ancho" data-agregar>Agregar a la bolsa</button>
     <p class="producto-texto">{e(p['descripcion'])}</p>
-    <p class="almacenamiento">Esta foto se subió en {e(formato)} de {kb(p['bytesOriginal'])} y se sirve en WebP de {kb(p['bytesWebp'])}: {ahorro(p)} % menos, gracias a SmartStorage.</p>
+    <aside class="almacenamiento" aria-label="Foto optimizada con SmartStorage">
+      <p class="almacenamiento-titulo">Foto optimizada con SmartStorage</p>
+      <dl>
+        <div><dt>Original</dt><dd>{e(formato)} · {kb(p['bytesOriginal'])}</dd></div>
+        <div><dt>Servida</dt><dd>WebP · {kb(p['bytesWebp'])}</dd></div>
+        <div class="almacenamiento-ahorro"><dt>Ahorro</dt><dd>{ahorro(p)} %</dd></div>
+      </dl>
+    </aside>
   </div>
 </article>""", actual=p["categoria"])
 
