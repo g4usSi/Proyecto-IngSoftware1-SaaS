@@ -37,7 +37,7 @@ Rutas de la tienda: `/` (portada y novedades), `/?cat=Running|Trail|Urbano`, `/p
 
 ## Cómo levantarla
 
-Requisitos: SmartStorage en marcha (desde la raíz, `npm run dev` y `npm run worker:images`, ver el README
+Requisitos: SmartStorage en marcha (desde la raíz, `npm run dev`, que incluye el worker; ver el README
 principal), Python 3.9 o superior (sin dependencias) y una cuenta con plan **Estándar o superior**.
 
 1. En SmartStorage (`http://localhost:5173`), entra con esa cuenta y crea una clave en

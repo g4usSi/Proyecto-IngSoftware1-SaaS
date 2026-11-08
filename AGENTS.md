@@ -80,8 +80,7 @@ npm ci
 if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 docker compose --profile worker up -d --wait postgres redis
 npm run db:migrate          # con API y worker detenidos
-npm run dev                 # terminal 1: API :3000 + frontend :5173
-npm run worker:images       # terminal 2: procesamiento de imágenes
+npm run dev                 # API :3000 + frontend :5173 + worker de imágenes
 ```
 
 Antes de pedir revisión de tu rama:

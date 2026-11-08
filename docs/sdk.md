@@ -76,7 +76,7 @@ Los errores de la API llegan como `SmartStorageError`, con `status`, `code` y `d
 
 ## Demostración con Node.js
 
-Con la aplicación en marcha (`npm run dev` y `npm run worker:images`) y una clave creada en una cuenta con plan Estándar o superior:
+Con la aplicación en marcha (`npm run dev`, que incluye el worker) y una clave creada en una cuenta con plan Estándar o superior:
 
 ```powershell
 $env:SMARTSTORAGE_API_KEY = 'ss_...'
