@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Check, RefreshCw, Receipt, RotateCw, TriangleAlert } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowDownUp, ArrowRight, BadgeCheck, Check, RefreshCw, Receipt, RotateCw, TriangleAlert } from 'lucide-react';
 import { RowsSkeleton, LoadingStatus } from '../../components/Skeletons.jsx';
 import { useSession } from '../auth/session.jsx';
 import { useLibrary } from '../storage/library.jsx';
@@ -11,6 +11,16 @@ import { PaymentDialog } from './PaymentDialog.jsx';
 import { capacityShortfall, getMySubscription, isFreePlan, listPayments, PAYMENT_STATUS, PLAN_LEVELS, planFeatures, planPrice, usePlans } from './subscriptions.api.js';
 
 const EXPIRY_WARNING_DAYS = 7;
+// Ancla de las tarjetas de planes: Perfil, Pagos y la barra lateral enlazan a /app/plans#cambiar-plan.
+export const CHANGE_PLAN_ID = 'cambiar-plan';
+
+function showPlanCatalog() {
+  const target = document.getElementById(CHANGE_PLAN_ID);
+  if (!target) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  target.focus({ preventScroll: true });
+}
 
 export function useSubscription() {
   const { session } = useSession();
@@ -114,6 +124,9 @@ export function PlansPage() {
   const [paymentsVersion, setPaymentsVersion] = useState(0);
   const current = subscription.data?.plan ?? null;
   const days = subscription.data?.expiresAt ? daysLeft(subscription.data.expiresAt) : null;
+  const { hash } = useLocation();
+  const catalogReady = !catalog.loading && !catalog.error;
+  useEffect(() => { if (catalogReady && hash === `#${CHANGE_PLAN_ID}`) showPlanCatalog(); }, [catalogReady, hash]);
 
   function done() {
     subscription.reload();
@@ -135,6 +148,11 @@ export function PlansPage() {
         <div className="panel-head">
           <h2 id="subscription-title">Suscripción actual</h2>
           <div className="subscription-actions">
+            {catalogReady && current && (
+              <button type="button" className={`btn btn-small ${isFreePlan(current) ? 'btn-primary' : 'btn-secondary'}`} onClick={showPlanCatalog}>
+                <ArrowDownUp aria-hidden="true" />Cambiar de plan
+              </button>
+            )}
             {current && !isFreePlan(current) && (
               <button type="button" className="btn btn-primary btn-small" onClick={() => setDialog({ mode: 'renew', plan: current })}>
                 <RotateCw aria-hidden="true" />Renovar un mes
@@ -167,7 +185,7 @@ export function PlansPage() {
       {catalog.loading && <PlansSkeleton />}
 
       {!catalog.loading && !catalog.error && (
-        <div className="app-plans">
+        <div className="app-plans" id={CHANGE_PLAN_ID} tabIndex={-1} aria-label="Planes disponibles">
           {catalog.plans.map((plan, index) => {
             const isCurrent = plan.code === current?.code;
             const action = actionFor(plan, current);

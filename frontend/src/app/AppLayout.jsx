@@ -230,7 +230,7 @@ function UsageCard() {
       </p>
       {quota?.error && <button type="button" className="link-button" onClick={refreshQuota}>Reintentar cuota</button>}
       {data?.plan.code === 'free' && <p className="usage-pro-hint">Dale más espacio a tus ideas.<br />{pro && <span>Pro: {formatBytes(pro.capacityBytes)} · {planPrice(pro)} / mes</span>}</p>}
-      <Link to="/app/plans" className="usage-upgrade"><Sparkles strokeWidth={2} aria-hidden="true" />{data?.plan.code === 'free' ? 'Mejorar plan' : 'Ver planes'}<ArrowUpRight strokeWidth={2} aria-hidden="true" /></Link>
+      <Link to="/app/plans#cambiar-plan" className="usage-upgrade"><Sparkles strokeWidth={2} aria-hidden="true" />{data?.plan.code === 'free' ? 'Mejorar plan' : 'Cambiar de plan'}<ArrowUpRight strokeWidth={2} aria-hidden="true" /></Link>
     </div>
   );
 }
