@@ -3,11 +3,16 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, LoaderCircle, X } from 'lucide-react';
 import { formatBytes, formatFullDate, formatPercent, savingRatio } from './format.js';
 import { useLibrary } from './library.jsx';
-import { webpFilename } from './storage.api.js';
+import { ORIGINAL_DOWNLOADS, webpFilename } from './storage.api.js';
 
 /** Vista previa grande con detalles; ← → navega, Esc cierra. */
+// RF-STO-11: formato real del original, detectado por su contenido al subirlo.
+const FORMAT_NAMES = { jpeg: 'JPEG', png: 'PNG', webp: 'WebP' };
+
 export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
-  const { getThumbnail, download, downloadingId } = useLibrary();
+  const { getThumbnail, download, downloadingId, downloadingOriginal } = useLibrary();
+  const original = ORIGINAL_DOWNLOADS[file.originalFormat];
+  const busy = downloadingId === file.id;
   const [url, setUrl] = useState(null);
   const [dimensions, setDimensions] = useState(null);
   const closeRef = useRef(null);
@@ -69,9 +74,10 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
           </div>
 
           <dl className="preview-details">
-            <div><dt>Original</dt><dd>{formatBytes(file.originalSizeBytes)}</dd></div>
+            <div><dt>Original</dt><dd>{formatBytes(file.originalSizeBytes)}{file.originalFormat ? ` · ${FORMAT_NAMES[file.originalFormat] ?? file.originalFormat}` : ''}</dd></div>
             <div><dt>WebP</dt><dd>{formatBytes(file.optimizedSizeBytes)}</dd></div>
             <div><dt>Dimensiones</dt><dd>{dimensions ? `${dimensions[0]} × ${dimensions[1]} px` : '—'}</dd></div>
+            <div><dt>Álbum</dt><dd>{file.folderName ?? 'Sin álbum'}</dd></div>
             <div><dt>Estado</dt><dd>{file.duplicate ? 'Optimizada · duplicada' : 'Optimizada'}</dd></div>
             {file.hashPrefix && <div><dt>Huella</dt><dd><code title="Primeros 12 caracteres del SHA-256">{file.hashPrefix}…</code></dd></div>}
             <div className="preview-filename"><dt>Archivo WebP</dt><dd title={webpFilename(file.originalName)}>{webpFilename(file.originalName)}</dd></div>
@@ -80,10 +86,17 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
 
           <div className="preview-footer">
           <button type="button" className="btn btn-primary preview-download" onClick={() => download(file)} disabled={Boolean(downloadingId)}>
-            {downloadingId === file.id ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
+            {busy && !downloadingOriginal ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
             Descargar WebP
           </button>
-          <p className="preview-note">Sin metadatos EXIF ni ubicación · misma resolución que el original</p>
+          {original && (
+            <button type="button" className="btn btn-secondary preview-download" onClick={() => download(file, { original: true })} disabled={Boolean(downloadingId)}
+              title={`Se convierte desde el WebP guardado a ${original.label}: mismo formato que el original, no el mismo archivo`}>
+              {busy && downloadingOriginal ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
+              Descargar en formato original ({original.label})
+            </button>
+          )}
+          <p className="preview-note">Sin metadatos EXIF ni ubicación · misma resolución que el original{original ? ` · el ${original.label} se genera desde la copia WebP` : ''}</p>
           </div>
         </aside>
       </div>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/require-auth.js';
+import { requireAuthOrApiKey } from '../../middleware/require-auth.js';
 import { parseUploadFields, requireStorageIdentity } from './storage.validation.js';
 import { createUploadMiddleware } from './storage.upload.js';
 import { removeTemporary } from './storage.files.js';
@@ -9,7 +9,7 @@ import { enqueueDefaultImageJob } from '../../workers/image-admission.js';
 export function createJobsRouter({ database, storageRoot, enqueueJob = enqueueDefaultImageJob }) {
   const router = Router();
   const jobs = createManagedImageJobs({ database, storageRoot });
-  router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, requireAuth, requireStorageIdentity);
+  router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, requireAuthOrApiKey, requireStorageIdentity);
   router.get('/', async (req, res) => { res.json({ data: await jobs.list(req.user.id, req.query) }); });
   router.get('/:jobId', async (req, res) => { res.json({ data: await jobs.get(req.user.id, req.params.jobId) }); });
   router.post('/', createUploadMiddleware(storageRoot), async (req, res) => {

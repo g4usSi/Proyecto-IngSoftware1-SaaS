@@ -73,11 +73,26 @@ export async function downloadFile(id, options = {}) {
   return blob;
 }
 
-export function webpFilename(originalName) {
+// El original no se guarda: el servidor convierte el WebP al formato con que se subió (JPEG o PNG).
+export const ORIGINAL_DOWNLOADS = {
+  jpeg: { label: 'JPEG', extension: 'jpg', type: 'image/jpeg' },
+  png: { label: 'PNG', extension: 'png', type: 'image/png' },
+};
+
+export async function downloadOriginalFormat(id, originalFormat, options = {}) {
+  const expected = ORIGINAL_DOWNLOADS[originalFormat];
+  const blob = await apiBlobRequest(`/files/${encodeURIComponent(id)}/download?format=original`, options);
+  if (!expected || blob.type.split(';')[0] !== expected.type || blob.size === 0) {
+    throw new ApiError('El servicio no devolvió la imagen en su formato original.', 'INVALID_RESPONSE', 200);
+  }
+  return blob;
+}
+
+export function webpFilename(originalName, extension = 'webp') {
   const basename = String(originalName || 'imagen').split(/[\\/]/).pop();
   const stem = basename.replace(/\.[^.]*$/, '').replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069<>:"|?*]/g, '_').replace(/[. ]+$/g, '').slice(0, 150);
   const safeStem = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(stem) ? `imagen-${stem}` : stem;
-  return `${safeStem || 'imagen'}.webp`;
+  return `${safeStem || 'imagen'}.${extension}`;
 }
 
 export function storageErrorMessage(error, fallback = 'No se pudo conectar con el servicio. Vuelve a intentarlo.') {

@@ -90,6 +90,26 @@ test('registro Free, login JWT y subida WebP funcionan juntos en PostgreSQL', {
   assert.equal(downloaded.status, 200);
   assert.equal(downloaded.headers.get('content-type'), 'image/webp');
 
+  // Formato original: se reconstruye desde el WebP; mismo formato, no los mismos bytes.
+  const asPng = await fetch(`${base}/api/files/${saved.image.id}/download?format=original`, { headers: auth });
+  assert.equal(asPng.status, 200);
+  assert.equal(asPng.headers.get('content-type'), 'image/png');
+  assert.match(asPng.headers.get('content-disposition'), /prueba\.png/);
+  assert.equal((await sharp(Buffer.from(await asPng.arrayBuffer())).metadata()).format, 'png');
+  const jpeg = await sharp({ create: { width: 3, height: 3, channels: 3, background: '#bb5536' } }).jpeg().toBuffer();
+  const jpegBody = new FormData();
+  jpegBody.append('file', new Blob([jpeg], { type: 'image/jpeg' }), 'foto.jpeg');
+  const jpegUpload = await fetch(`${base}/api/files`, { method: 'POST', headers: auth, body: jpegBody });
+  assert.equal(jpegUpload.status, 201);
+  const jpegId = (await jpegUpload.json()).data.image.id;
+  const asJpeg = await fetch(`${base}/api/files/${jpegId}/download?format=original`, { headers: auth });
+  assert.equal(asJpeg.headers.get('content-type'), 'image/jpeg');
+  assert.match(asJpeg.headers.get('content-disposition'), /foto\.jpg/);
+  assert.equal((await sharp(Buffer.from(await asJpeg.arrayBuffer())).metadata()).format, 'jpeg');
+  const badFormat = await fetch(`${base}/api/files/${saved.image.id}/download?format=gif`, { headers: auth });
+  assert.equal(badFormat.status, 400);
+  assert.equal((await badFormat.json()).error.code, 'INVALID_DOWNLOAD_FORMAT');
+
   const demoUser = await database.query(`
     INSERT INTO users (name, email, password_hash) VALUES ('Demo', 'demo@example.test', '!disabled:storage-demo') RETURNING id
   `);

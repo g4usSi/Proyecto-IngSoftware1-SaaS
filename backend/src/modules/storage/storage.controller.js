@@ -9,13 +9,17 @@ export function createStorageController(service) {
       res.status(201).json({ data: await service.uploadFile(req.user.id, req.file, req.body) });
     },
     async download(req, res) {
-      const file = await service.downloadFile(req.user.id, req.params.fileId);
+      const file = await service.downloadFile(req.user.id, req.params.fileId, req.query);
       try {
         res.attachment(file.filename);
-        res.type('image/webp');
+        res.type(file.contentType);
         res.set('Content-Length', file.size);
         res.set('Cache-Control', 'private, no-store');
         res.set('X-Content-Type-Options', 'nosniff');
+        if (file.buffer) {
+          res.end(file.buffer);
+          return;
+        }
         await pipeline(file.handle.createReadStream(), res);
       } catch (error) {
         if (res.headersSent || res.destroyed) {
@@ -24,7 +28,7 @@ export function createStorageController(service) {
         }
         throw error;
       } finally {
-        await file.handle.close().catch(() => {});
+        await file.handle?.close().catch(() => {});
       }
     },
     async remove(req, res) {

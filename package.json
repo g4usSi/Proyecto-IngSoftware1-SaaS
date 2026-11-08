@@ -6,7 +6,7 @@
   "workspaces": ["frontend", "backend"],
   "engines": { "node": ">=24 <25", "npm": ">=11" },
   "scripts": {
-    "dev": "concurrently --kill-others --names api,web --prefix-colors magenta,cyan \"npm run dev --workspace=@smartstorage/backend\" \"npm run dev --workspace=@smartstorage/frontend\"",
+    "dev": "concurrently --kill-others --names api,web,worker --prefix-colors magenta,cyan,yellow \"npm run dev --workspace=@smartstorage/backend\" \"npm run dev --workspace=@smartstorage/frontend\" \"npm run worker:images --workspace=@smartstorage/backend\"",
     "dev:api": "npm run dev --workspace=@smartstorage/backend",
     "dev:web": "npm run dev --workspace=@smartstorage/frontend",
     "dev:demo": "node scripts/dev-demo.mjs",
@@ -17,6 +17,7 @@
     "test:browser": "node scripts/test-storage.mjs --browser",
     "test:organization-browser": "node scripts/test-storage.mjs --organization-browser",
     "test:frontend": "node scripts/test-frontend.mjs",
+    "bench": "node scripts/test-storage.mjs --bench",
     "worker:images": "npm run worker:images --workspace=@smartstorage/backend",
     "worker:recover": "npm run worker:recover --workspace=@smartstorage/backend",
     "db:migrate": "npm run db:migrate --workspace=@smartstorage/backend",

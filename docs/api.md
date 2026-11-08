@@ -2,6 +2,8 @@
 
 Referencia de todas las rutas. Guía orientada a las pantallas: [frontend-80-contratos.md](frontend-80-contratos.md). Autenticación y usuarios en detalle: [auth-frontend.md](auth-frontend.md). Permisos: [permisos-api.md](permisos-api.md).
 
+**Autenticación.** Las rutas privadas aceptan `Authorization: Bearer <jwt>` de una sesión. Las de archivos, álbumes, procesos y `GET /quotas/me` aceptan también una clave de API del SDK (`Bearer ss_...`); el resto responde `403 API_KEY_NOT_ALLOWED` a una clave. Ver [SDK y claves de API](sdk.md).
+
 Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code": "CODIGO", "message": "Mensaje" } }`. No se devuelven trazas internas ni hashes de contraseña.
 
 ## Operaciones disponibles
@@ -24,7 +26,7 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | GET    | `/dev/storage-demo`         | `200`, `{ data: { enabled, accounts } }`; apagada no devuelve identidades                                                                                      |
 | GET    | `/files`                    | `200`, listado paginado privado; necesita autenticación o demo local explícita                                                                                 |
 | POST   | `/files`                    | `201`, recibe una imagen y confirma cuando el WebP está listo                                                                                                  |
-| GET    | `/files/:fileId/download`   | `200`, descarga WebP del propietario; recurso ajeno o inexistente: `404`                                                                                       |
+| GET    | `/files/:fileId/download`   | `200`, descarga WebP del propietario; con `?format=original`, en JPEG o PNG según cómo se subió; recurso ajeno o inexistente: `404`                            |
 | GET    | `/files/summary`            | `200`, consumo lógico frente a físico y ahorro de la cuenta; Bearer JWT                                                                                        |
 | PATCH  | `/files/:fileId`            | `200`, mueve la imagen: `{ folderId: UUID o null }`                                                                                                            |
 | POST   | `/files/:fileId/trash`      | `200`, envía a la papelera                                                                                                                                     |
@@ -51,6 +53,8 @@ Base: `/api`. JSON UTF-8. Éxito: `{ "data": ... }`. Error: `{ "error": { "code"
 | POST | `/subscriptions/renew` | `201`, renueva con pago simulado; `Idempotency-Key`; Bearer JWT |
 | POST | `/subscriptions/change-plan` | `200`, sube con pago o baja sin cobro; Bearer JWT |
 | GET | `/payments` | `200`, historial paginado propio; Bearer JWT |
+| GET, POST | `/keys` | Claves de API del SDK: listar y crear (la clave completa solo en el `201`); solo con sesión. Ver [SDK](sdk.md) |
+| DELETE | `/keys/:keyId` | `200`, revoca una clave propia; solo con sesión |
 | GET | `/payments/:paymentId/receipt` | `200`, factura PDF de un pago aprobado propio; Bearer JWT |
 | GET | `/payments/receipts` | `200`, PDF con una factura por pago aprobado; Bearer JWT |
 
@@ -97,6 +101,8 @@ Si falta un archivo físico o su referencia no es válida, el listado sigue devo
 
 `GET /files/:fileId/download` devuelve `image/webp` con `Content-Disposition: attachment`. Requiere las mismas credenciales que el listado; un hash o ruta física no sirve como credencial. El frontend obtiene un blob mediante su cliente autorizado, sin publicar el directorio de archivos.
 
+Con `?format=original` la imagen se convierte en ese momento desde el WebP publicado al formato en que se subió: `image/jpeg` (`.jpg`, fondo blanco si tenía transparencia) o `image/png` (`.png`). El original no se guarda, así que el archivo tiene el **formato** del original, no sus mismos bytes. Si se subió en WebP, se descarga el WebP publicado. Las imágenes subidas antes de la migración 015 no tienen el formato registrado y responden `409 ORIGINAL_FORMAT_UNKNOWN`. Cualquier otro valor de `format` responde `400 INVALID_DOWNLOAD_FORMAT`.
+
 `DELETE /files/:fileId` devuelve `{ data: { deleted: true, imageId: "UUID" } }`. Un ID ajeno, inexistente o ya borrado responde `404`. Libera la capacidad de esa referencia, pero conserva el evento de consumo diario. El último enlace elimina el objeto lógico y programa la limpieza física durable; un WebP aún compartido se conserva. Si el archivo ya faltaba, también permite eliminar la referencia propia.
 
 ## Álbumes, movimiento y papelera
@@ -114,7 +120,7 @@ Todas las rutas requieren identidad autenticada.
 | `POST /files/:fileId/trash` | `{ trashed: true, imageId, deletedAt }`. |
 | `POST /files/:fileId/restore` | `{ restored: true, imageId }`. |
 
-Los DTO de imagen incluyen `folderId`, `deletedAt`, `hashPrefix` (12 caracteres; la API no expone el hash completo), `optimizedFormat` y `duplicate`. Nombres de álbum de 1–120 caracteres tras recortar espacios; un nombre repetido responde `409 ALBUM_NAME_CONFLICT`. Mover a un álbum ajeno o inexistente responde `404 FOLDER_NOT_FOUND`; actuar sobre uno ajeno o inexistente, `404 ALBUM_NOT_FOUND`; mover una imagen en papelera, `409 FILE_IN_TRASH`. Filtrar por un álbum ajeno devuelve una lista vacía. Enviar o restaurar repetidamente es idempotente mientras exista la referencia.
+Los DTO de imagen incluyen `folderId`, `folderName` (nombre del álbum o `null`), `deletedAt`, `hashPrefix` (12 caracteres; la API no expone el hash completo), `originalFormat` (`jpeg`, `png`, `webp`, o `null` en imágenes subidas antes de la migración 015), `optimizedFormat` y `duplicate`. Nombres de álbum de 1–120 caracteres tras recortar espacios; un nombre repetido responde `409 ALBUM_NAME_CONFLICT`. Mover a un álbum ajeno o inexistente responde `404 FOLDER_NOT_FOUND`; actuar sobre uno ajeno o inexistente, `404 ALBUM_NOT_FOUND`; mover una imagen en papelera, `409 FILE_IN_TRASH`. Filtrar por un álbum ajeno devuelve una lista vacía. Enviar o restaurar repetidamente es idempotente mientras exista la referencia.
 
 Una imagen en papelera no se descarga y conserva su capacidad hasta el borrado definitivo; su proceso sigue `published`, con `available=false` y `downloadUrl=null`. Restaurar recupera el álbum si todavía existe. No hay caducidad ni vaciado automático.
 
@@ -154,6 +160,8 @@ Ambas rutas de subida siguen vigentes y comparten límites; usar sólo una por e
 Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inválida; `413 FILE_TOO_LARGE`; `415` formato o animación no admitidos; `403` capacidad o suscripción no válida; `429` cualquiera de los límites diarios; `503 STORAGE_INTEGRITY_ERROR` en descarga, deduplicación o estadísticas si falta un objeto que la BD declara disponible. El listado informa esos objetos mediante `unavailableItems`.
 
 `GET /admin/storage/stats` devuelve strings decimales: `originalSizeBytes` (B), `uniqueOriginalSizeBytes` (U), `optimizedSizeBytes` (P), `savedBytes` (B−P), `savedPercent`, `imageCount` y `objectCount`. Biblioteca vacía: ceros y `savedPercent: "0.00"`. Incluye cada objeto físico una sola vez y puede informar ahorro negativo. Las cuentas demo son clientes, no administradores.
+
+`duplicates` resume la deduplicación sin exponer contenido privado: `objectCount` (contenidos guardados una vez y referenciados más de una vez), `extraReferenceCount` (copias que no ocuparon disco), `avoidedBytes` (WebP × copias extra) e `items`, con los 20 contenidos que más espacio evitan: `references`, `accounts`, `originalSizeBytes`, `optimizedSizeBytes` y `avoidedBytes`. No incluye hash, nombres de archivo, miniaturas ni identidades de cuentas.
 
 ## Consultas administrativas (S4-04)
 
@@ -358,5 +366,6 @@ Errores actuales relevantes: `400` validación, `401` sesión inválida, `403` p
 - `storage_cleanup_tasks`: limpieza física durable después de borrar la última referencia.
 - `payments`: cada intento de pago simulado, con idempotencia y solo los últimos cuatro dígitos de la tarjeta.
 - `auth_events`: bitácora de autenticación y gestión de cuentas.
+- `api_keys`: claves del SDK; solo su huella SHA-256 y un prefijo.
 
-La revocación usa `003_revoked_tokens.sql`, recuperación `004_password_resets.sql`, verificación `005_email_verification_tokens.sql`, trabajos `004_image_processing_jobs.sql`/`005_image_job_recovery.sql`, reservas `005_quota_reservations.sql`, el lifecycle compartido `006_shared_quota_lifecycle.sql`, álbumes y papelera `007_albums_and_trash.sql`, el catálogo `008` y `009`, pagos `010` a `013` y la bitácora `014_auth_events.sql`. Aplicar todas con `npm run db:migrate`; no modificar migraciones ya publicadas.
+La revocación usa `003_revoked_tokens.sql`, recuperación `004_password_resets.sql`, verificación `005_email_verification_tokens.sql`, trabajos `004_image_processing_jobs.sql`/`005_image_job_recovery.sql`, reservas `005_quota_reservations.sql`, el lifecycle compartido `006_shared_quota_lifecycle.sql`, álbumes y papelera `007_albums_and_trash.sql`, el catálogo `008` y `009`, pagos `010` a `013`, la bitácora `014_auth_events.sql`, el formato original `015_original_format.sql` y las claves del SDK `016_api_keys.sql`. Aplicar todas con `npm run db:migrate`; no modificar migraciones ya publicadas.

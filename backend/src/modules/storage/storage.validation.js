@@ -103,6 +103,15 @@ export function cursorFor(row) {
   return Buffer.from(JSON.stringify({ createdAt: row.cursor_created_at, id: row.id })).toString('base64url');
 }
 
+// ?format=webp (por defecto) descarga el archivo publicado; ?format=original, su formato de origen.
+export function parseDownloadFormat(query = {}) {
+  const format = query.format ?? 'webp';
+  if (format !== 'webp' && format !== 'original') {
+    throw new AppError(400, 'INVALID_DOWNLOAD_FORMAT', 'El formato de descarga debe ser webp u original.');
+  }
+  return format;
+}
+
 export function validateImageId(imageId) {
   if (typeof imageId !== 'string' || !UUID_PATTERN.test(imageId)) {
     throw new AppError(404, 'FILE_NOT_FOUND', 'La imagen no existe o no está disponible para esta cuenta.');

@@ -175,6 +175,22 @@ function capacityLabel(bytes) {
   return Number.isFinite(gigabytes) && gigabytes > 0 ? `${Number(gigabytes.toFixed(1))} GB de almacenamiento` : 'Almacenamiento';
 }
 
+const megabytes = (bytes) => {
+  const value = Number(bytes);
+  return value >= 1e9 ? `${Number((value / 1e9).toFixed(1))} GB` : `${Math.round(value / 1e6)} MB`;
+};
+
+// Límites del plan tal como están en el catálogo; null significa sin límite.
+function planSummary(row) {
+  const capacity = Number(row.capacity_bytes);
+  return [
+    ['de almacenamiento', Number.isFinite(capacity) && capacity > 0 ? megabytes(capacity) : '-'],
+    ['subidas por día', row.daily_upload_limit ? String(row.daily_upload_limit) : 'Sin límite'],
+    ['de carga diaria', row.daily_bytes_limit ? megabytes(row.daily_bytes_limit) : 'Sin límite'],
+    ['de vigencia', '1 mes'],
+  ];
+}
+
 // Datos de la factura que comparten el PDF y el correo.
 export function invoiceDetails(row) {
   return {
@@ -255,7 +271,7 @@ export function invoicePage(row) {
   const totalsTop = tableTop + 100;
   canvas.text('Subtotal', totalsLabelX, totalsTop, { color: COLOR.muted });
   canvas.text(invoice.total, columns.amount, totalsTop, { align: 'right' });
-  canvas.text('Impuestos (pago simulado)', totalsLabelX, totalsTop + 19, { size: 9, color: COLOR.muted });
+  canvas.text('IVA (0 %, pago simulado)', totalsLabelX, totalsTop + 19, { size: 9, color: COLOR.muted });
   canvas.text(invoice.noTax, columns.amount, totalsTop + 19, { align: 'right' });
   canvas.box(340, totalsTop + 32, RIGHT - 340, 36, { fill: COLOR.navy, radius: 6 });
   canvas.text('Total pagado', totalsLabelX, totalsTop + 55, { size: 10.5, bold: true, color: COLOR.white });
@@ -264,6 +280,20 @@ export function invoicePage(row) {
   canvas.text('¡Gracias por confiar en SmartStorage!', margin, totalsTop + 8, { size: 11, bold: true, color: COLOR.navy });
   canvas.text('Consulta tus pagos y descarga tus facturas', margin, totalsTop + 26, { size: 9, color: COLOR.muted });
   canvas.text('en la sección Pagos de tu cuenta.', margin, totalsTop + 39, { size: 9, color: COLOR.muted });
+
+  // Resumen del plan contratado: ocupa el espacio libre y explica qué se pagó.
+  const planTop = totalsTop + 104;
+  const planItems = planSummary(row);
+  const columnWidth = (RIGHT - margin - 28) / planItems.length;
+  canvas.box(margin, planTop, RIGHT - margin, 112, { fill: COLOR.paper, radius: 8 });
+  canvas.text(`TU PLAN ${clean(row.plan_name).toUpperCase()} INCLUYE`, margin + 14, planTop + 24, { size: 8, bold: true, color: COLOR.accentText });
+  planItems.forEach(([label, value], index) => {
+    const x = margin + 14 + index * columnWidth;
+    canvas.text(value, x, planTop + 54, { size: 13, bold: true, color: COLOR.navy, maxWidth: columnWidth - 10 });
+    canvas.text(label, x, planTop + 71, { size: 8.5, color: COLOR.muted, maxWidth: columnWidth - 10 });
+  });
+  canvas.text('Tus imágenes se convierten automáticamente a WebP y solo tú puedes verlas.', margin + 14, planTop + 96,
+    { size: 8.5, color: COLOR.muted, maxWidth: RIGHT - margin - 28 });
 
   // Pie.
   canvas.line(margin, RIGHT, 772);

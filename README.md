@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: avance funcional del 80 %, publicado en `main` como `v0.3.0`.** Estado detallado y pendientes: [estado de sistemas](docs/estado-sistemas.md). La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
+**Estado: versión del 100 % publicada en `main` como `v1.0.0` (08/11/2026); entrega final el miércoles 11/11/2026.** El desarrollo sigue en `tema-y-flujo-git`. Estado detallado y pendientes: [estado de sistemas](docs/estado-sistemas.md). La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 
@@ -13,9 +13,10 @@ Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con 
 - **Planes y pagos simulados:** catálogo en USD, contratación, renovación y cambio de plan con tarjetas de prueba, historial y facturas PDF, descargables y enviadas por correo.
 - **Consumo y ahorro:** espacio lógico frente a físico, ahorro acumulado e imágenes duplicadas.
 - **Administración:** métricas globales, usuarios, suscripciones, consumo por cuenta, cola de procesamiento y bitácora.
+- **SDK:** clientes de Python (`sdk-python/`, con la tienda de demostración Pulso) y de Node.js (`sdk/`), con claves de API desde el plan Estándar; ver [SDK y claves de API](docs/sdk.md).
 - **Interfaz:** React con tema claro y oscuro, adaptable a móvil y con estados de carga.
 
-Pendiente: SDK y claves de API, HTTPS y despliegue público, y medición de rendimiento y disponibilidad. Enterprise publica una tarifa por GB-mes adicional que no se mide ni se cobra.
+Fuera del alcance acordado: despliegue público y HTTPS (la docente aceptó la demostración local). Enterprise publica una tarifa por GB-mes adicional que no se mide ni se cobra.
 
 ## Arranque rápido
 
@@ -52,23 +53,17 @@ docker compose --profile worker up -d --wait postgres redis
 npm run db:migrate
 ```
 
-Compose espera a que los servicios estén listos. PostgreSQL se expone en **5433** y Redis en **6379**, sólo en localhost. El comando aplica todas las migraciones pendientes, hasta `014_auth_events.sql`, y conserva el historial. No modificar migraciones ya aplicadas.
+Compose espera a que los servicios estén listos. PostgreSQL se expone en **5433** y Redis en **6379**, sólo en localhost. El comando aplica todas las migraciones pendientes, hasta `016_api_keys.sql`, y conserva el historial. No modificar migraciones ya aplicadas.
 
-### 3. Ejecutar la aplicación en dos terminales
+### 3. Ejecutar la aplicación
 
-**Terminal 1 — API y frontend**, desde la raíz:
+Desde la raíz:
 
 ```powershell
 npm run dev
 ```
 
-**Terminal 2 — procesamiento de imágenes**, también desde la raíz:
-
-```powershell
-npm run worker:images
-```
-
-Mantener ambas abiertas. `npm run dev` no inicia el worker: sin él las subidas admitidas quedan pendientes de procesamiento y aparecen en la biblioteca cuando se publican.
+Levanta la API, el frontend y el worker de procesamiento de imágenes en una sola terminal. Si uno de los tres se detiene (por ejemplo, el worker sin PostgreSQL o Redis), se detienen todos. Para correrlos por separado: `npm run dev:api`, `npm run dev:web` y `npm run worker:images`.
 
 - Portada: <http://127.0.0.1:5173/>
 - Panel: <http://127.0.0.1:5173/app>
@@ -86,11 +81,42 @@ El registro siempre crea clientes. Para probar la administración, promover una 
 
 Los álbumes se guardan en PostgreSQL, incluidos los vacíos: cerrar el navegador, la API o el worker no los elimina. En Álbumes se muestra la cuenta actual; si falla la consulta, usar **Actualizar álbumes** o **Reintentar**. Una lista que no pudo cargarse se muestra como error, no como una cuenta sin álbumes.
 
+### 4. Modo demostración
+
+Es la versión compilada que se presenta: el frontend sale de `vite preview` y la API se inicia sin recarga automática. Abrir Docker Desktop, esperar a que diga que está en marcha y usar tres terminales desde la raíz:
+
+```powershell
+# Terminal 1: PostgreSQL y Redis (una vez) y la API en :3000
+docker compose --profile worker up -d --wait postgres redis
+npm start -w @smartstorage/backend
+
+# Terminal 2: worker de imágenes
+npm run worker:images
+
+# Terminal 3: compilar el frontend (cuando llegan cambios) y servirlo en :4173
+npm run build -w @smartstorage/frontend
+npm run preview -w @smartstorage/frontend
+```
+
+Abrir <http://127.0.0.1:4173>. `vite preview` reenvía `/api` a la API. En `backend/.env`, `FRONTEND_URL=http://127.0.0.1:4173` hace que los enlaces de los correos apunten aquí, y `CORS_ORIGINS` debe incluir ese origen. Con SMTP configurado, los correos de registro, recuperación y pagos son reales: usar un correo propio, por ejemplo `tucorreo+demo@gmail.com`.
+
+Comprobar que todo funciona:
+
+1. **Servicios:** <http://127.0.0.1:3000/api/ready> responde `200`, y la terminal 2 dice «Worker, recuperación, publicación privada y cuotas compartidas listos».
+2. **Registro y verificación:** crear una cuenta. El correo debe llegar con el logo y el botón «Verificar correo». Un clic abre una sola pestaña con «¡Correo verificado!». Después iniciar sesión.
+3. **Recuperación de contraseña:** cerrar sesión, usar «¿Olvidaste tu contraseña?», abrir el correo, elegir una contraseña nueva e iniciar sesión con ella.
+4. **Imágenes:** subir dos o tres imágenes en la biblioteca. Pasan de «En cola» a publicadas, se ven en WebP y se descargan. En la vista previa, «Descargar en formato original» entrega un JPEG o PNG generado desde la copia WebP: mismo formato, no el mismo archivo. Crear un álbum y mover una imagen. Enviar una a la papelera y restaurarla.
+5. **Plan y factura:** «Cambiar de plan» (en Planes, Perfil, Pagos o la barra lateral) lleva a las tarjetas de planes. Contratar Estándar con `4242424242424242`. Llega el correo «Tu factura de SmartStorage SS-…» con el PDF adjunto, que incluye «IVA (0 %, pago simulado)» y el recuadro «Tu plan Estándar incluye». En Pagos, la factura individual y la descarga masiva coinciden con el adjunto. `4000000000000002` debe rechazarse sin cobrar.
+6. **Claves de API:** en Desarrolladores, crear una clave (solo se muestra una vez) y revocarla.
+7. **Administración:** entrar con la cuenta `admin` y revisar que el panel muestre la cuenta nueva y su pago. Si dos cuentas suben la misma imagen, «Contenido repetido» indica cuántas veces se repite y el espacio evitado, sin mostrar la imagen, su nombre ni las cuentas.
+
+Para detenerlo, pulsar Ctrl+C en las tres terminales. Para la tienda Pulso del SDK, ver [`sdk-python/tienda/AGENTS.md`](sdk-python/tienda/AGENTS.md).
+
 ### Uso diario y cierre
 
-En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y abrir las dos terminales del paso 3. Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.
+En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y ejecutar `npm run dev` (paso 3). Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.
 
-Para detener la aplicación, pulsar **Ctrl+C en ambas terminales**. Para detener también PostgreSQL/Redis conservando sus datos:
+Para detener la aplicación, pulsar **Ctrl+C** en su terminal. Para detener también PostgreSQL/Redis conservando sus datos:
 
 ```powershell
 docker compose --profile worker stop postgres redis
@@ -106,7 +132,7 @@ Crear una base de desarrollo vacía, por ejemplo con la utilidad `createdb` de P
 createdb -h 127.0.0.1 -p 5432 -U postgres smartstorage
 ```
 
-Editar `DATABASE_URL` en `backend/.env` usando el usuario, contraseña y puerto de esa instalación. Codificar los caracteres especiales de la contraseña para URL. Ejecutar Redis localmente o mantener sólo ese servicio de Compose, y ajustar `REDIS_URL` si cambia su dirección. Después ejecutar `npm run db:migrate` y los comandos de las dos terminales. No apuntar las migraciones a una base ajena o de producción.
+Editar `DATABASE_URL` en `backend/.env` usando el usuario, contraseña y puerto de esa instalación. Codificar los caracteres especiales de la contraseña para URL. Ejecutar Redis localmente o mantener sólo ese servicio de Compose, y ajustar `REDIS_URL` si cambia su dirección. Después ejecutar `npm run db:migrate` y `npm run dev`. No apuntar las migraciones a una base ajena o de producción.
 
 La aplicación no crea ni modifica bases automáticamente al arrancar. Una segunda ejecución de migraciones omite las ya aplicadas. No editar una migración aplicada: añadir otra numerada.
 
@@ -114,7 +140,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 
 | Comando | Uso |
 | --- | --- |
-| `npm run dev` | API y frontend juntos; Ctrl+C termina ambos |
+| `npm run dev` | API, frontend y worker de imágenes juntos; Ctrl+C termina los tres |
 | `npm run dev:api` | Solo API |
 | `npm run dev:web` | Solo interfaz |
 | `npm run dev:demo` | Preparar cuentas para pruebas de la API demo; el panel web requiere sesión JWT |
@@ -125,6 +151,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 | `npm run test:browser` | Recorrido histórico del 30%, anterior a verificación obligatoria y subidas asíncronas; para la interfaz actual usar `test:organization-browser` |
 | `npm run test:frontend` | Regresiones de sesión, formularios, arrastre, procesos, planes, pagos, perfil y administración con API simulada; usa Edge en Windows o `E2E_BROWSER_CHANNEL`, sin tocar la BD |
 | `npm run worker:images` | BullMQ/Sharp, publicación privada y recuperación automática; requiere Redis y todas las migraciones; ver [cuotas](docs/worker-cuotas.md) |
+| `npm run bench` | Mide inicio de sesión, lecturas de pagos, optimización de imágenes de 10 MB y disponibilidad en una base temporal; guarda el resultado en `docs/evidencias/` |
 | `npm run worker:recover` | Un barrido de recuperación/limpieza; conserva UUID e intentos de PostgreSQL |
 | `npm run build` | Compilación de React en `frontend/dist` |
 | `npm run db:migrate` | Aplicar migraciones a la BD configurada |
@@ -152,18 +179,23 @@ frontend/src/
   app/                     Navegación, estructura visual y portada
   styles/                  Tema, reglas globales y componentes compartidos
   components/              Componentes compartidos
-  features/                admin, auth, storage, subscriptions; estilos propios por módulo
+  features/                admin, auth, developer, storage, subscriptions; estilos propios por módulo
   services/                Cliente HTTP
 backend/
   src/
     config/                Entorno y PostgreSQL
     middleware/            Autenticación y errores
-    modules/               admin, audit, auth, quotas, storage, subscriptions, users
+    modules/               admin, apikeys, audit, auth, quotas, storage, subscriptions, users
     workers/               Conversión, reconciliación y limpieza de trabajos
   assets/                  Logo PNG para correos
   migrations/              Esquema y datos iniciales versionados
   scripts/                 Migraciones y comprobación de sintaxis
   tests/                   Pruebas HTTP/configuración
+sdk/                       Cliente de Node.js para la API, con ejemplo
+sdk-python/
+  smartstorage/            SDK de Python (solo biblioteca estándar)
+  tienda/                  Tienda de demostración «Pulso»; guía para pulirla en tienda/AGENTS.md
+  tests/                   Pruebas del SDK con un servidor simulado
 storage/                   WebP privados y .tmp/; datos ignorados por Git
 docs/                      Contratos, decisiones, guías y historial por responsable
 ```
@@ -189,6 +221,8 @@ Cada módulo del backend sigue rutas → controladores → servicios → reposit
 | [Autenticación](docs/auth-frontend.md) y [permisos](docs/permisos-api.md) | Cuentas, errores y matriz de acceso |
 | [Storage](docs/storage.md) y [worker y cuotas](docs/worker-cuotas.md) | Almacenamiento, cola, recuperación y cuotas |
 | [Catálogo de planes](docs/planes-pagados-s4-01.md) | Precios, vigencia y Enterprise |
+| [SDK y claves de API](docs/sdk.md) | Clientes de Python y Node.js, claves y demostración |
+| [Tienda Pulso](sdk-python/tienda/AGENTS.md) | Dónde está la demostración del SDK y cómo pulir su interfaz |
 | [Decisiones](docs/decisiones.md) | Acuerdos del equipo y cálculo del ahorro |
 | [Estilos](docs/estilos.md) | Tema, colores y componentes |
 | [Flujo de Git](docs/flujo-git.md) | Ramas y pull requests |

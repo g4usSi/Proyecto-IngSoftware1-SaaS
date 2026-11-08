@@ -18,6 +18,9 @@ outputs/smartstorage-sync/
 Thumbs.db
 .idea/
 
+__pycache__/
+sdk-python/tienda/catalogo.json
+
 CLAUDE.md
 CLAUDE.local.md
 .claude/

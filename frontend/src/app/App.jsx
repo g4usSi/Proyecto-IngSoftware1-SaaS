@@ -16,6 +16,7 @@ import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from '../featu
 import { PlansPage } from '../features/subscriptions/PlansPage.jsx';
 import { PaymentsPage } from '../features/subscriptions/PaymentsPage.jsx';
 import { ProfilePage } from '../features/auth/ProfilePage.jsx';
+import { ApiKeysPage } from '../features/developer/ApiKeysPage.jsx';
 import { AdminOverviewPage } from '../features/admin/AdminOverviewPage.jsx';
 import { AdminUsersPage } from '../features/admin/AdminUsersPage.jsx';
 import { AdminAuditPage, AdminJobsPage, AdminSubscriptionsPage, AdminUsagePage } from '../features/admin/AdminListPages.jsx';
@@ -40,6 +41,7 @@ const titles = {
   '/app/plans': 'Planes',
   '/app/payments': 'Historial de pagos',
   '/app/profile': 'Mi perfil',
+  '/app/api-keys': 'Claves de API',
   '/app/admin': 'Administración',
   '/app/admin/users': 'Usuarios',
   '/app/admin/subscriptions': 'Suscripciones',
@@ -79,6 +81,7 @@ export function App() {
           <Route path="plans" element={<PlansPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="api-keys" element={<ApiKeysPage />} />
           <Route path="admin" element={<AdminOverviewPage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
           <Route path="admin/subscriptions" element={<AdminSubscriptionsPage />} />

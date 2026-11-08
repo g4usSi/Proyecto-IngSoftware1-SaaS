@@ -4,8 +4,10 @@ import { AppError } from '../../lib/app-error.js';
 import { createQuotasRepository } from '../quotas/quotas.repository.js';
 import { createStorageCleanup } from './storage.cleanup.js';
 import { createStorageRepository } from './storage.repository.js';
-import { inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
-import { cursorFor, parseImageMove, parseLibraryQuery, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
+import { ORIGINAL_FORMATS, convertStoredImage, inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
+import { cursorFor, parseDownloadFormat, parseImageMove, parseLibraryQuery, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
+
+const DUPLICATE_ITEMS = 20;
 
 function imageDto(row, optimizedBytes) {
   return {
@@ -20,6 +22,8 @@ function imageDto(row, optimizedBytes) {
     // RF-STO-10/11: huella corta (nunca el hash completo), formato publicado y duplicado dentro de la misma cuenta.
     hashPrefix: row.hash_sha256.slice(0, 12),
     optimizedFormat: 'webp',
+    originalFormat: row.original_format ?? null,
+    folderName: row.folder_name ?? null,
     duplicate: Boolean(row.has_duplicate),
   };
 }
@@ -73,6 +77,7 @@ export function createStorageService({ database, storageRoot }) {
             if (BigInt(object.original_size_bytes) !== BigInt(prepared.originalSizeBytes)) {
               throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'Los metadatos del contenido almacenado son inconsistentes.');
             }
+            await repository.noteObjectFormat(connection, prepared.hash, prepared.originalFormat);
           } else {
             published = await publishImage(prepared.optimizedPath, storageRoot, prepared.hash);
             object = {
@@ -85,6 +90,7 @@ export function createStorageService({ database, storageRoot }) {
               hash: prepared.hash,
               originalSizeBytes: prepared.originalSizeBytes,
               storageKey: published.storageKey,
+              originalFormat: prepared.originalFormat,
             });
           }
           const stored = await inspectStoredFile(storageRoot, object);
@@ -132,39 +138,55 @@ export function createStorageService({ database, storageRoot }) {
       return repository.withImageTransaction(ownerId, imageId, async (connection, image) => {
         if (image.deleted_at) throw new AppError(409, 'FILE_IN_TRASH', 'Restaura la imagen antes de cambiar su álbum.');
         await repository.assertFolderOwner(connection, ownerId, folderId);
-        await connection.query('UPDATE images SET folder_id=$3 WHERE id=$1 AND user_id=$2', [imageId, ownerId, folderId]);
+        await repository.setImageFolder(connection, ownerId, imageId, folderId);
         return { imageId, folderId };
       });
     },
     async trashFile(ownerId, imageId) {
       validateImageId(imageId);
       return repository.withImageTransaction(ownerId, imageId, async (connection) => {
-        const { rows: [image] } = await connection.query(`UPDATE images SET deleted_at=COALESCE(deleted_at,now())
-          WHERE id=$1 AND user_id=$2 RETURNING deleted_at`, [imageId, ownerId]);
-        return { trashed: true, imageId, deletedAt: new Date(image.deleted_at).toISOString() };
+        const deletedAt = await repository.trashImage(connection, ownerId, imageId);
+        return { trashed: true, imageId, deletedAt: new Date(deletedAt).toISOString() };
       });
     },
     async restoreFile(ownerId, imageId) {
       validateImageId(imageId);
       return repository.withImageTransaction(ownerId, imageId, async (connection) => {
-        await connection.query('UPDATE images SET deleted_at=NULL WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
+        await repository.restoreImage(connection, ownerId, imageId);
         return { restored: true, imageId };
       });
     },
-    async downloadFile(ownerId, imageId) {
+    async downloadFile(ownerId, imageId, query = {}) {
       validateImageId(imageId);
+      const format = parseDownloadFormat(query);
       const row = await repository.findImage(ownerId, imageId);
       if (!row) {
         throw new AppError(404, 'FILE_NOT_FOUND', 'La imagen no existe o no está disponible para esta cuenta.');
       }
       const stored = await inspectStoredFile(storageRoot, row);
+      const target = format === 'original' ? ORIGINAL_FORMATS[row.original_format] : null;
+      if (format === 'original' && !target && row.original_format !== 'webp') {
+        throw new AppError(409, 'ORIGINAL_FORMAT_UNKNOWN',
+          'Esta imagen se subió antes de registrar su formato original; descárgala en WebP.');
+      }
+      if (target) {
+        let buffer;
+        try {
+          buffer = await convertStoredImage(stored.filename, row.original_format);
+        } catch {
+          throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'No se pudo convertir el archivo de esta imagen.');
+        }
+        const baseName = safeOriginalName(row.original_name).replace(/\.[^.]*$/, '') || 'imagen';
+        return { buffer, size: String(buffer.length), contentType: target.contentType,
+          filename: `${baseName}.${target.extension}` };
+      }
       let handle;
       try {
         handle = await open(stored.filename, 'r');
         const info = await handle.stat({ bigint: true });
         if (!info.isFile() || info.size === 0n) throw new Error('Invalid object');
         const baseName = safeOriginalName(row.original_name).replace(/\.[^.]*$/, '') || 'imagen';
-        return { handle, size: info.size.toString(), filename: `${baseName}.webp` };
+        return { handle, size: info.size.toString(), contentType: 'image/webp', filename: `${baseName}.webp` };
       } catch {
         await handle?.close().catch(() => {});
         throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'No se pudo abrir el archivo de esta imagen.');
@@ -215,6 +237,9 @@ export function createStorageService({ database, storageRoot }) {
       let uniqueOriginal = 0n;
       let optimized = 0n;
       let imageCount = 0n;
+      // Contenido repetido: solo contadores y tamaños. Nunca hash, nombres, miniaturas ni cuentas,
+      // para que el administrador no vea imágenes privadas de nadie.
+      const repeated = [];
       for (const object of objects) {
         const references = BigInt(object.reference_count);
         const size = BigInt(object.original_size_bytes);
@@ -223,7 +248,12 @@ export function createStorageService({ database, storageRoot }) {
         uniqueOriginal += size;
         optimized += stored.size;
         imageCount += references;
+        if (references > 1n) {
+          repeated.push({ references, accounts: object.account_count, originalSizeBytes: size, optimizedSizeBytes: stored.size,
+            avoidedBytes: stored.size * (references - 1n) });
+        }
       }
+      repeated.sort((a, b) => (b.avoidedBytes > a.avoidedBytes ? 1 : b.avoidedBytes < a.avoidedBytes ? -1 : Number(b.references - a.references)));
       const saved = original - optimized;
       return {
         originalSizeBytes: original.toString(),
@@ -233,6 +263,18 @@ export function createStorageService({ database, storageRoot }) {
         savedPercent: percentage(saved, original),
         imageCount: imageCount.toString(),
         objectCount: String(objects.length),
+        duplicates: {
+          objectCount: String(repeated.length),
+          extraReferenceCount: repeated.reduce((sum, item) => sum + item.references - 1n, 0n).toString(),
+          avoidedBytes: repeated.reduce((sum, item) => sum + item.avoidedBytes, 0n).toString(),
+          items: repeated.slice(0, DUPLICATE_ITEMS).map((item) => ({
+            references: item.references.toString(),
+            accounts: String(item.accounts),
+            originalSizeBytes: item.originalSizeBytes.toString(),
+            optimizedSizeBytes: item.optimizedSizeBytes.toString(),
+            avoidedBytes: item.avoidedBytes.toString(),
+          })),
+        },
       };
     },
     async deleteFile(ownerId, imageId) {
@@ -240,13 +282,7 @@ export function createStorageService({ database, storageRoot }) {
       let object;
       const result = await repository.withImageTransaction(ownerId, imageId, async (connection, image) => {
         object = image;
-        await connection.query('DELETE FROM images WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
-        const remaining = await connection.query('SELECT id FROM images WHERE object_hash=$1 LIMIT 1', [image.hash_sha256]);
-        if (!remaining.rows.length) {
-          await connection.query('DELETE FROM stored_objects WHERE hash_sha256=$1', [image.hash_sha256]);
-          await connection.query(`INSERT INTO storage_cleanup_tasks(hash_sha256,storage_key)
-            VALUES ($1,$2) ON CONFLICT (hash_sha256) DO NOTHING`, [image.hash_sha256, image.storage_key]);
-        }
+        await repository.deleteImageReference(connection, ownerId, imageId, image);
         return { deleted: true, imageId };
       });
       // Releer después de COMMIT bajo bloqueo evita borrar un objeto adoptado

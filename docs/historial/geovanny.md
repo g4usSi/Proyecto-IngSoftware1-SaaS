@@ -97,3 +97,11 @@ La evidencia de este release no confirma la constancia académica de S4-10. Los
 límites abiertos siguen siendo medición/cobro de exceso Enterprise, cancelación
 manual, cambio de método de pago, SDK/claves de API, mediciones de rendimiento y
 despliegue HTTPS. RF-STO-11 se mantiene parcial según `docs/estado-sistemas.md`.
+
+## Cierre del 100 % (03/11/2026)
+
+- Prueba real de pagos con Brevo: 21/21 comprobaciones; llegaron a Gmail la verificación y las facturas SS-1BD6D26D, SS-11494E8D y SS-CBAD9C97. El remitente se veía como la cuenta de Brevo y ahora se presenta como «SmartStorage».
+- SDK y claves de API (CU-14, RNF-STO-03), formato original y álbum en el detalle (RF-STO-11), SQL de Storage al repositorio y cuota al servicio (RNF-STO-08).
+- `test:storage` 205/205, `test:frontend` 25 recorridos en Edge y Chrome, y medición de rendimiento y disponibilidad: [resultado](../evidencias/2026-11-03-rendimiento/resultado.json).
+- SDK de Python y la tienda de demostración Pulso (`868fa2a`), probados con API, worker, Redis y PostgreSQL reales. La interfaz de la tienda queda para que Alegría la pula (issue #13).
+- Documentación técnica del 100 %: 83 páginas, índice verificado y enlaces al código en `868fa2a`.

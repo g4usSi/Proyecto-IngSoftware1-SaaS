@@ -3,12 +3,14 @@ import { invalidToken } from './token.js';
 
 // Verifica el encabezado "Authorization: Bearer <token>" y devuelve la identidad.
 // Lo usa el middleware requireAuth: firma, expiración, revocación y estado de la cuenta.
-export function createAuthenticator({ repository, tokens }) {
+export function createAuthenticator({ repository, tokens, apiKeys }) {
   return async function authenticate(authorization) {
     const match = /^Bearer\s+(\S+)$/i.exec(authorization ?? '');
     if (!match) {
       throw new AppError(401, 'AUTH_REQUIRED', 'Debes iniciar sesión para acceder a este recurso.');
     }
+    // Claves del SDK (ss_...): las valida su módulo; requireAuth decide si la ruta las admite.
+    if (apiKeys?.isApiKey(match[1])) return apiKeys.authenticate(match[1]);
     const claims = tokens.verify(match[1]);
 
     if (await repository.isTokenRevoked(claims.jti)) throw invalidToken();
