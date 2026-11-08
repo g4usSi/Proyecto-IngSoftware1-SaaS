@@ -3,14 +3,16 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, LoaderCircle, X } from 'lucide-react';
 import { formatBytes, formatFullDate, formatPercent, savingRatio } from './format.js';
 import { useLibrary } from './library.jsx';
-import { webpFilename } from './storage.api.js';
+import { ORIGINAL_DOWNLOADS, webpFilename } from './storage.api.js';
 
 /** Vista previa grande con detalles; ← → navega, Esc cierra. */
 // RF-STO-11: formato real del original, detectado por su contenido al subirlo.
 const FORMAT_NAMES = { jpeg: 'JPEG', png: 'PNG', webp: 'WebP' };
 
 export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
-  const { getThumbnail, download, downloadingId } = useLibrary();
+  const { getThumbnail, download, downloadingId, downloadingOriginal } = useLibrary();
+  const original = ORIGINAL_DOWNLOADS[file.originalFormat];
+  const busy = downloadingId === file.id;
   const [url, setUrl] = useState(null);
   const [dimensions, setDimensions] = useState(null);
   const closeRef = useRef(null);
@@ -84,10 +86,17 @@ export function ImagePreview({ file, position, onClose, onPrev, onNext }) {
 
           <div className="preview-footer">
           <button type="button" className="btn btn-primary preview-download" onClick={() => download(file)} disabled={Boolean(downloadingId)}>
-            {downloadingId === file.id ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
+            {busy && !downloadingOriginal ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
             Descargar WebP
           </button>
-          <p className="preview-note">Sin metadatos EXIF ni ubicación · misma resolución que el original</p>
+          {original && (
+            <button type="button" className="btn btn-secondary preview-download" onClick={() => download(file, { original: true })} disabled={Boolean(downloadingId)}
+              title={`Se convierte desde el WebP guardado a ${original.label}: mismo formato que el original, no el mismo archivo`}>
+              {busy && downloadingOriginal ? <LoaderCircle className="spin" strokeWidth={2} aria-hidden="true" /> : <Download strokeWidth={2} aria-hidden="true" />}
+              Descargar en formato original ({original.label})
+            </button>
+          )}
+          <p className="preview-note">Sin metadatos EXIF ni ubicación · misma resolución que el original{original ? ` · el ${original.label} se genera desde la copia WebP` : ''}</p>
           </div>
         </aside>
       </div>
