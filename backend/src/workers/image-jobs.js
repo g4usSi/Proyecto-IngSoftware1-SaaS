@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { copyFile, lstat } from 'node:fs/promises';
 import { AppError } from '../lib/app-error.js';
-import { MAX_UPLOAD_BYTES, prepareImage, removeTemporary } from '../modules/storage/storage.files.js';
+import { MAX_UPLOAD_BYTES, detectImageFormat, prepareImage, removeTemporary } from '../modules/storage/storage.files.js';
 import { cursorFor, parsePagination, parseUploadFields, safeOriginalName } from '../modules/storage/storage.validation.js';
 import { checkJobDirectory, cleanJobFiles, fingerprint, jobPaths, normalizeJobId, recoverResult, saveResult, verifyConverted } from './image-job-files.js';
 import { transaction, withJobLock } from './job-lock.js';
@@ -33,7 +33,8 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
     if (!job.quota_managed || job.quota_settled_at || !lifecycle || !['converted', 'failed'].includes(job.status)) return job;
     await transaction(client, async () => {
       const payload = { jobId: job.id, userId: job.user_id, originalHash: job.original_hash,
-        originalSizeBytes: String(job.original_size_bytes), originalName: job.original_name, folderId: job.folder_id };
+        originalSizeBytes: String(job.original_size_bytes), originalName: job.original_name, folderId: job.folder_id,
+        originalFormat: job.original_format ?? null };
       if (job.status === 'converted') {
         // Publicación y confirmación de cuota comparten ESTA transacción.
         // El adaptador debe copiar, nunca mover/borrar la entrada antes del COMMIT.
@@ -122,15 +123,17 @@ export function createImageJobs({ database, storageRoot, lifecycle, convert = pr
         try {
           await copyFile(file.path, files.original);
           const { size, hash } = await fingerprint(files.original, MAX_UPLOAD_BYTES);
+          // Un formato no admitido se rechaza después en el worker; aquí solo se registra el detectado.
+          const originalFormat = await detectImageFormat(files.original);
           await client.query('BEGIN');
           // Bloquear usuario antes de insertar evita ascensos de bloqueo
           // incompatibles con claves foráneas de otros productores.
           if (lifecycle) await lifecycle.reserve(client, { jobId: id, userId: ownerId, originalHash: hash,
             originalSizeBytes: String(size), originalName: safeOriginalName(file.originalname), folderId });
           const { rows } = await client.query(`INSERT INTO image_processing_jobs
-            (id, user_id, original_name, original_size_bytes, original_hash, quota_managed, folder_id, admitted_folder_id)
-            SELECT $1, id, $3, $4, $5, $6, $7, $7 FROM users WHERE id = $2 AND active = TRUE RETURNING id`,
-          [id, ownerId, safeOriginalName(file.originalname), size, hash, !!lifecycle, folderId]);
+            (id, user_id, original_name, original_size_bytes, original_hash, quota_managed, folder_id, admitted_folder_id, original_format)
+            SELECT $1, id, $3, $4, $5, $6, $7, $7, $8 FROM users WHERE id = $2 AND active = TRUE RETURNING id`,
+          [id, ownerId, safeOriginalName(file.originalname), size, hash, !!lifecycle, folderId, originalFormat]);
           if (!rows.length) throw new AppError(401, 'USER_INACTIVE', 'La cuenta no existe o está inactiva.');
           committing = true;
           await client.query('COMMIT');

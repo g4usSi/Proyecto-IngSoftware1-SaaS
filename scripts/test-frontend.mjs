@@ -54,6 +54,8 @@ try {
   const payments = [];
   const paidKeys = new Map();
   const receipts = [];
+  const apiKeys = [];
+  let keySecret = null;
   let capacityExceeded = false;
   let adminSummaryFails = false;
   const adminUsers = [{ ...user, active: true, createdAt: date },
@@ -103,6 +105,21 @@ try {
       paidKeys.set(key, result);
       return ok(result, 201);
     }
+    // ── CU-14: claves de API del SDK ──
+    if (url.pathname === '/api/keys' && request.method() === 'GET') {
+      return ok({ items: apiKeys, eligible: accountPlan.code !== 'free', maxActive: 5 });
+    }
+    if (url.pathname === '/api/keys' && request.method() === 'POST') {
+      keySecret = `ss_${'k'.repeat(29)}abc`;
+      const key = { id: `key-${apiKeys.length}`, name: request.postDataJSON().name, prefix: keySecret.slice(0, 11), createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null };
+      apiKeys.unshift(key);
+      return ok({ key, secret: keySecret }, 201);
+    }
+    if (url.pathname.startsWith('/api/keys/') && request.method() === 'DELETE') {
+      const key = apiKeys.find((item) => item.id === url.pathname.split('/').pop());
+      key.revokedAt = new Date().toISOString();
+      return ok(key);
+    }
     if (url.pathname === '/api/payments') {
       const page = Number(url.searchParams.get('page')); const limit = Number(url.searchParams.get('limit'));
       return ok({ payments: payments.slice((page - 1) * limit, page * limit), pagination: { page, limit, total: payments.length, totalPages: Math.max(1, Math.ceil(payments.length / limit)) } });
@@ -123,7 +140,8 @@ try {
           plans: catalog.map((plan) => ({ code: plan.code, name: plan.name, capacityBytes: plan.capacityBytes, currentSubscriptions: plan.code === 'free' ? '1' : '1' })),
           storage: { logicalBytes: '2500', reservedBytes: '250', uniqueOriginalBytes: '1500', deduplicatedBytes: '1000', deduplicatedPercent: '40.00', imageCount: '3', trashCount: '1', uniqueObjectCount: '2' },
           jobs: { queued: '1', processing: '0', converted: '0', published: '4', failed: '1' } });
-      if (url.pathname === '/api/admin/storage/stats') return ok({ originalSizeBytes: '2500', uniqueOriginalSizeBytes: '1500', optimizedSizeBytes: '600', savedBytes: '1900', savedPercent: '76.00', imageCount: '3', objectCount: '2' });
+      if (url.pathname === '/api/admin/storage/stats') return ok({ originalSizeBytes: '2500', uniqueOriginalSizeBytes: '1500', optimizedSizeBytes: '600', savedBytes: '1900', savedPercent: '76.00', imageCount: '3', objectCount: '2',
+        duplicates: { objectCount: '1', extraReferenceCount: '1', avoidedBytes: '300', items: [{ references: '2', accounts: '2', originalSizeBytes: '1000', optimizedSizeBytes: '300', avoidedBytes: '300' }] } });
       if (url.pathname === '/api/admin/users') {
         const q = (url.searchParams.get('q') ?? '').toLowerCase();
         const items = adminUsers.filter((item) => !q || item.email.includes(q) || item.name.toLowerCase().includes(q));
@@ -149,6 +167,7 @@ try {
     if (url.pathname.endsWith('/verify-email')) { verifications++; return ok({ verified: true }); }
     if (url.pathname.endsWith('/forgot-password')) return ok({ message: 'Si el correo está registrado, recibirás instrucciones.' });
     if (url.pathname.endsWith('/reset-password')) return ok({ reset: true });
+    if (url.pathname.endsWith('/download') && url.searchParams.get('format') === 'original') return route.fulfill({ status: 200, contentType: 'image/png', body: png });
     if (url.pathname.endsWith('/download')) return route.fulfill({ status: 200, contentType: 'image/webp', body: webp });
     if (url.pathname === '/api/files' && request.method() === 'POST') throw new Error('La interfaz debe admitir subidas mediante POST /jobs.');
     if (url.pathname === '/api/albums') {
@@ -204,7 +223,7 @@ try {
         else if (stored.status !== 'published') {
           Object.assign(stored, { status: 'published', available: true, imageId: `image-${stored.id}`, nextPollAfterMs: null });
           files.unshift({ id: stored.imageId, originalName: stored.originalName, createdAt: date,
-            originalSizeBytes: String(png.length), optimizedSizeBytes: String(webp.length), status: 'ready' });
+            originalSizeBytes: String(png.length), optimizedSizeBytes: String(webp.length), status: 'ready', originalFormat: 'png' });
         }
         return ok(stored);
       }
@@ -366,6 +385,15 @@ try {
     await page.getByText('ausente.png', { exact: true }).waitFor();
     assert.equal(await page.locator('.img-card:not(.is-skeleton)').count(), 7);
     await screenshot('gallery.png', true);
+  });
+  await step('Vista previa descarga en WebP o en el formato original (un solo botón extra)', async () => {
+    await page.locator('.img-card-media').first().click();
+    const original = page.getByRole('button', { name: 'Descargar en formato original (PNG)' });
+    await original.waitFor();
+    const [download] = await Promise.all([page.waitForEvent('download'), original.click()]);
+    assert.match(download.suggestedFilename(), /\.png$/);
+    await screenshot('preview-original.png');
+    await page.keyboard.press('Escape');
   });
   await step('Procesos siguen tras estado sin cambios y error temporal, y paran al publicar', async () => {
     await page.getByRole('link', { name: 'Procesos', exact: true }).click();
@@ -553,6 +581,30 @@ try {
     await dialog.getByRole('button', { name: 'Listo' }).click();
     assert.ok(Date.parse(subscription.expiresAt) > Date.parse(before));
   });
+  await step('Claves de API: se revela una sola vez, no se lista completa y se revoca', async () => {
+    await page.locator('.app-nav a[href="/app/api-keys"]').click();
+    await page.getByRole('heading', { name: 'Claves de API', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Todavía no tienes claves' }).waitFor();
+    await page.getByRole('button', { name: 'Crear clave' }).first().click();
+    await page.getByRole('textbox', { name: 'Nombre' }).fill('Respaldo nocturno');
+    await page.locator('dialog.action-dialog').getByRole('button', { name: 'Crear clave' }).click();
+    await page.locator('.key-secret').filter({ hasText: keySecret }).waitFor();
+    assert.match(await page.locator('dialog.action-dialog .sdk-snippet').innerText(), new RegExp(keySecret), 'El ejemplo usa la clave recién creada.');
+    await screenshot('api-key-reveal.png', true);
+    await page.getByRole('button', { name: 'Ya la guardé' }).click();
+    const row = page.locator('.data-table tbody tr').filter({ hasText: 'Respaldo nocturno' });
+    await row.waitFor();
+    assert.ok(!(await page.locator('main').innerText()).includes(keySecret), 'La clave completa no vuelve a mostrarse.');
+    await row.getByRole('button', { name: 'Revocar' }).click();
+    await page.locator('dialog.action-dialog').getByRole('button', { name: 'Revocar clave' }).click();
+    await row.getByText('Revocada').waitFor();
+    await screenshot('api-keys.png', true);
+    await page.setViewportSize({ width: 375, height: 812 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Las claves no desbordan el móvil.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.app-nav a[href="/app/plans"]').click();
+    await page.getByRole('heading', { name: 'Planes y suscripción' }).waitFor();
+  });
   await step('Historial de pagos: estados reales y recibo descargado con la sesión', async () => {
     await page.getByRole('link', { name: 'Historial de pagos' }).click();
     await page.getByRole('heading', { name: 'Historial de pagos', level: 1 }).waitFor();
@@ -598,6 +650,10 @@ try {
     await page.locator('.kv-list').getByText('1.9 KB · 76.00 %').waitFor();
     await page.locator('.stats-grid .stat-value').filter({ hasText: '76.0 %' }).waitFor();
     await page.locator('.job-counts').waitFor();
+    // Contenido repetido: contadores y tamaños, sin imágenes, nombres ni cuentas.
+    const duplicates = page.locator('.duplicates-panel');
+    await duplicates.getByRole('cell', { name: '2 veces' }).waitFor();
+    assert.equal(await duplicates.locator('img').count(), 0, 'El panel de duplicados no muestra imágenes privadas.');
     await screenshot('admin-overview.png', true);
     await page.locator('.app-nav a[href="/app/admin/users"]').click();
     const ana = page.locator('.data-table tbody tr').filter({ hasText: 'ana@example.com' });

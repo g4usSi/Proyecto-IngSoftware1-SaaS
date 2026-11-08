@@ -27,6 +27,20 @@ export function objectPath(storageRoot, object) {
   return path.join(storageRoot, ...expectedKey.split('/'));
 }
 
+// Descarga en el formato original: el original no se guarda; se reconstruye su formato (JPEG o PNG) desde el WebP publicado.
+// La imagen resultante tiene el formato del original, no sus mismos bytes.
+export const ORIGINAL_FORMATS = {
+  jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+  png: { extension: 'png', contentType: 'image/png' },
+};
+
+export async function convertStoredImage(filename, format) {
+  const image = sharp(filename, { limitInputPixels: MAX_INPUT_PIXELS, failOn: 'warning' });
+  return format === 'jpeg'
+    ? image.flatten({ background: '#ffffff' }).jpeg({ quality: 92, mozjpeg: true }).toBuffer()
+    : image.png().toBuffer();
+}
+
 export async function inspectStoredFile(storageRoot, object) {
   const filename = objectPath(storageRoot, object);
   try {
@@ -45,6 +59,12 @@ export async function removeTemporary(filename) {
   } catch (error) {
     if (error.code !== 'ENOENT') console.error('No se pudo eliminar un archivo temporal de Storage.');
   }
+}
+
+// Formato real por la firma de los primeros bytes; null si no es JPG, PNG ni WebP.
+export async function detectImageFormat(filename) {
+  try { return await signatureFormat(filename); }
+  catch (error) { if (error.code === 'UNSUPPORTED_IMAGE') return null; throw error; }
 }
 
 async function signatureFormat(filename) {
@@ -119,7 +139,7 @@ export async function prepareImage(file, storageRoot) {
     }
     // Aplica EXIF sin redimensionar. Sharp elimina metadatos por defecto.
     await image.rotate().webp({ quality: 80 }).toFile(optimizedPath);
-    return { hash: hash.digest('hex'), originalSizeBytes: originalSize.toString(), optimizedPath };
+    return { hash: hash.digest('hex'), originalSizeBytes: originalSize.toString(), originalFormat: detected, optimizedPath };
   } catch (error) {
     await removeTemporary(optimizedPath);
     if (error instanceof AppError) throw error;

@@ -3,7 +3,8 @@ import { AppError } from '../../lib/app-error.js';
 const imageColumns = `
   i.id, i.original_name, i.created_at, i.folder_id, i.deleted_at,
   to_char(i.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
-  o.hash_sha256, o.original_size_bytes, o.storage_key, o.status,
+  o.hash_sha256, o.original_size_bytes, o.storage_key, o.status, o.original_format,
+  (SELECT f.name FROM folders f WHERE f.id = i.folder_id) AS folder_name,
   EXISTS (SELECT 1 FROM images d WHERE d.user_id = i.user_id AND d.object_hash = i.object_hash AND d.id <> i.id) AS has_duplicate
 `;
 
@@ -109,11 +110,37 @@ export function createStorageRepository(database) {
       `, [hash]);
       return result.rows[0] || null;
     },
-    async insertObject(connection, { hash, originalSizeBytes, storageKey }) {
+    async insertObject(connection, { hash, originalSizeBytes, storageKey, originalFormat = null }) {
       await query(connection, `
-        INSERT INTO stored_objects (hash_sha256, original_size_bytes, storage_key, status)
-        VALUES ($1, $2, $3, 'ready')
-      `, [hash, originalSizeBytes, storageKey]);
+        INSERT INTO stored_objects (hash_sha256, original_size_bytes, storage_key, status, original_format)
+        VALUES ($1, $2, $3, 'ready', $4)
+      `, [hash, originalSizeBytes, storageKey, originalFormat]);
+    },
+    // Completa el formato de objetos creados antes de la migración 015, sin cambiar uno ya registrado.
+    async noteObjectFormat(connection, hash, originalFormat) {
+      if (!originalFormat) return;
+      await query(connection, `UPDATE stored_objects SET original_format = $2
+        WHERE hash_sha256 = $1 AND original_format IS NULL`, [hash, originalFormat]);
+    },
+    async setImageFolder(connection, ownerId, imageId, folderId) {
+      await query(connection, 'UPDATE images SET folder_id=$3 WHERE id=$1 AND user_id=$2', [imageId, ownerId, folderId]);
+    },
+    async trashImage(connection, ownerId, imageId) {
+      const { rows: [image] } = await query(connection, `UPDATE images SET deleted_at=COALESCE(deleted_at,now())
+        WHERE id=$1 AND user_id=$2 RETURNING deleted_at`, [imageId, ownerId]);
+      return image.deleted_at;
+    },
+    async restoreImage(connection, ownerId, imageId) {
+      await query(connection, 'UPDATE images SET deleted_at=NULL WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
+    },
+    // Borra la referencia; si era la última, retira el objeto y programa su limpieza física durable.
+    async deleteImageReference(connection, ownerId, imageId, image) {
+      await query(connection, 'DELETE FROM images WHERE id=$1 AND user_id=$2', [imageId, ownerId]);
+      const remaining = await query(connection, 'SELECT id FROM images WHERE object_hash=$1 LIMIT 1', [image.hash_sha256]);
+      if (remaining.rows.length) return;
+      await query(connection, 'DELETE FROM stored_objects WHERE hash_sha256=$1', [image.hash_sha256]);
+      await query(connection, `INSERT INTO storage_cleanup_tasks(hash_sha256,storage_key)
+        VALUES ($1,$2) ON CONFLICT (hash_sha256) DO NOTHING`, [image.hash_sha256, image.storage_key]);
     },
     async insertImage(connection, { ownerId, hash, originalName, folderId }) {
       const inserted = await query(connection, `
@@ -164,7 +191,7 @@ export function createStorageRepository(database) {
     async referencedObjects() {
       const result = await query(database, `
         SELECT o.hash_sha256, o.original_size_bytes, o.storage_key, o.status,
-               COUNT(i.id)::text AS reference_count
+               COUNT(i.id)::text AS reference_count, COUNT(DISTINCT i.user_id)::text AS account_count
           FROM stored_objects o JOIN images i ON i.object_hash = o.hash_sha256
          WHERE o.status = 'ready'
          GROUP BY o.hash_sha256, o.original_size_bytes, o.storage_key, o.status

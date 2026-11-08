@@ -9,7 +9,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const npmCli = process.env.npm_execpath || join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
 const browserTest = process.argv.includes('--browser');
 const organizationBrowser = process.argv.includes('--organization-browser');
-const command = organizationBrowser ? [join(root, 'scripts/acceptance-organization.mjs')]
+const bench = process.argv.includes('--bench');
+const command = bench ? [join(root, 'scripts/bench.mjs')] : organizationBrowser ? [join(root, 'scripts/acceptance-organization.mjs')]
   : browserTest ? [join(root, 'scripts/acceptance-browser.mjs')] : [npmCli, 'test'];
 if (!env.databaseUrl) throw new Error('Configura DATABASE_URL en backend/.env antes de ejecutar test:storage.');
 const currentUrl = new URL(env.databaseUrl);

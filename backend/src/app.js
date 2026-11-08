@@ -17,6 +17,9 @@ import { createJobsRouter } from './modules/storage/jobs.routes.js';
 import { createQuotasRouter } from './modules/quotas/quotas.routes.js';
 import { createUsersAdminRouter } from './modules/users/users.routes.js';
 import { createAuditRouter } from './modules/audit/audit.routes.js';
+import { createApiKeysRouter } from './modules/apikeys/apikeys.routes.js';
+import { createApiKeysRepository } from './modules/apikeys/apikeys.repository.js';
+import { createApiKeysService } from './modules/apikeys/apikeys.service.js';
 
 export function createApp({
   database = defaultDatabase,
@@ -32,7 +35,10 @@ export function createApp({
   const app = express();
   // requireAuth lee esta función de app.locals: verifica el JWT Bearer (firma, expiración, revocación, cuenta activa).
   const tokens = createTokenService({ secret: jwtSecret, expiresIn: jwtExpiresIn });
-  app.locals.authenticate = createAuthenticator({ repository: createAuthRepository(database), tokens });
+  app.locals.authenticate = createAuthenticator({
+    repository: createAuthRepository(database), tokens,
+    apiKeys: createApiKeysService(createApiKeysRepository(database)),
+  });
   app.disable('x-powered-by');
   app.use(cors({
     origin(origin, callback) {
@@ -68,6 +74,7 @@ export function createApp({
   app.use('/api/admin/storage', createStorageAdminRouter(storageOptions));
   app.use('/api/admin/users', createUsersAdminRouter(database));
   app.use('/api/admin/audit-events', createAuditRouter(database));
+  app.use('/api/keys', createApiKeysRouter(database));
   app.use('/api', createSubscriptionsRouter(database, { mailer, frontendUrl }));
   app.use(notFound);
   app.use(errorHandler);

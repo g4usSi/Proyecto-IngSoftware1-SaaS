@@ -161,3 +161,7 @@
   .recent-payments-list li { grid-template-columns: minmax(0, 1fr) auto; }
   .recent-payments-list .status-pill { grid-column: 2; }
 }
+
+/* Destino de «Cambiar de plan»: deja aire bajo la barra superior fija. */
+.app-plans { scroll-margin-top: 88px; }
+.app-plans:focus { outline: none; }

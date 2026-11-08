@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { database as defaultDatabase } from '../../config/database.js';
 import { env } from '../../config/env.js';
-import { requireAuth } from '../../middleware/require-auth.js';
+import { rejectApiKey, requireAuthOrApiKey } from '../../middleware/require-auth.js';
 import { createStorageService } from './storage.service.js';
 import { createAlbumsService } from './albums.service.js';
 import { createStorageController } from './storage.controller.js';
@@ -13,7 +13,7 @@ function privateResponse(_req, res, next) {
   next();
 }
 
-export function createStorageRouter({ database = defaultDatabase, storageRoot = env.storageRoot, authenticate = requireAuth } = {}) {
+export function createStorageRouter({ database = defaultDatabase, storageRoot = env.storageRoot, authenticate = requireAuthOrApiKey } = {}) {
   const router = Router();
   const controller = createStorageController(createStorageService({ database, storageRoot }));
   router.use(privateResponse, authenticate, requireStorageIdentity);
@@ -28,7 +28,7 @@ export function createStorageRouter({ database = defaultDatabase, storageRoot = 
   return router;
 }
 
-export function createAlbumsRouter({ database = defaultDatabase, authenticate = requireAuth } = {}) {
+export function createAlbumsRouter({ database = defaultDatabase, authenticate = requireAuthOrApiKey } = {}) {
   const router = Router();
   const albums = createAlbumsService({ database });
   router.use(privateResponse, authenticate, requireStorageIdentity);
@@ -39,10 +39,10 @@ export function createAlbumsRouter({ database = defaultDatabase, authenticate = 
   return router;
 }
 
-export function createStorageAdminRouter({ database = defaultDatabase, storageRoot = env.storageRoot, authenticate = requireAuth } = {}) {
+export function createStorageAdminRouter({ database = defaultDatabase, storageRoot = env.storageRoot, authenticate = requireAuthOrApiKey } = {}) {
   const router = Router();
   const controller = createStorageController(createStorageService({ database, storageRoot }));
-  router.use(privateResponse, authenticate, requireStorageIdentity, requireStorageAdmin);
+  router.use(privateResponse, authenticate, rejectApiKey, requireStorageIdentity, requireStorageAdmin);
   router.get('/stats', controller.stats);
   return router;
 }

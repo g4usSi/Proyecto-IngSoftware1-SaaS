@@ -56,7 +56,7 @@ export function PaymentsPage() {
           <p>Tus pagos simulados con su estado y recibo. Solo los pagos aprobados tienen recibo.</p>
         </div>
         <div className="page-actions">
-          <Link className="btn btn-secondary" to="/app/plans"><Sparkles aria-hidden="true" />Ver planes</Link>
+          <Link className="btn btn-secondary" to="/app/plans#cambiar-plan"><Sparkles aria-hidden="true" />Cambiar de plan</Link>
           <button type="button" className="btn btn-secondary" onClick={() => download('all')}
             disabled={Boolean(downloading) || noReceipts || !pagination || pagination.total === 0} title={noReceipts ? 'Todavía no tienes pagos aprobados' : undefined}>
             {downloading === 'all' ? <LoaderCircle className="spin" aria-hidden="true" /> : <FileDown aria-hidden="true" />}{downloading === 'all' ? 'Preparando recibos…' : 'Descargar todos los recibos'}
