@@ -191,7 +191,7 @@ export function createStorageRepository(database) {
     async referencedObjects() {
       const result = await query(database, `
         SELECT o.hash_sha256, o.original_size_bytes, o.storage_key, o.status,
-               COUNT(i.id)::text AS reference_count
+               COUNT(i.id)::text AS reference_count, COUNT(DISTINCT i.user_id)::text AS account_count
           FROM stored_objects o JOIN images i ON i.object_hash = o.hash_sha256
          WHERE o.status = 'ready'
          GROUP BY o.hash_sha256, o.original_size_bytes, o.storage_key, o.status
