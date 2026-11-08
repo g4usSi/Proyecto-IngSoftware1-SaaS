@@ -635,6 +635,15 @@ try {
     await page.getByText('Nombre actualizado.').waitFor();
     await page.locator('.account-trigger-text strong').filter({ hasText: 'Alegría Editada' }).waitFor();
   });
+  await step('Ayuda: el menú de la cuenta abre las preguntas dentro de la app, sin volver a la landing', async () => {
+    await page.locator('.account-trigger').click();
+    await page.getByRole('menuitem', { name: 'Ayuda y preguntas' }).click();
+    await page.getByRole('heading', { name: 'Ayuda y preguntas', level: 1 }).waitFor();
+    assert.equal(new URL(page.url()).pathname, '/app/help');
+    assert.ok(await page.locator('.app-sidebar').isVisible(), 'La ayuda conserva la barra lateral de la app.');
+    await page.getByText('¿Cómo cambio de plan?').click();
+    await screenshot('help.png', true);
+  });
   await step('Administración: el cliente no la ve; el admin ve errores sin ceros, datos reales y gestiona usuarios', async () => {
     assert.equal(await page.locator('.app-nav a[href="/app/admin"]').count(), 0, 'Un cliente no ve el menú de administración.');
     await page.evaluate(() => { history.pushState({}, '', '/app/admin'); dispatchEvent(new PopStateEvent('popstate')); });

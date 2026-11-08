@@ -1,10 +1,10 @@
 import { useId, useState } from 'react';
 import { Plus } from 'lucide-react';
 
-const questions = [
+export const questions = [
   { q: '¿Qué formatos puedo subir?', a: 'Imágenes JPG, PNG y WebP estáticas de hasta 25 MB cada una. Las imágenes animadas no se aceptan por ahora.' },
   { q: '¿Mis imágenes pierden calidad?', a: 'Se convierten a WebP con calidad 80 y conservan exactamente las mismas dimensiones en píxeles. En la mayoría de fotos la diferencia no se nota a simple vista, y el archivo pesa bastante menos.' },
-  { q: '¿Se guarda mi archivo original?', a: 'No. Solo conservamos la versión WebP definitiva; el original se elimina al terminar el procesamiento. Guardamos su tamaño como dato para que veas cuánto se redujo.' },
+  { q: '¿Se guarda mi archivo original?', a: 'No. Solo conservamos la versión WebP definitiva; el original se elimina al terminar el procesamiento. Guardamos su tamaño y su formato: desde la vista previa puedes descargar la imagen en ese formato (JPEG o PNG), generada a partir de la copia WebP. Tiene el mismo formato que el original, pero no es el mismo archivo.' },
   { q: '¿Alguien más puede ver mis imágenes?', a: 'No. Cada imagen está ligada a tu cuenta y solo se descarga con tu sesión. Aunque otra persona suba el mismo archivo, cada quien ve únicamente sus propias imágenes.' },
   { q: '¿Qué pasa si subo la misma imagen dos veces?', a: 'La reconocemos por su huella SHA-256 y reutilizamos la copia que ya existe, en lugar de guardar otra igual. En tu biblioteca aparece como una imagen más.' },
   { q: '¿Cuánto cuesta?', a: 'El plan Free es gratis. Estándar, Pro y Enterprise se pagan mensualmente en dólares; consulta precios y capacidades en la sección de planes. Los pagos de esta versión son simulados con tarjetas de prueba.' },

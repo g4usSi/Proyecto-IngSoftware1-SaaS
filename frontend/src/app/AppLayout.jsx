@@ -50,7 +50,7 @@ export const adminGroup = {
   ],
 };
 const titles = { ...Object.fromEntries([...navGroups, adminGroup].flatMap((group) => group.items.map((item) => [item.to, item.label]))),
-  '/app/security': 'Cambiar contraseña', '/app/profile': 'Mi perfil', '/app/payments': 'Historial de pagos' };
+  '/app/security': 'Cambiar contraseña', '/app/profile': 'Mi perfil', '/app/payments': 'Historial de pagos', '/app/help': 'Ayuda' };
 
 export function AppLayout() {
   const { session } = useSession();

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { LandingPage } from './LandingPage.jsx';
 import { AppLayout } from './AppLayout.jsx';
+import { HelpPage } from './HelpPage.jsx';
 import { AuthPage } from '../features/auth/AuthPage.jsx';
 import { StoragePage } from '../features/storage/StoragePage.jsx';
 import { OverviewPage } from '../features/storage/OverviewPage.jsx';
@@ -82,6 +83,7 @@ export function App() {
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
+          <Route path="help" element={<HelpPage />} />
           <Route path="admin" element={<AdminOverviewPage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
           <Route path="admin/subscriptions" element={<AdminSubscriptionsPage />} />

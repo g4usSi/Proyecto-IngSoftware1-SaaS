@@ -59,7 +59,7 @@ export function AccountMenu() {
           {session && <Link to="/app/payments" role="menuitem" onClick={close}><Receipt strokeWidth={1.9} aria-hidden="true" />Historial de pagos</Link>}
           {session && <Link to="/app/security" role="menuitem" onClick={close}><KeyRound strokeWidth={1.9} aria-hidden="true" />Cambiar contraseña</Link>}
           <Link to="/" role="menuitem" onClick={close}><House strokeWidth={1.9} aria-hidden="true" />Página de inicio</Link>
-          <Link to="/#preguntas" role="menuitem" onClick={close}><CircleHelp strokeWidth={1.9} aria-hidden="true" />Ayuda y preguntas</Link>
+          <Link to={session ? '/app/help' : '/#preguntas'} role="menuitem" onClick={close}><CircleHelp strokeWidth={1.9} aria-hidden="true" />Ayuda y preguntas</Link>
           {session
             ? <button type="button" role="menuitem" className="is-danger" onClick={handleLogout}><LogOut strokeWidth={1.9} aria-hidden="true" />Cerrar sesión</button>
             : <>
