@@ -4,7 +4,7 @@
 
 ## Requisitos
 
-1. SmartStorage en marcha: `npm run dev` y `npm run worker:images` desde la raíz del repositorio.
+1. SmartStorage en marcha: `npm run dev` desde la raíz del repositorio (incluye el worker).
 2. Una cuenta con plan **Estándar o superior** y una clave creada en **Desarrolladores → Claves de API**.
 
 ## Usar el SDK

@@ -55,21 +55,15 @@ npm run db:migrate
 
 Compose espera a que los servicios estén listos. PostgreSQL se expone en **5433** y Redis en **6379**, sólo en localhost. El comando aplica todas las migraciones pendientes, hasta `016_api_keys.sql`, y conserva el historial. No modificar migraciones ya aplicadas.
 
-### 3. Ejecutar la aplicación en dos terminales
+### 3. Ejecutar la aplicación
 
-**Terminal 1 — API y frontend**, desde la raíz:
+Desde la raíz:
 
 ```powershell
 npm run dev
 ```
 
-**Terminal 2 — procesamiento de imágenes**, también desde la raíz:
-
-```powershell
-npm run worker:images
-```
-
-Mantener ambas abiertas. `npm run dev` no inicia el worker: sin él las subidas admitidas quedan pendientes de procesamiento y aparecen en la biblioteca cuando se publican.
+Levanta la API, el frontend y el worker de procesamiento de imágenes en una sola terminal. Si uno de los tres se detiene (por ejemplo, el worker sin PostgreSQL o Redis), se detienen todos. Para correrlos por separado: `npm run dev:api`, `npm run dev:web` y `npm run worker:images`.
 
 - Portada: <http://127.0.0.1:5173/>
 - Panel: <http://127.0.0.1:5173/app>
@@ -89,7 +83,7 @@ Los álbumes se guardan en PostgreSQL, incluidos los vacíos: cerrar el navegado
 
 ### Uso diario y cierre
 
-En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y abrir las dos terminales del paso 3. Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.
+En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y ejecutar `npm run dev` (paso 3). Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.
 
 Para detener la aplicación, pulsar **Ctrl+C en ambas terminales**. Para detener también PostgreSQL/Redis conservando sus datos:
 
@@ -107,7 +101,7 @@ Crear una base de desarrollo vacía, por ejemplo con la utilidad `createdb` de P
 createdb -h 127.0.0.1 -p 5432 -U postgres smartstorage
 ```
 
-Editar `DATABASE_URL` en `backend/.env` usando el usuario, contraseña y puerto de esa instalación. Codificar los caracteres especiales de la contraseña para URL. Ejecutar Redis localmente o mantener sólo ese servicio de Compose, y ajustar `REDIS_URL` si cambia su dirección. Después ejecutar `npm run db:migrate` y los comandos de las dos terminales. No apuntar las migraciones a una base ajena o de producción.
+Editar `DATABASE_URL` en `backend/.env` usando el usuario, contraseña y puerto de esa instalación. Codificar los caracteres especiales de la contraseña para URL. Ejecutar Redis localmente o mantener sólo ese servicio de Compose, y ajustar `REDIS_URL` si cambia su dirección. Después ejecutar `npm run db:migrate` y `npm run dev`. No apuntar las migraciones a una base ajena o de producción.
 
 La aplicación no crea ni modifica bases automáticamente al arrancar. Una segunda ejecución de migraciones omite las ya aplicadas. No editar una migración aplicada: añadir otra numerada.
 
