@@ -140,7 +140,8 @@ try {
           plans: catalog.map((plan) => ({ code: plan.code, name: plan.name, capacityBytes: plan.capacityBytes, currentSubscriptions: plan.code === 'free' ? '1' : '1' })),
           storage: { logicalBytes: '2500', reservedBytes: '250', uniqueOriginalBytes: '1500', deduplicatedBytes: '1000', deduplicatedPercent: '40.00', imageCount: '3', trashCount: '1', uniqueObjectCount: '2' },
           jobs: { queued: '1', processing: '0', converted: '0', published: '4', failed: '1' } });
-      if (url.pathname === '/api/admin/storage/stats') return ok({ originalSizeBytes: '2500', uniqueOriginalSizeBytes: '1500', optimizedSizeBytes: '600', savedBytes: '1900', savedPercent: '76.00', imageCount: '3', objectCount: '2' });
+      if (url.pathname === '/api/admin/storage/stats') return ok({ originalSizeBytes: '2500', uniqueOriginalSizeBytes: '1500', optimizedSizeBytes: '600', savedBytes: '1900', savedPercent: '76.00', imageCount: '3', objectCount: '2',
+        duplicates: { objectCount: '1', extraReferenceCount: '1', avoidedBytes: '300', items: [{ references: '2', accounts: '2', originalSizeBytes: '1000', optimizedSizeBytes: '300', avoidedBytes: '300' }] } });
       if (url.pathname === '/api/admin/users') {
         const q = (url.searchParams.get('q') ?? '').toLowerCase();
         const items = adminUsers.filter((item) => !q || item.email.includes(q) || item.name.toLowerCase().includes(q));
@@ -166,8 +167,8 @@ try {
     if (url.pathname.endsWith('/verify-email')) { verifications++; return ok({ verified: true }); }
     if (url.pathname.endsWith('/forgot-password')) return ok({ message: 'Si el correo está registrado, recibirás instrucciones.' });
     if (url.pathname.endsWith('/reset-password')) return ok({ reset: true });
-    if (url.pathname.endsWith('/download')) return route.fulfill({ status: 200, contentType: 'image/webp', body: webp });
     if (url.pathname.endsWith('/download') && url.searchParams.get('format') === 'original') return route.fulfill({ status: 200, contentType: 'image/png', body: png });
+    if (url.pathname.endsWith('/download')) return route.fulfill({ status: 200, contentType: 'image/webp', body: webp });
     if (url.pathname === '/api/files' && request.method() === 'POST') throw new Error('La interfaz debe admitir subidas mediante POST /jobs.');
     if (url.pathname === '/api/albums') {
       if (request.method() === 'POST') { const album = { id: `album-${albums.length}`, name: request.postDataJSON().name, imageCount: '0' }; albums.push(album); return ok({ album }, 201); }
@@ -385,7 +386,6 @@ try {
     assert.equal(await page.locator('.img-card:not(.is-skeleton)').count(), 7);
     await screenshot('gallery.png', true);
   });
-  await step('Procesos siguen tras estado sin cambios y error temporal, y paran al publicar', async () => {
   await step('Vista previa descarga en WebP o en el formato original (un solo botón extra)', async () => {
     await page.locator('.img-card-media').first().click();
     const original = page.getByRole('button', { name: 'Descargar en formato original (PNG)' });
@@ -395,6 +395,7 @@ try {
     await screenshot('preview-original.png');
     await page.keyboard.press('Escape');
   });
+  await step('Procesos siguen tras estado sin cambios y error temporal, y paran al publicar', async () => {
     await page.getByRole('link', { name: 'Procesos', exact: true }).click();
     await page.locator('.job-card').filter({ hasText: 'proceso.png' }).getByRole('button', { name: 'Descargar WebP' }).waitFor({ timeout: 16000 });
     assert.equal(details, 4);
@@ -649,6 +650,10 @@ try {
     await page.locator('.kv-list').getByText('1.9 KB · 76.00 %').waitFor();
     await page.locator('.stats-grid .stat-value').filter({ hasText: '76.0 %' }).waitFor();
     await page.locator('.job-counts').waitFor();
+    // Contenido repetido: contadores y tamaños, sin imágenes, nombres ni cuentas.
+    const duplicates = page.locator('.duplicates-panel');
+    await duplicates.getByRole('cell', { name: '2 veces' }).waitFor();
+    assert.equal(await duplicates.locator('img').count(), 0, 'El panel de duplicados no muestra imágenes privadas.');
     await screenshot('admin-overview.png', true);
     await page.locator('.app-nav a[href="/app/admin/users"]').click();
     const ana = page.locator('.data-table tbody tr').filter({ hasText: 'ana@example.com' });

@@ -18,3 +18,8 @@
   .admin-filters > * { flex: 1 1 100%; }
   .search-inline .search-field, .search-inline input { width: 100%; flex: 1; }
 }
+
+/* Contenido repetido (panel de administración). */
+.duplicates-panel { display: grid; gap: 12px; }
+.duplicates-panel .panel-head { margin-bottom: 0; }
+.duplicates-panel > p { margin: 0; font-size: 14px; }

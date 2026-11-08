@@ -161,6 +161,8 @@ Errores relevantes: `400` archivo faltante/vacío/corrupto o paginación inváli
 
 `GET /admin/storage/stats` devuelve strings decimales: `originalSizeBytes` (B), `uniqueOriginalSizeBytes` (U), `optimizedSizeBytes` (P), `savedBytes` (B−P), `savedPercent`, `imageCount` y `objectCount`. Biblioteca vacía: ceros y `savedPercent: "0.00"`. Incluye cada objeto físico una sola vez y puede informar ahorro negativo. Las cuentas demo son clientes, no administradores.
 
+`duplicates` resume la deduplicación sin exponer contenido privado: `objectCount` (contenidos guardados una vez y referenciados más de una vez), `extraReferenceCount` (copias que no ocuparon disco), `avoidedBytes` (WebP × copias extra) e `items`, con los 20 contenidos que más espacio evitan: `references`, `accounts`, `originalSizeBytes`, `optimizedSizeBytes` y `avoidedBytes`. No incluye hash, nombres de archivo, miniaturas ni identidades de cuentas.
+
 ## Consultas administrativas (S4-04)
 
 Estas rutas exigen `Authorization: Bearer <token>` de una cuenta activa con rol `admin`: sin sesión `401`, cliente `403 FORBIDDEN`. Son de solo lectura y responden `Cache-Control: private, no-store`. `GET /admin/jobs` y `GET /admin/audit-events` usan la misma paginación; sus formatos están en [frontend-80-contratos.md](frontend-80-contratos.md). Los bytes y contadores viajan como strings decimales (1 GB = 1 000 000 000 bytes). Un parámetro desconocido, repetido o fuera de rango responde `400 INVALID_ADMIN_QUERY`.

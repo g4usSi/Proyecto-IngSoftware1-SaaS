@@ -77,6 +77,8 @@ function Overview() {
         )}
       </div>
 
+      {st?.duplicates && <DuplicatesPanel duplicates={st.duplicates} />}
+
       {s && (
         <section className="panel" aria-labelledby="admin-jobs-title">
           <div className="panel-head"><h2 id="admin-jobs-title">Cola de procesamiento</h2><Link className="panel-link" to="/app/admin/jobs">Ver cola</Link></div>
@@ -88,5 +90,42 @@ function Overview() {
         </section>
       )}
     </div>
+  );
+}
+
+/** Contenido repetido: cuántas veces se repite cada contenido y cuánto disco evita, sin mostrar imágenes, nombres ni cuentas. */
+function DuplicatesPanel({ duplicates: d }) {
+  const times = (value) => `${value} ${value === '1' ? 'vez' : 'veces'}`;
+  return (
+    <section className="panel duplicates-panel" aria-labelledby="admin-duplicates-title">
+      <div className="panel-head"><h2 id="admin-duplicates-title">Contenido repetido</h2></div>
+      <p className="muted">Imágenes idénticas se guardan una sola vez. Por privacidad no se muestran las imágenes, sus nombres ni las cuentas.</p>
+      <dl className="kv-list">
+        <div><dt>Contenidos repetidos</dt><dd>{d.objectCount}</dd></div>
+        <div><dt>Copias que no ocuparon disco</dt><dd>{d.extraReferenceCount}</dd></div>
+        <div><dt>Espacio evitado por deduplicación</dt><dd>{formatBytes(d.avoidedBytes)}</dd></div>
+      </dl>
+      {d.items.length === 0 ? <p className="muted">Todavía no hay imágenes repetidas.</p> : (
+        <div className="compare-scroll">
+          <table className="data-table">
+            <thead><tr><th scope="col">Contenido</th><th scope="col">Se repite</th><th scope="col">Cuentas</th><th scope="col">Original</th><th scope="col">WebP guardado</th><th scope="col">Espacio evitado</th></tr></thead>
+            <tbody>
+              {d.items.map((item, index) => (
+                // Sin identificador del contenido: la posición en la lista basta como clave.
+                <tr key={index}>
+                  <td data-label="Contenido">#{index + 1}</td>
+                  <td data-label="Se repite"><strong>{times(item.references)}</strong></td>
+                  <td data-label="Cuentas">{item.accounts}</td>
+                  <td data-label="Original">{formatBytes(item.originalSizeBytes)}</td>
+                  <td data-label="WebP guardado">{formatBytes(item.optimizedSizeBytes)} · 1 copia</td>
+                  <td data-label="Espacio evitado"><strong>{formatBytes(item.avoidedBytes)}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Number(d.objectCount) > d.items.length && <p className="muted">Se muestran los {d.items.length} que más espacio evitan.</p>}
+    </section>
   );
 }

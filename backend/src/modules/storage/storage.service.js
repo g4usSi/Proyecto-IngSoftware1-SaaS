@@ -7,6 +7,8 @@ import { createStorageRepository } from './storage.repository.js';
 import { ORIGINAL_FORMATS, convertStoredImage, inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
 import { cursorFor, parseDownloadFormat, parseImageMove, parseLibraryQuery, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
 
+const DUPLICATE_ITEMS = 20;
+
 function imageDto(row, optimizedBytes) {
   return {
     id: row.id,
@@ -154,7 +156,7 @@ export function createStorageService({ database, storageRoot }) {
         return { restored: true, imageId };
       });
     },
-    async downloadFile(ownerId, imageId) {
+    async downloadFile(ownerId, imageId, query = {}) {
       validateImageId(imageId);
       const format = parseDownloadFormat(query);
       const row = await repository.findImage(ownerId, imageId);
@@ -235,6 +237,9 @@ export function createStorageService({ database, storageRoot }) {
       let uniqueOriginal = 0n;
       let optimized = 0n;
       let imageCount = 0n;
+      // Contenido repetido: solo contadores y tamaños. Nunca hash, nombres, miniaturas ni cuentas,
+      // para que el administrador no vea imágenes privadas de nadie.
+      const repeated = [];
       for (const object of objects) {
         const references = BigInt(object.reference_count);
         const size = BigInt(object.original_size_bytes);
@@ -243,7 +248,12 @@ export function createStorageService({ database, storageRoot }) {
         uniqueOriginal += size;
         optimized += stored.size;
         imageCount += references;
+        if (references > 1n) {
+          repeated.push({ references, accounts: object.account_count, originalSizeBytes: size, optimizedSizeBytes: stored.size,
+            avoidedBytes: stored.size * (references - 1n) });
+        }
       }
+      repeated.sort((a, b) => (b.avoidedBytes > a.avoidedBytes ? 1 : b.avoidedBytes < a.avoidedBytes ? -1 : Number(b.references - a.references)));
       const saved = original - optimized;
       return {
         originalSizeBytes: original.toString(),
@@ -253,6 +263,18 @@ export function createStorageService({ database, storageRoot }) {
         savedPercent: percentage(saved, original),
         imageCount: imageCount.toString(),
         objectCount: String(objects.length),
+        duplicates: {
+          objectCount: String(repeated.length),
+          extraReferenceCount: repeated.reduce((sum, item) => sum + item.references - 1n, 0n).toString(),
+          avoidedBytes: repeated.reduce((sum, item) => sum + item.avoidedBytes, 0n).toString(),
+          items: repeated.slice(0, DUPLICATE_ITEMS).map((item) => ({
+            references: item.references.toString(),
+            accounts: String(item.accounts),
+            originalSizeBytes: item.originalSizeBytes.toString(),
+            optimizedSizeBytes: item.optimizedSizeBytes.toString(),
+            avoidedBytes: item.avoidedBytes.toString(),
+          })),
+        },
       };
     },
     async deleteFile(ownerId, imageId) {

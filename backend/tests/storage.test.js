@@ -406,6 +406,7 @@ test('Storage: estadísticas administrativas derivan el tamaño físico y no ocu
   assert.deepEqual(empty, {
     originalSizeBytes: '0', uniqueOriginalSizeBytes: '0', optimizedSizeBytes: '0',
     savedBytes: '0', savedPercent: '0.00', imageCount: '0', objectCount: '0',
+    duplicates: { objectCount: '0', extraReferenceCount: '0', avoidedBytes: '0', items: [] },
   });
   const original = await png();
   await json(await f.upload(original), 201);
@@ -423,6 +424,13 @@ test('Storage: estadísticas administrativas derivan el tamaño físico y no ocu
   assert.equal(stats.objectCount, '1');
   assert.equal(typeof stats.savedPercent, 'string');
   assert.ok(Math.abs(Number(stats.savedPercent) - 100 * (original.length * 2 - physicalSize) / (original.length * 2)) <= 0.011);
+  // El mismo contenido en dos cuentas: se cuenta sin exponer hash, nombres ni identidades.
+  assert.deepEqual(stats.duplicates, {
+    objectCount: '1', extraReferenceCount: '1', avoidedBytes: String(physicalSize),
+    items: [{ references: '2', accounts: '2', originalSizeBytes: String(original.length),
+      optimizedSizeBytes: String(physicalSize), avoidedBytes: String(physicalSize) }],
+  });
+  assert.doesNotMatch(JSON.stringify(stats), /[a-f0-9]{64}|hash|name|user/i);
 
   // A changed file size must be reflected by stat rather than a cached DB metric.
   const extraBytes = original.length * 3;
