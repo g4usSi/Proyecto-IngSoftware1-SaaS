@@ -81,11 +81,42 @@ El registro siempre crea clientes. Para probar la administración, promover una 
 
 Los álbumes se guardan en PostgreSQL, incluidos los vacíos: cerrar el navegador, la API o el worker no los elimina. En Álbumes se muestra la cuenta actual; si falla la consulta, usar **Actualizar álbumes** o **Reintentar**. Una lista que no pudo cargarse se muestra como error, no como una cuenta sin álbumes.
 
+### 4. Modo demostración
+
+Es la versión compilada que se presenta: el frontend sale de `vite preview` y la API se inicia sin recarga automática. Abrir Docker Desktop, esperar a que diga que está en marcha y usar tres terminales desde la raíz:
+
+```powershell
+# Terminal 1: PostgreSQL y Redis (una vez) y la API en :3000
+docker compose --profile worker up -d --wait postgres redis
+npm start -w @smartstorage/backend
+
+# Terminal 2: worker de imágenes
+npm run worker:images
+
+# Terminal 3: compilar el frontend (cuando llegan cambios) y servirlo en :4173
+npm run build -w @smartstorage/frontend
+npm run preview -w @smartstorage/frontend
+```
+
+Abrir <http://127.0.0.1:4173>. `vite preview` reenvía `/api` a la API. En `backend/.env`, `FRONTEND_URL=http://127.0.0.1:4173` hace que los enlaces de los correos apunten aquí, y `CORS_ORIGINS` debe incluir ese origen. Con SMTP configurado, los correos de registro, recuperación y pagos son reales: usar un correo propio, por ejemplo `tucorreo+demo@gmail.com`.
+
+Comprobar que todo funciona:
+
+1. **Servicios:** <http://127.0.0.1:3000/api/ready> responde `200`, y la terminal 2 dice «Worker, recuperación, publicación privada y cuotas compartidas listos».
+2. **Registro y verificación:** crear una cuenta. El correo debe llegar con el logo y el botón «Verificar correo». Un clic abre una sola pestaña con «¡Correo verificado!». Después iniciar sesión.
+3. **Recuperación de contraseña:** cerrar sesión, usar «¿Olvidaste tu contraseña?», abrir el correo, elegir una contraseña nueva e iniciar sesión con ella.
+4. **Imágenes:** subir dos o tres imágenes en la biblioteca. Pasan de «En cola» a publicadas, se ven en WebP y se descargan. En la vista previa, «Descargar en formato original» entrega un JPEG o PNG generado desde la copia WebP: mismo formato, no el mismo archivo. Crear un álbum y mover una imagen. Enviar una a la papelera y restaurarla.
+5. **Plan y factura:** «Cambiar de plan» (en Planes, Perfil, Pagos o la barra lateral) lleva a las tarjetas de planes. Contratar Estándar con `4242424242424242`. Llega el correo «Tu factura de SmartStorage SS-…» con el PDF adjunto, que incluye «IVA (0 %, pago simulado)» y el recuadro «Tu plan Estándar incluye». En Pagos, la factura individual y la descarga masiva coinciden con el adjunto. `4000000000000002` debe rechazarse sin cobrar.
+6. **Claves de API:** en Desarrolladores, crear una clave (solo se muestra una vez) y revocarla.
+7. **Administración:** entrar con la cuenta `admin` y revisar que el panel muestre la cuenta nueva y su pago. Si dos cuentas suben la misma imagen, «Contenido repetido» indica cuántas veces se repite y el espacio evitado, sin mostrar la imagen, su nombre ni las cuentas.
+
+Para detenerlo, pulsar Ctrl+C en las tres terminales. Para la tienda Pulso del SDK, ver [`sdk-python/tienda/AGENTS.md`](sdk-python/tienda/AGENTS.md).
+
 ### Uso diario y cierre
 
 En los siguientes arranques, levantar PostgreSQL/Redis con el comando del paso 2 y ejecutar `npm run dev` (paso 3). Repetir `npm ci` cuando cambien dependencias y `npm run db:migrate` cuando lleguen migraciones nuevas, siempre con API/worker detenidos.
 
-Para detener la aplicación, pulsar **Ctrl+C en ambas terminales**. Para detener también PostgreSQL/Redis conservando sus datos:
+Para detener la aplicación, pulsar **Ctrl+C** en su terminal. Para detener también PostgreSQL/Redis conservando sus datos:
 
 ```powershell
 docker compose --profile worker stop postgres redis
@@ -109,7 +140,7 @@ La aplicación no crea ni modifica bases automáticamente al arrancar. Una segun
 
 | Comando | Uso |
 | --- | --- |
-| `npm run dev` | API y frontend juntos; Ctrl+C termina ambos |
+| `npm run dev` | API, frontend y worker de imágenes juntos; Ctrl+C termina los tres |
 | `npm run dev:api` | Solo API |
 | `npm run dev:web` | Solo interfaz |
 | `npm run dev:demo` | Preparar cuentas para pruebas de la API demo; el panel web requiere sesión JWT |
