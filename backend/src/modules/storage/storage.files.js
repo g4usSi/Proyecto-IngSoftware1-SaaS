@@ -27,6 +27,20 @@ export function objectPath(storageRoot, object) {
   return path.join(storageRoot, ...expectedKey.split('/'));
 }
 
+// Descarga en el formato original: el original no se guarda; se reconstruye su formato (JPEG o PNG) desde el WebP publicado.
+// La imagen resultante tiene el formato del original, no sus mismos bytes.
+export const ORIGINAL_FORMATS = {
+  jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+  png: { extension: 'png', contentType: 'image/png' },
+};
+
+export async function convertStoredImage(filename, format) {
+  const image = sharp(filename, { limitInputPixels: MAX_INPUT_PIXELS, failOn: 'warning' });
+  return format === 'jpeg'
+    ? image.flatten({ background: '#ffffff' }).jpeg({ quality: 92, mozjpeg: true }).toBuffer()
+    : image.png().toBuffer();
+}
+
 export async function inspectStoredFile(storageRoot, object) {
   const filename = objectPath(storageRoot, object);
   try {

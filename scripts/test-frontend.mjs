@@ -167,6 +167,7 @@ try {
     if (url.pathname.endsWith('/forgot-password')) return ok({ message: 'Si el correo está registrado, recibirás instrucciones.' });
     if (url.pathname.endsWith('/reset-password')) return ok({ reset: true });
     if (url.pathname.endsWith('/download')) return route.fulfill({ status: 200, contentType: 'image/webp', body: webp });
+    if (url.pathname.endsWith('/download') && url.searchParams.get('format') === 'original') return route.fulfill({ status: 200, contentType: 'image/png', body: png });
     if (url.pathname === '/api/files' && request.method() === 'POST') throw new Error('La interfaz debe admitir subidas mediante POST /jobs.');
     if (url.pathname === '/api/albums') {
       if (request.method() === 'POST') { const album = { id: `album-${albums.length}`, name: request.postDataJSON().name, imageCount: '0' }; albums.push(album); return ok({ album }, 201); }
@@ -221,7 +222,7 @@ try {
         else if (stored.status !== 'published') {
           Object.assign(stored, { status: 'published', available: true, imageId: `image-${stored.id}`, nextPollAfterMs: null });
           files.unshift({ id: stored.imageId, originalName: stored.originalName, createdAt: date,
-            originalSizeBytes: String(png.length), optimizedSizeBytes: String(webp.length), status: 'ready' });
+            originalSizeBytes: String(png.length), optimizedSizeBytes: String(webp.length), status: 'ready', originalFormat: 'png' });
         }
         return ok(stored);
       }
@@ -385,6 +386,15 @@ try {
     await screenshot('gallery.png', true);
   });
   await step('Procesos siguen tras estado sin cambios y error temporal, y paran al publicar', async () => {
+  await step('Vista previa descarga en WebP o en el formato original (un solo botón extra)', async () => {
+    await page.locator('.img-card-media').first().click();
+    const original = page.getByRole('button', { name: 'Descargar en formato original (PNG)' });
+    await original.waitFor();
+    const [download] = await Promise.all([page.waitForEvent('download'), original.click()]);
+    assert.match(download.suggestedFilename(), /\.png$/);
+    await screenshot('preview-original.png');
+    await page.keyboard.press('Escape');
+  });
     await page.getByRole('link', { name: 'Procesos', exact: true }).click();
     await page.locator('.job-card').filter({ hasText: 'proceso.png' }).getByRole('button', { name: 'Descargar WebP' }).waitFor({ timeout: 16000 });
     assert.equal(details, 4);

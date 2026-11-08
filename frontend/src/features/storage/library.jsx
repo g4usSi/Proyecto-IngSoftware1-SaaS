@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '../../components/Toaster.jsx';
 import { ApiError } from '../../services/api.js';
-import { downloadFile, getFilesSummary, listFiles, storageErrorMessage, validateImage, webpFilename } from './storage.api.js';
+import { ORIGINAL_DOWNLOADS, downloadFile, downloadOriginalFormat, getFilesSummary, listFiles, storageErrorMessage, validateImage, webpFilename } from './storage.api.js';
 import { ACTIVE_JOB_STATUSES, getImageJob, getMyQuota, isJobReady, jobFailureMessage, listImageJobs, submitImageJob } from './jobs.api.js';
 
 const LibraryContext = createContext(null);
@@ -27,6 +27,7 @@ export function LibraryProvider({ authorization, children }) {
   const summaryRequest = useRef(null);
   const [queue, setQueue] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [downloadingOriginal, setDownloadingOriginal] = useState(false);
   const listRequest = useRef(null);
   const jobsRequest = useRef(null);
   const quotaRequest = useRef(null);
@@ -343,29 +344,35 @@ export function LibraryProvider({ authorization, children }) {
     return entry.promise;
   }, [authorization, pumpThumbs]);
 
-  const download = useCallback(async (file) => {
+  // { original: true } descarga en JPEG o PNG según cómo se subió; sin opciones, el WebP publicado.
+  const download = useCallback(async (file, { original = false } = {}) => {
     const epoch = generation.current;
+    const target = original ? ORIGINAL_DOWNLOADS[file.originalFormat] : null;
+    if (original && !target) return;
+    const filename = webpFilename(file.originalName, target?.extension);
     setDownloadingId(file.id);
+    setDownloadingOriginal(Boolean(target));
     const controller = new AbortController();
     const untrack = track(controller);
     try {
-      const cached = thumbs.current.get(file.id);
+      const cached = target ? null : thumbs.current.get(file.id);
       let url = cached?.url ?? null;
       let temporary = false;
       if (!url) {
-        const blob = await downloadFile(file.id, { ...authorization, signal: controller.signal });
+        const options = { ...authorization, signal: controller.signal };
+        const blob = target ? await downloadOriginalFormat(file.id, file.originalFormat, options) : await downloadFile(file.id, options);
         if (controller.signal.aborted || generation.current !== epoch) return;
         url = URL.createObjectURL(blob);
         temporary = true;
       }
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = webpFilename(file.originalName);
+      anchor.download = filename;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       if (temporary) setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      toast({ type: 'success', title: 'Descarga lista', message: webpFilename(file.originalName) });
+      toast({ type: 'success', title: 'Descarga lista', message: filename });
     } catch (error) {
       if (!controller.signal.aborted && generation.current === epoch) toast({ type: 'error', title: 'No se pudo descargar', message: storageErrorMessage(error) });
     } finally { untrack(); if (generation.current === epoch) setDownloadingId(null); }
@@ -382,10 +389,10 @@ export function LibraryProvider({ authorization, children }) {
       complete: true, loaded: true, error: summary.error };
   }, [summary]);
 
-  const value = useMemo(() => ({ enabled: Boolean(authorization), ...gallery, stats, queue, quota, jobs, downloadingId,
+  const value = useMemo(() => ({ enabled: Boolean(authorization), ...gallery, stats, queue, quota, jobs, downloadingId, downloadingOriginal,
     refresh, refreshQuota, refreshJobs, loadMoreJobs: () => refreshJobs(jobs.nextCursor),
     loadMore: () => load(gallery.nextCursor), addFiles, retryUpload, dismissUpload, clearFinished, invalidateFile, download, getThumbnail,
-  }), [authorization, gallery, stats, queue, quota, jobs, downloadingId, refresh, refreshQuota, refreshJobs, load, addFiles, retryUpload, dismissUpload, clearFinished, invalidateFile, download, getThumbnail]);
+  }), [authorization, gallery, stats, queue, quota, jobs, downloadingId, downloadingOriginal, refresh, refreshQuota, refreshJobs, load, addFiles, retryUpload, dismissUpload, clearFinished, invalidateFile, download, getThumbnail]);
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }
 

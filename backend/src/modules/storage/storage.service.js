@@ -4,8 +4,8 @@ import { AppError } from '../../lib/app-error.js';
 import { createQuotasRepository } from '../quotas/quotas.repository.js';
 import { createStorageCleanup } from './storage.cleanup.js';
 import { createStorageRepository } from './storage.repository.js';
-import { inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
-import { cursorFor, parseImageMove, parseLibraryQuery, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
+import { ORIGINAL_FORMATS, convertStoredImage, inspectStoredFile, prepareImage, publishImage, removeTemporary } from './storage.files.js';
+import { cursorFor, parseDownloadFormat, parseImageMove, parseLibraryQuery, parseUploadFields, safeOriginalName, validateImageId } from './storage.validation.js';
 
 function imageDto(row, optimizedBytes) {
   return {
@@ -156,18 +156,35 @@ export function createStorageService({ database, storageRoot }) {
     },
     async downloadFile(ownerId, imageId) {
       validateImageId(imageId);
+      const format = parseDownloadFormat(query);
       const row = await repository.findImage(ownerId, imageId);
       if (!row) {
         throw new AppError(404, 'FILE_NOT_FOUND', 'La imagen no existe o no está disponible para esta cuenta.');
       }
       const stored = await inspectStoredFile(storageRoot, row);
+      const target = format === 'original' ? ORIGINAL_FORMATS[row.original_format] : null;
+      if (format === 'original' && !target && row.original_format !== 'webp') {
+        throw new AppError(409, 'ORIGINAL_FORMAT_UNKNOWN',
+          'Esta imagen se subió antes de registrar su formato original; descárgala en WebP.');
+      }
+      if (target) {
+        let buffer;
+        try {
+          buffer = await convertStoredImage(stored.filename, row.original_format);
+        } catch {
+          throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'No se pudo convertir el archivo de esta imagen.');
+        }
+        const baseName = safeOriginalName(row.original_name).replace(/\.[^.]*$/, '') || 'imagen';
+        return { buffer, size: String(buffer.length), contentType: target.contentType,
+          filename: `${baseName}.${target.extension}` };
+      }
       let handle;
       try {
         handle = await open(stored.filename, 'r');
         const info = await handle.stat({ bigint: true });
         if (!info.isFile() || info.size === 0n) throw new Error('Invalid object');
         const baseName = safeOriginalName(row.original_name).replace(/\.[^.]*$/, '') || 'imagen';
-        return { handle, size: info.size.toString(), filename: `${baseName}.webp` };
+        return { handle, size: info.size.toString(), contentType: 'image/webp', filename: `${baseName}.webp` };
       } catch {
         await handle?.close().catch(() => {});
         throw new AppError(503, 'STORAGE_INTEGRITY_ERROR', 'No se pudo abrir el archivo de esta imagen.');
