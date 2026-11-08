@@ -2,7 +2,7 @@
 
 Base del proyecto de Ingeniería de Software I: almacenamiento de imágenes con deduplicación global y conversión a WebP.
 
-**Estado: cierre del 100 % en curso en `tema-y-flujo-git`; entrega final el 11/11/2026.** El avance del 80 % está publicado en `main` como `v0.3.0`. Estado detallado y pendientes: [estado de sistemas](docs/estado-sistemas.md). La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
+**Estado: versión del 100 % publicada en `main` como `v1.0.0` (08/11/2026); entrega final el miércoles 11/11/2026.** El desarrollo sigue en `tema-y-flujo-git`. Estado detallado y pendientes: [estado de sistemas](docs/estado-sistemas.md). La sesión del navegador vive en memoria: al recargar hay que iniciar sesión de nuevo.
 
 ## Qué funciona
 

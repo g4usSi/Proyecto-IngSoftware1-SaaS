@@ -4,13 +4,13 @@ Estado técnico del proyecto. El avance de cada tarjeta se lleva en Trello y en 
 
 ## Cierre del 100 %, entrega el 11/11/2026
 
-Los issues del equipo vencen el **viernes 06/11/2026** (milestone «Cierre de tareas del equipo»).
+Los issues del equipo vencen el **domingo 08/11/2026** (milestone «Cierre de tareas del equipo»). Pendientes: #8 (evaluación de usabilidad), #10 (guion de Alegría) y #12 (manual de usuario).
 
-Rama `tema-y-flujo-git`. `main` está en `v0.3.0`, la versión del 80 %.
+Rama `tema-y-flujo-git`. `main` está en `v1.0.0`, la versión del 100 % (08/11/2026).
 
 | Módulo | Responsable | Estado |
 | --- | --- | --- |
-| Storage, cuotas y worker | Geovanny | Implementado, con formato original y álbum en el detalle (RF-STO-11) |
+| Storage, cuotas y worker | Geovanny | Implementado, con formato original y álbum en el detalle (RF-STO-11), descarga en el formato original y contenido repetido en el panel admin |
 | SDK y claves de API | Geovanny | Implementado: SDK de Python con la tienda de demostración Pulso (`sdk-python/`), SDK de Node.js (`sdk/`), pantalla «Claves de API» y migración 016 |
 | Pagos y suscripciones | Elden | Implementado, con factura por correo verificada en un buzón real |
 | Usuarios, perfil, administración y permisos | Andy | Implementado |
@@ -22,12 +22,12 @@ Rama `tema-y-flujo-git`. `main` está en `v0.3.0`, la versión del 80 %.
 - Fuera de alcance: RNF-STO-02 (HTTPS), porque la docente aceptó la demostración local.
 - Casos de uso: todos implementados. En CU-17, cancelar equivale a bajar a Free, y «cambiar método de pago» no aplica porque la tarjeta no se guarda.
 
-**Última verificación (03/11/2026):**
+**Última verificación (08/11/2026; rendimiento, Pulso y Brevo del 03/11):**
 
 | Comando | Resultado |
 | --- | --- |
-| `npm run test:storage` con PostgreSQL y Redis reales | 205/205 |
-| `npm run test:frontend` en Edge y en Chrome | 25 recorridos en cada navegador |
+| `npm run test:storage` con PostgreSQL y Redis reales | 206/206 |
+| `npm run test:frontend` en Edge | 26 recorridos |
 | Pruebas del SDK de Python (`sdk-python`) | 7/7 |
 | Tienda Pulso con API, worker, Redis y PostgreSQL reales | 8 productos sembrados con el SDK y alta de una foto de 4,0 MB servida en WebP de 647 KB |
 | `npm run check` | Aprobado |

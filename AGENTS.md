@@ -19,8 +19,8 @@ que abra el repositorio. Comunicarse en español.
 Las tarjetas explican qué hacer, qué endpoints usar y cuándo una tarea está
 terminada: [tablero SmartStorage](https://trello.com/b/uOpp9rO7/smartstorage-proyecto-ing-software-i).
 
-Fechas: el 80 % se presentó el 31/10 (`v0.3.0` en `main`). Cierre del 100 %: revisiones y pulido de
-issues del equipo hasta el **viernes 06/11**; entrega final el **miércoles 11/11/2026**. La demostración corre en la PC de
+Fechas: el 80 % se presentó el 31/10 (`v0.3.0`); el 100 % está en `main` como `v1.0.0` (08/11). Revisiones y pulido de
+issues del equipo hasta el **domingo 08/11**; entrega final el **miércoles 11/11/2026**. La demostración corre en la PC de
 Geovanny y se expone con un túnel gratuito de Cloudflare.
 Estado técnico e issues pendientes: `docs/estado-sistemas.md`.
 
